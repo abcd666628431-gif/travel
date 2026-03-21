@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="referrer" content="no-referrer" />
+    <title>旅遊行程規劃助手</title>
+    
+    <!-- 1. 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. 載入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- 3. 載入 Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- 4. 載入 Leaflet 地圖資源 -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #111827; height: 100dvh; width: 100vw; color: #f3f4f6; }
+        #root { height: 100%; width: 100%; }
+        .leaflet-div-icon { background: transparent; border: none; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        .animate-toast {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        
+        .dragging {
+            opacity: 1 !important;
+            background: #1e293b;
+            border: 2px dashed #3b82f6;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            transform: scale(1.02);
+            z-index: 50;
+        }
+
+        .member-select option {
+            padding: 8px 12px;
+            background: #1f2937;
+            color: #f3f4f6;
+        }
+
+        /* 🌙 暗黑模式 UI 覆寫 */
+        .bg-white { background-color: #1f2937 !important; }
+        .bg-gray-50 { background-color: #111827 !important; }
+        .bg-gray-100 { background-color: #374151 !important; }
+        .bg-gray-200 { background-color: #4b5563 !important; }
+        
+        .text-gray-900 { color: #f9fafb !important; }
+        .text-gray-800 { color: #f3f4f6 !important; }
+        .text-gray-700 { color: #e5e7eb !important; }
+        .text-gray-600 { color: #d1d5db !important; }
+        .text-gray-500 { color: #9ca3af !important; }
+        .text-gray-400 { color: #6b7280 !important; }
+        .text-gray-300 { color: #4b5563 !important; }
+        
+        .border-gray-100 { border-color: #374151 !important; }
+        .border-gray-200 { border-color: #4b5563 !important; }
+        .border-gray-300 { border-color: #6b7280 !important; }
+        .border-white { border-color: #1f2937 !important; }
+        
+        .border, .border-t, .border-b, .border-l, .border-r, .border-b-2, .border-2 {
+            border-color: #4b5563;
+        }
+        
+        .hover\:bg-gray-50:hover { background-color: #374151 !important; }
+        .hover\:bg-gray-100:hover { background-color: #4b5563 !important; }
+        .hover\:bg-gray-200:hover { background-color: #6b7280 !important; }
+        
+        .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }
+        .bg-blue-100 { background-color: rgba(59, 130, 246, 0.25) !important; }
+        .bg-red-50 { background-color: rgba(239, 68, 68, 0.15) !important; }
+        .bg-green-50 { background-color: rgba(34, 197, 94, 0.15) !important; }
+        
+        .text-blue-600 { color: #60a5fa !important; }
+        .text-blue-700 { color: #93c5fd !important; }
+        .text-teal-600 { color: #2dd4bf !important; }
+        
+        input:not(.bg-transparent), select {
+            background-color: #374151 !important;
+            color: #f3f4f6 !important;
+            border-color: #4b5563 !important;
+        }
+        
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+
+        img[alt="東京地鐵路線圖"] {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+        // ==========================================
+        // 1. Helper Functions
+        // ==========================================
+        
+        const getFutureDate = (daysToAdd) => {
+            const date = new Date();
+            date.setDate(date.getDate() + daysToAdd);
+            const mm = date.getMonth() + 1;
+            const dd = date.getDate();
+            const dayOfWeek = ['日', '一', '二', '三', '四', '五', '六'][date.getDay()];
+            return `${mm}/${dd} (${dayOfWeek})`;
+        };
+
+        const formatNumber = (amount, decimals = 0) => {
+             return Number(amount).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+        };
+
+        const formatJPYRate = (amount) => {
+            return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        };
+        
+        const formatJPY = (amount) => {
+             return Number(amount).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        };
+
+        const deg2rad = (deg) => {
+            return deg * (Math.PI / 180);
+        };
+
+        const getDistanceFromLatLonInKm = (lat1, lon1, lat2, lon2) => {
+            const R = 6371; 
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        };
+
+        const calculateTravelInfo = (p1, p2) => {
+            if (!p1 || !p2 || !p1.lat || !p1.lng || !p2.lat || !p2.lng) return null;
+            const dist = getDistanceFromLatLonInKm(p1.lat, p1.lng, p2.lat, p2.lng);
+            
+            const walkMin = Math.round((dist / 5) * 60); 
+            const driveMin = Math.round((dist / 30) * 60) + 5; 
+
+            const format = (m) => m > 60 ? `${Math.floor(m/60)}小時${m%60}分` : `${m}分`;
+
+            return {
+                walk: format(walkMin),
+                drive: format(driveMin)
+            };
+        };
+
+        const fetchWeatherFromAPI = async (lat, lng, dateOffset) => {
+            try {
+                const response = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`);
+                const data = await response.json();
+                
+                if (data.daily) {
+                    const index = Math.min(dateOffset, 6); 
+                    const code = data.daily.weather_code[index];
+                    const min = Math.round(data.daily.temperature_2m_min[index]);
+                    const max = Math.round(data.daily.temperature_2m_max[index]);
+                    let type = 'sun';
+                    let label = '晴天';
+                    if (code > 3 && code < 50) { type = 'cloud'; label = '多雲'; }
+                    else if (code >= 50) { type = 'rain'; label = '有雨'; }
+                    return { type, minTemp: min, maxTemp: max, label };
+                }
+            } catch (error) {
+                console.error("Weather fetch error:", error);
+                return null;
+            }
+            return null;
+        };
+
+        // ==========================================
+        // 2. Constants
+        // ==========================================
+        const INITIAL_TRIP = {
+            id: 'trip-123',
+            title: '🇯🇵 京都大阪賞楓五日遊',
+            dates: `${getFutureDate(0)} - ${getFutureDate(4)}`,
+            icon: '🍁',
+            author: '愛旅遊的背包客',
+            days: [
+                { id: 1, date: getFutureDate(0), title: '抵達與市區探索', weather: { type: 'sun', minTemp: 18, maxTemp: 24, label: '晴天' }, places: [{ id: 'p1', time: '10:00', name: '關西國際機場 (KIX)', type: 'transport', lat: 34.4320, lng: 135.2304, note: '領取 JR Pass' }, { id: 'p2', time: '13:00', name: '京都車站', type: 'sight', lat: 34.9858, lng: 135.7588, note: '寄放行李，吃拉麵小路' }, { id: 'p3', time: '15:30', name: '清水寺', type: 'sight', lat: 34.9949, lng: 135.7850, note: '看夕陽，人很多要注意' }, { id: 'p4', time: '18:00', name: '二、三年坂', type: 'food', lat: 34.9965, lng: 135.7806, note: '吃湯豆腐' }] },
+                { id: 2, date: getFutureDate(1), title: '嵐山一日遊', weather: { type: 'cloud', minTemp: 16, maxTemp: 22, label: '多雲' }, places: [{ id: 'p5', time: '09:00', name: '嵐山渡月橋', type: 'sight', lat: 35.0116, lng: 135.6778, note: '早點去拍照' }, { id: 'p6', time: '11:00', name: '天龍寺', type: 'sight', lat: 35.0157, lng: 135.6737, note: '世界遺產庭園' }, { id: 'p7', time: '13:00', name: '% ARABICA Coffee', type: 'food', lat: 35.0125, lng: 135.6766, note: '排隊名店' }, { id: 'p8', time: '15:00', name: '竹林之道', type: 'sight', lat: 35.0170, lng: 135.6710, note: '' }] },
+                { id: 3, date: getFutureDate(2), title: '大阪購物行程', weather: { type: 'rain', minTemp: 15, maxTemp: 20, label: '短暫雨' }, places: [{ id: 'p9', time: '10:30', name: '大阪城公園', type: 'sight', lat: 34.6850, lng: 135.5259, note: '雨天備案：改去海遊館' }, { id: 'p10', time: '14:00', name: '心齋橋筋商店街', type: 'shopping', lat: 34.6712, lng: 135.5014, note: '藥妝店採購' }, { id: 'p11', time: '18:00', name: '道頓堀固力果跑跑人', type: 'sight', lat: 34.6690, lng: 135.5013, note: '晚餐吃章魚燒' }] }
+            ]
+        };
+
+        const INITIAL_MEMBERS = [
+            { id: 'm1', name: '狗', color: 'bg-yellow-500', avatar: '🐶' },
+            { id: 'm2', name: '貓', color: 'bg-blue-400', avatar: '🐱' },
+            { id: 'm3', name: '豬', color: 'bg-pink-400', avatar: '🐷' }
+        ];
+
+        const INITIAL_EXPENSES = [
+            { date: '2025-11-10', items: [{ id: 'e1', title: '關西機場快線 Haruka', category: 'transport', payer: '狗', amountJPY: 3600, sharedBy: ['狗', '貓', '豬'] }, { id: 'e2', title: '拉麵小路午餐', category: 'food', payer: '貓', amountJPY: 2400, sharedBy: ['狗', '貓'] }, { id: 'e3', title: '清水寺門票', category: 'sight', payer: '豬', amountJPY: 800, sharedBy: ['狗', '貓', '豬'] }] },
+            { date: '2025-11-11', items: [{ id: 'e4', title: '嵐山小火車', category: 'transport', payer: '狗', amountJPY: 1600, sharedBy: ['狗', '貓'] }, { id: 'e5', title: '天龍寺參拜費', category: 'sight', payer: '狗', amountJPY: 1000, sharedBy: ['狗', '貓'] }] }
+        ];
+
+        const INITIAL_SHOPPING_ITEMS = [
+            { id: 's1', name: '東京香蕉', qty: 5, price: 1200, currency: 'JPY', requester: '狗', note: '要送同事的' },
+            { id: 's2', name: 'EVE 止痛藥', qty: 2, price: 800, currency: 'JPY', requester: '貓', note: '藍色包裝' }
+        ];
+
+        const INITIAL_PACKING_LIST = [
+            { id: 'i1', text: '護照', checked: false, owner: '狗' },
+            { id: 'i2', text: '護照', checked: false, owner: '貓' },
+            { id: 'i3', text: '日幣現金', checked: false, owner: '狗' }
+        ];
+
+        const STATION_COORDS = {
+            '新宿': { lat: 35.6909, lng: 139.7005 },
+            '東京': { lat: 35.6812, lng: 139.7671 },
+            '澀谷': { lat: 35.6580, lng: 139.7016 },
+            '池袋': { lat: 35.7295, lng: 139.7109 },
+            '上野': { lat: 35.7141, lng: 139.7774 },
+            '淺草': { lat: 35.7118, lng: 139.7961 },
+            '銀座': { lat: 35.6719, lng: 139.7639 },
+            '秋葉原': { lat: 35.6983, lng: 139.7730 },
+            '六本木': { lat: 35.6640, lng: 139.7314 },
+            '築地': { lat: 35.6681, lng: 139.7731 },
+            '舞濱(迪士尼)': { lat: 35.6361, lng: 139.8836 }
+        };
+
+        const MOCK_PLACES_DB = [
+            { id: 'db1', name: '伏見稻荷大社', type: 'sight', lat: 34.9671, lng: 135.7727, note: '千本鳥居非常壯觀' },
+            { id: 'db2', name: '金閣寺', type: 'sight', lat: 35.0394, lng: 135.7292, note: '金光閃閃的寺廟' },
+            { id: 'db3', name: '奈良公園', type: 'sight', lat: 34.6850, lng: 135.8430, note: '可以餵鹿吃仙貝' },
+            { id: 'db4', name: '梅田藍天大廈', type: 'sight', lat: 34.7053, lng: 135.4907, note: '看大阪夜景首選' },
+            { id: 'db5', name: '日本環球影城', type: 'sight', lat: 34.6654, lng: 135.4323, note: '哈利波特與瑪利歐園區' },
+            { id: 'db6', name: '一蘭拉麵', type: 'food', lat: 35.0037, lng: 135.7706, note: '經典豚骨拉麵' },
+            { id: 'db7', name: '錦市場', type: 'food', lat: 35.0050, lng: 135.7649, note: '京都的廚房，吃吃喝喝' },
+            { id: 'db8', name: '黑門市場', type: 'food', lat: 34.6657, lng: 135.5065, note: '大阪的海鮮天堂' },
+            { id: 'db9', name: '京都塔', type: 'sight', lat: 34.9875, lng: 135.7595, note: '京都地標' },
+            { id: 'db10', name: '鴨川', type: 'sight', lat: 35.0069, lng: 135.7734, note: '適合散步野餐' }
+        ];
+
+        // ==========================================
+        // 3. Icons
+        // ==========================================
+        const Icon = ({ path, size = 24, className = "" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {path}
+            </svg>
+        );
+
+        const Icons = {
+            Clock: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
+            MapPin: (props) => <Icon {...props} path={<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></>} />,
+            Plus: (props) => <Icon {...props} path={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>} />,
+            Minus: (props) => <Icon {...props} path={<line x1="5" y1="12" x2="19" y2="12"/>} />,
+            Walking: (props) => <Icon {...props} path={<><path d="m9 20 1-5"/><path d="M10.7 7.5c-1.1.2-2.1.8-2.8 1.7L5.1 12"/><path d="M17 22V11l-2-3"/><path d="M15 15.5 17 22"/><path d="m15 15.5-3-4.5"/><path d="M12.5 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></>} />,
+            Bus: (props) => <Icon {...props} path={<><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></>} />,
+            Map: (props) => <Icon {...props} path={<><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></>} />,
+            Users: (props) => <Icon {...props} path={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />,
+            X: (props) => <Icon {...props} path={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>} />,
+            Trash2: (props) => <Icon {...props} path={<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>} />,
+            Refresh: (props) => <Icon {...props} path={<><path d="M21.5 2v6h-6"/><path d="M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3"/><path d="M22 12.5a10 10 0 0 1-18.8 4.2"/></>} />,
+            ChevronUp: (props) => <Icon {...props} path={<polyline points="18 15 12 9 6 15" />} />,
+            ChevronDown: (props) => <Icon {...props} path={<polyline points="6 9 12 15 18 9" />} />,
+            Move: (props) => <Icon {...props} path={<><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></>} />,
+            Search: (props) => <Icon {...props} path={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />,
+            Wallet: (props) => <Icon {...props} path={<><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></>} />,
+            ShoppingBag: (props) => <Icon {...props} path={<><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></>} />,
+            Briefcase: (props) => <Icon {...props} path={<><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></>} />,
+            TrainFront: (props) => <Icon {...props} path={<><path d="M8 3.1V7a4 4 0 0 0 8 0V3.1M2 8h20M9 15h6M6 19v2M18 19v2" /><rect x="4" y="3" width="16" height="16" rx="2" /></>} />,
+            Calculator: (props) => <Icon {...props} path={<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
+            FileText: (props) => <Icon {...props} path={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>} />,
+            ArrowRight: (props) => <Icon {...props} path={<><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></>} />,
+            ChevronDownSmall: (props) => <Icon {...props} path={<polyline points="6 9 12 15 18 9"/>} />,
+            Sun: (props) => <Icon {...props} path={<><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>} />,
+            Cloud: (props) => <Icon {...props} path={<><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></>} />,
+            CloudRain: (props) => <Icon {...props} path={<><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></>} />,
+            Utensils: (props) => <Icon {...props} path={<><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></>} />,
+            Hotel: (props) => <Icon {...props} path={<><path d="M10 22v-6.57"/><path d="M12 11h.01"/><path d="M12 7h.01"/><path d="M14 11h.01"/><path d="M14 7h.01"/><path d="M16 11h.01"/><path d="M16 7h.01"/><path d="M18 11h.01"/><path d="M18 7h.01"/><path d="M4 11h.01"/><path d="M4 7h.01"/><path d="M6 11h.01"/><path d="M6 7h.01"/><path d="M8 11h.01"/><path d="M8 7h.01"/><rect x="4" y="2" width="16" height="20" rx="2"/></>} />,
+            Settings: (props) => <Icon {...props} path={<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>} />
+        };
+
+        // --- 4. Sub-Components ---
+        
+        // 交通時間切換組件 (調整為較小 UI)
+        const TravelSegmentUI = ({ p1, p2 }) => {
+            const [mode, setMode] = useState('drive'); 
+            const travelInfo = calculateTravelInfo(p1, p2);
+            
+            if (!travelInfo) return <div className="h-8 px-3 rounded-full border border-slate-700 bg-slate-800/50 flex items-center gap-1 text-[10px] text-slate-500"><span>🚗</span><span>計算中</span></div>;
+
+            return (
+                <div className="flex flex-wrap items-center gap-2 pl-4 py-2 animate-fade-in">
+                    <div className="flex bg-slate-800 border border-slate-700 rounded-full p-0.5 shadow-md">
+                        <button 
+                            onClick={() => setMode('walk')}
+                            className={`p-1.5 rounded-full transition-all flex items-center gap-1 ${mode === 'walk' ? 'bg-blue-600 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`}
+                            title="步行模式"
+                        >
+                            <Icons.Walking size={14} />
+                        </button>
+                        <button 
+                            onClick={() => setMode('drive')}
+                            className={`p-1.5 rounded-full transition-all flex items-center gap-1 ${mode === 'drive' ? 'bg-blue-600 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`}
+                            title="開車模式"
+                        >
+                            <Icons.Bus size={14} />
+                        </button>
+                    </div>
+                    <div className="h-8 px-3 rounded-full border border-slate-700 bg-slate-800/40 flex items-center gap-2 text-xs font-bold text-slate-200 border-l-2 border-l-blue-500">
+                        <span>{mode === 'walk' ? '🚶' : '🚗'}</span>
+                        <span>{mode === 'walk' ? travelInfo.walk : travelInfo.drive}</span>
+                    </div>
+                </div>
+            );
+        };
+
+        const WeatherIcon = ({ type, size = 16, className = "" }) => {
+            switch(type) {
+                case 'sun': return <Icons.Sun size={size} className={`text-orange-500 ${className}`} />;
+                case 'cloud': return <Icons.Cloud size={size} className={`text-gray-500 ${className}`} />;
+                case 'rain': return <Icons.CloudRain size={size} className={`text-blue-500 ${className}`} />;
+                default: return <Icons.Sun size={size} className={`text-orange-500 ${className}`} />;
+            }
+        };
+
+        const CategoryIcon = ({ type }) => {
+            const baseClass = "w-10 h-10 rounded-full flex items-center justify-center text-white";
+            switch(type) {
+                case 'food': return <div className={`${baseClass} bg-orange-400`}><Icons.Utensils size={20} /></div>;
+                case 'shopping': return <div className={`${baseClass} bg-pink-400`}><Icons.ShoppingBag size={20} /></div>;
+                case 'transport': return <div className={`${baseClass} bg-blue-400`}><Icons.Bus size={20} /></div>;
+                case 'sight': return <div className={`${baseClass} bg-green-500`}><Icons.MapPin size={20} /></div>;
+                case 'accommodation': return <div className={`${baseClass} bg-purple-500`}><Icons.Hotel size={20} /></div>;
+                default: return <div className={`${baseClass} bg-gray-400`}><Icons.FileText size={20} /></div>;
+            }
+        };
+
+        const getCategoryName = (type) => {
+            const map = { food: '餐飲', shopping: '購物', transport: '交通', sight: '景點', accommodation: '住宿' };
+            return map[type] || '其他';
+        };
+
+        const RealMap = React.memo(({ places, subwayPath, hoveredId, zoomControlKey }) => {
+            const mapRef = useRef(null);
+            const mapInstanceRef = useRef(null);
+            const markersRef = useRef({});
+            const routeLayersRef = useRef([]);
+
+            useEffect(() => {
+                if (mapInstanceRef.current) return;
+                const map = L.map(mapRef.current).setView([35.6909, 139.7005], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+                mapInstanceRef.current = map;
+                
+                setTimeout(() => {
+                    if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+                }, 200);
+
+                return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
+            }, []);
+
+            useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
+
+                const validPlaces = places.filter(p => p.lat && p.lng);
+                
+                if (subwayPath && subwayPath.length > 0) {
+                     const bounds = L.latLngBounds();
+                     subwayPath.forEach(node => {
+                         const coords = STATION_COORDS[node.station];
+                         if (coords) bounds.extend([coords.lat, coords.lng]);
+                     });
+                     if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+                } else if (validPlaces.length > 0) {
+                     const bounds = L.latLngBounds(validPlaces.map(p => [p.lat, p.lng]));
+                     if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            }, [zoomControlKey, places, subwayPath]); 
+
+            useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
+                
+                Object.values(markersRef.current).forEach(layer => map.removeLayer(layer));
+                markersRef.current = {};
+                routeLayersRef.current.forEach(layer => {
+                    if (map.hasLayer(layer)) map.removeLayer(layer);
+                });
+                routeLayersRef.current = [];
+
+                if (subwayPath && subwayPath.length > 0) {
+                    const latlngs = [];
+                    subwayPath.forEach((node, index) => {
+                        const coords = STATION_COORDS[node.station];
+                        if (!coords) return;
+                        const latlng = [coords.lat, coords.lng];
+                        latlngs.push(latlng);
+                        let colorClass = 'bg-blue-500';
+                        if (index === 0) colorClass = 'bg-green-500';
+                        else if (index === subwayPath.length - 1) colorClass = 'bg-red-500';
+                        else if (node.line) colorClass = 'bg-yellow-500'; 
+                        const iconHtml = `<div class="flex items-center justify-center w-6 h-6 rounded-full border-2 border-white shadow-lg ${colorClass} text-white font-bold text-xs">${index + 1}</div>`;
+                        const customIcon = L.divIcon({ className: 'leaflet-div-icon', html: iconHtml, iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12] });
+                        L.marker(latlng, { icon: customIcon }).bindPopup(`<b>${node.station}</b>${node.line ? `<br>轉乘: ${node.line}` : ''}`, { autoPan: false }).addTo(map);
+                    });
+                    if (latlngs.length > 1) { 
+                        const line = L.polyline(latlngs, { color: '#ef4444', weight: 6, opacity: 0.8 }).addTo(map);
+                        routeLayersRef.current.push(line);
+                    }
+                    return;
+                }
+
+                if (places && places.length > 0) {
+                    places.forEach((place, index) => {
+                        if (!place.lat || !place.lng) return;
+                        const latlng = [place.lat, place.lng];
+                        const isHovered = hoveredId === place.id;
+                        const iconHtml = `<div class="flex items-center justify-center w-8 h-8 rounded-full border-2 border-white shadow-lg ${isHovered ? 'bg-blue-600 scale-110 z-50' : 'bg-blue-500'} text-white font-bold text-sm transition-all duration-200">${index + 1}</div>`;
+                        const customIcon = L.divIcon({ className: 'leaflet-div-icon', html: iconHtml, iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
+                        const marker = L.marker(latlng, { icon: customIcon }).bindPopup(`<b>${place.name}</b><br>${place.time}`, { autoPan: false }).addTo(map);
+                        if (isHovered) marker.openPopup();
+                        markersRef.current[place.id] = marker;
+                    });
+
+                    if (places.length > 1) {
+                        const validCoords = places.filter(p => p.lat && p.lng);
+                        if (validCoords.length > 1) {
+                            const coordsString = validCoords.map(p => `${p.lng},${p.lat}`).join(';');
+                            const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`;
+
+                            fetch(url)
+                                .then(res => res.json())
+                                .then(data => {
+                                    if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                                        const routeLayer = L.geoJSON(data.routes[0].geometry, {
+                                            style: { color: '#3b82f6', weight: 8, opacity: 0.8, dashArray: null }
+                                        }).addTo(map);
+                                        routeLayersRef.current.push(routeLayer);
+                                    } else {
+                                        const latlngs = validCoords.map(p => [p.lat, p.lng]);
+                                        const line = L.polyline(latlngs, { color: '#3b82f6', weight: 6, opacity: 0.8 }).addTo(map);
+                                        routeLayersRef.current.push(line);
+                                    }
+                                })
+                                .catch(() => {
+                                    const latlngs = validCoords.map(p => [p.lat, p.lng]);
+                                    const line = L.polyline(latlngs, { color: '#3b82f6', weight: 6, opacity: 0.8 }).addTo(map);
+                                    routeLayersRef.current.push(line);
+                                });
+                        }
+                    }
+                }
+            }, [places, subwayPath, hoveredId]);
+
+            return <div ref={mapRef} className="w-full h-full z-0" />;
+        });
+
+        const OnlineUserBadge = () => {
+            const [onlineUsers, setOnlineUsers] = useState(1);
+            useEffect(() => {
+                setOnlineUsers(Math.floor(Math.random() * 5) + 1);
+                const interval = setInterval(() => {
+                     setOnlineUsers(prev => Math.max(1, prev + (Math.floor(Math.random() * 3) - 1)));
+                }, 5000);
+                return () => clearInterval(interval);
+            }, []);
+            return (
+                <div className="flex items-center gap-1.5 bg-green-50/10 text-green-400 px-3 py-1 rounded-full text-xs font-bold border border-green-500/20 shrink-0">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span>{onlineUsers} 人在線</span>
+                </div>
+            );
+        };
+
+        // ==========================================
+        // 5. Main Component
+        // ==========================================
+        function App() {
+            const [trip, setTrip] = useState(INITIAL_TRIP);
+            const [activeTab, setActiveTab] = useState('itinerary'); 
+            const [activeDayId, setActiveDayId] = useState(1);
+            const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
+            
+            const [members, setMembers] = useState(INITIAL_MEMBERS);
+            const [expenses, setExpenses] = useState(INITIAL_EXPENSES);
+            const [shoppingItems, setShoppingItems] = useState(INITIAL_SHOPPING_ITEMS);
+            const [packingList, setPackingList] = useState(INITIAL_PACKING_LIST);
+            const [isWeatherLoading, setIsWeatherLoading] = useState(false);
+
+            // Modal States
+            const [showExpenseModal, setShowExpenseModal] = useState(false);
+            const [showShoppingModal, setShowShoppingModal] = useState(false);
+            const [showPackingModal, setShowPackingModal] = useState(false);
+            const [showSettlementPlan, setShowSettlementPlan] = useState(false); 
+            const [showMemberSettings, setShowMemberSettings] = useState(false);
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
+            const [showMapModal, setShowMapModal] = useState(false); 
+
+            const [expenseFilter, setExpenseFilter] = useState('all'); 
+            const [packingFilter, setPackingFilter] = useState('all');
+            const [searchQuery, setSearchQuery] = useState("");
+            const [showSearchResults, setShowSearchResults] = useState(false);
+            const [mapZoom, setMapZoom] = useState(1);
+            const [previewImage, setPreviewImage] = useState(null);
+            const [toast, setToast] = useState(null);
+            const [draggedPlaceIndex, setDraggedPlaceIndex] = useState(null);
+            const [editingPlaceId, setEditingPlaceId] = useState(null);
+            const [editPlaceForm, setEditPlaceForm] = useState({});
+            const [displayCurrency, setDisplayCurrency] = useState('HKD');
+
+            const activeDayData = useMemo(() => trip.days.find(d => d.id === activeDayId) || trip.days[0], [trip, activeDayId]);
+
+            const getMemberInfo = useCallback((name) => members.find(m => m.name === name) || { color: 'bg-gray-400', avatar: '👤' }, [members]);
+
+            const handleAddDay = useCallback(() => {
+                const newId = trip.days.length > 0 ? Math.max(...trip.days.map(d => d.id)) + 1 : 1;
+                const nextDate = getFutureDate(newId - 1);
+                const newDay = { id: newId, date: nextDate, title: '新的一天', weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }, places: [] };
+                setTrip(prev => ({ ...prev, days: [...prev.days, newDay] })); setActiveDayId(newId);
+            }, [trip.days]);
+
+            const confirmDeleteDay = useCallback(() => {
+                const newDays = trip.days.filter(d => d.id !== activeDayId); setTrip(prev => ({ ...prev, days: newDays }));
+                if (newDays.length > 0) setActiveDayId(newDays[0].id);
+                setShowDeleteDayConfirm(false);
+            }, [trip.days, activeDayId]);
+
+            const handleDayTitleChange = useCallback((e) => { 
+                const newTitle = e.target.value; 
+                setTrip(prev => ({ ...prev, days: prev.days.map(d => d.id === activeDayId ? { ...d, title: newTitle } : d) })); 
+            }, [activeDayId]);
+
+            const handleManualAddSubmit = (e) => { 
+                e.preventDefault(); 
+                const newPlace = { id: 'new_' + Date.now(), ...newItem, lat: 35.0 + Math.random() * 0.1, lng: 135.7 + Math.random() * 0.1 };
+                setTrip(prev => ({ ...prev, days: prev.days.map(d => d.id === activeDayId ? { ...d, places: [...d.places, newPlace] } : d) }));
+                setShowAddModal(false); 
+                setNewItem({ name: '', time: '10:00', type: 'sight', note: '' }); 
+            };
+
+            const handleSearchResultClick = (place) => { 
+                const newPlace = { id: 'search_' + Date.now(), name: place.name, time: '12:00', type: place.type, note: place.note, lat: place.lat, lng: place.lng };
+                setTrip(prev => ({ ...prev, days: prev.days.map(d => d.id === activeDayId ? { ...d, places: [...d.places, newPlace] } : d) }));
+                setSearchQuery(""); 
+                setShowSearchResults(false); 
+            };
+
+            const [placeToDelete, setPlaceToDelete] = useState(null);
+            const confirmDeletePlace = useCallback(() => {
+                setTrip(prev => ({ ...prev, days: prev.days.map(day => day.id === activeDayId ? { ...day, places: day.places.filter(p => p.id !== placeToDelete) } : day) }));
+                setPlaceToDelete(null); 
+            }, [placeToDelete, activeDayId]);
+
+            const movePlace = (index, direction) => {
+                const newPlaces = [...activeDayData.places];
+                if (direction === 'up' && index > 0) [newPlaces[index], newPlaces[index-1]] = [newPlaces[index-1], newPlaces[index]];
+                else if (direction === 'down' && index < newPlaces.length - 1) [newPlaces[index], newPlaces[index+1]] = [newPlaces[index+1], newPlaces[index]];
+                setTrip(prev => ({ ...prev, days: prev.days.map(d => d.id === activeDayId ? { ...d, places: newPlaces } : d) }));
+            };
+
+            const handleRefreshWeather = async () => {
+                setIsWeatherLoading(true);
+                const updatedDays = await Promise.all(trip.days.map(async (day, index) => {
+                    const lat = day.places.length > 0 ? day.places[0].lat : 35.6812;
+                    const lng = day.places.length > 0 ? day.places[0].lng : 139.7671;
+                    const weatherData = await fetchWeatherFromAPI(lat, lng, index);
+                    return weatherData ? { ...day, weather: weatherData } : day;
+                }));
+                setTrip(prev => ({ ...prev, days: updatedDays })); setIsWeatherLoading(false);
+            };
+
+            const onDragStart = (e, index) => { if (editingPlaceId) { e.preventDefault(); return; } setDraggedPlaceIndex(index); };
+            const onDrop = (e, index) => {
+                const newPlaces = [...activeDayData.places]; const [draggedItem] = newPlaces.splice(draggedPlaceIndex, 1); newPlaces.splice(index, 0, draggedItem);
+                setTrip(prev => ({ ...prev, days: prev.days.map(d => d.id === activeDayId ? { ...d, places: newPlaces } : d) })); setDraggedPlaceIndex(null);
+            };
+
+            return (
+                <div className="flex flex-col h-[100dvh] bg-slate-900 text-slate-100 font-sans relative">
+                    {toast && (<div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 border border-slate-700"><Icons.Cloud size={20} className="text-blue-400" /><span className="font-medium">{toast}</span></div></div>)}
+                    
+                    {showMapModal && (<div className="fixed inset-0 z-[100] bg-black/90 flex flex-col animate-fade-in"><div className="flex justify-between items-center p-4 text-white bg-slate-900/80 backdrop-blur-sm absolute top-0 left-0 right-0 z-10"><h3 className="font-bold text-lg">東京地鐵路網圖</h3><div className="flex gap-4 items-center"><div className="flex gap-2 bg-slate-800 rounded-lg p-1 border border-slate-700"><button onClick={() => setMapZoom(prev => Math.max(prev-0.5, 0.5))} className="p-2 text-white"><Icons.Minus size={20}/></button><button onClick={() => setShowMapModal(false)} className="p-2 text-white"><Icons.X size={24} /></button></div></div></div><div className="flex-1 overflow-auto flex items-center justify-center p-4" onClick={() => setShowMapModal(false)}>
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Tokyo_subway_map_zh_hant.png/1280px-Tokyo_subway_map_zh_hant.png" alt="東京地鐵路線圖" style={{ transform: `scale(${mapZoom})`, transition: 'transform 0.2s ease-out' }} className="max-w-none origin-center shadow-2xl rounded-lg" />
+                    </div></div>)}
+
+                    <header className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 shrink-0 z-20 shadow-lg">
+                        <div className="flex items-center gap-3 flex-1">
+                            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold shrink-0 shadow-lg relative overflow-hidden transition-transform hover:scale-105 group"><input type="text" value={trip.icon || 'Tp'} onChange={(e) => setTrip(prev => ({ ...prev, icon: e.target.value }))} className="w-full h-full bg-transparent text-center text-lg outline-none cursor-pointer hover:bg-white/10 transition-colors p-0 border-none focus:ring-0 placeholder-blue-300" maxLength="2"/></div>
+                            <div className="flex flex-col min-w-0 max-w-md w-full"><input type="text" value={trip.title} onChange={(e) => setTrip(prev => ({ ...prev, title: e.target.value }))} className="text-sm font-bold text-slate-100 bg-transparent outline-none border border-transparent hover:border-slate-700 focus:border-blue-500 rounded px-1 -ml-1 transition-colors w-full"/><input type="text" value={trip.dates} onChange={(e) => setTrip(prev => ({ ...prev, dates: e.target.value }))} className="text-xs text-slate-500 bg-transparent outline-none border border-transparent hover:border-slate-700 focus:border-blue-500 rounded px-1 -ml-1 transition-colors w-full"/></div>
+                        </div>
+                        <div className="flex items-center gap-3"><OnlineUserBadge /></div>
+                    </header>
+                    
+                    <div className="flex border-b border-slate-800 bg-slate-900 px-4 gap-6 text-sm font-medium overflow-x-auto no-scrollbar">
+                        <button onClick={() => setActiveTab('itinerary')} className={`py-3 flex items-center gap-2 border-b-2 transition-colors shrink-0 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><Icons.Map size={18} />行程</button>
+                        <button onClick={() => setActiveTab('subway')} className={`py-3 flex items-center gap-2 border-b-2 transition-colors shrink-0 ${activeTab === 'subway' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500 hover:text-slate-300'}`}><Icons.TrainFront size={18} />地鐵地圖</button>
+                    </div>
+
+                    <div className="flex flex-1 overflow-hidden">
+                        {activeTab === 'itinerary' && (
+                            <>
+                                <div className="w-full md:w-[400px] flex flex-col border-r border-slate-800 bg-slate-900 shrink-0 relative z-10 shadow-2xl md:shadow-none h-full overflow-y-auto md:overflow-hidden">
+                                    <div className="bg-slate-900 border-b border-slate-800 px-2 py-3 flex gap-2 overflow-x-auto no-scrollbar shadow-sm shrink-0 snap-x overscroll-x-contain">
+                                        {trip.days.map((day, idx) => (
+                                            <button key={day.id} onClick={() => setActiveDayId(day.id)} className={`flex flex-col items-start min-w-[100px] shrink-0 p-2 rounded-lg border transition-all duration-200 snap-start ${activeDayId === day.id ? 'bg-blue-900/30 border-blue-500 ring-1 ring-blue-500' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`}><div className="flex items-center justify-between w-full mb-1"><span className={`text-xs font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>Day {idx + 1}</span><WeatherIcon type={day.weather.type} size={14} /></div><span className="text-xs text-slate-500">{day.date.split(' ')[0]}</span><span className="text-[10px] text-slate-500 mt-1 font-mono">{day.weather.minTemp}°C~{day.weather.maxTemp}°C</span></button>
+                                        ))}
+                                        <button onClick={handleAddDay} className="flex flex-col items-center justify-center min-w-[50px] shrink-0 p-2 rounded-lg border border-dashed border-slate-700 text-slate-500 hover:bg-slate-800 hover:text-blue-400 hover:border-blue-500 transition-all snap-start"><Icons.Plus size={18} /></button>
+                                    </div>
+                                    <div className="px-2 py-4 bg-slate-900 border-b border-slate-800 shrink-0 md:sticky md:top-0 z-10">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex-1 min-w-0 mr-2">
+                                                <div className="flex items-center gap-2 mb-1"><input type="text" value={activeDayData?.title || ""} onChange={handleDayTitleChange} className="text-xl font-bold text-slate-100 bg-transparent outline-none border border-transparent hover:border-slate-700 focus:border-blue-500 rounded px-1 -ml-1 transition-colors w-full"/><button onClick={handleRefreshWeather} className="shrink-0 text-xs bg-blue-900/50 text-blue-400 px-2 py-1 rounded-full flex items-center gap-1" title="更新天氣"><Icons.Refresh size={12} className={isWeatherLoading ? "animate-spin" : ""} /></button></div>
+                                                <div className="flex items-center gap-2"><div className="flex items-center gap-1 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700"><WeatherIcon type={activeDayData?.weather.type || 'sun'} size={14} /><span className="text-xs text-slate-300 font-medium">{activeDayData?.weather.minTemp || 0}°C~{activeDayData?.weather.maxTemp || 0}°C {activeDayData?.weather.label || ""}</span></div></div>
+                                            </div>
+                                            <div className="flex gap-2 shrink-0"><button onClick={() => setShowDeleteDayConfirm(true)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded-full transition-colors"><Icons.Trash2 size={18} /></button></div>
+                                        </div>
+                                        <div className="relative group mt-2">
+                                            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"><Icons.Search size={16} /></div>
+                                            <input type="text" placeholder="搜尋景點並加入..." className="w-full pl-9 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-full text-sm text-slate-100 placeholder-slate-500 focus:bg-slate-800 focus:border-blue-500 outline-none transition-all" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(true); }} onFocus={() => setShowSearchResults(true)} />
+                                            {showSearchResults && searchQuery && (<div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 z-50 max-h-60 overflow-y-auto">{MOCK_PLACES_DB.filter(p => p.name.includes(searchQuery)).map(place => (<div key={place.id} onClick={() => handleSearchResultClick(place)} className="p-3 hover:bg-slate-700 cursor-pointer flex items-center justify-between border-b border-slate-700 last:border-b-0"><div><div className="font-bold text-slate-200 text-sm">{place.name}</div></div><Icons.Plus size={16} className="text-blue-400"/></div>))}</div>)}
+                                        </div>
+                                    </div>
+                                    <div className="px-2 py-4 space-y-4 h-auto md:flex-1 md:overflow-y-auto pb-48">
+                                        {activeDayData && activeDayData.places.map((place, index) => (
+                                            <div key={place.id} className={`relative pl-1 group transition-all duration-200 ${draggedPlaceIndex === index ? 'dragging' : ''}`} draggable={!editingPlaceId} onDragStart={(e) => onDragStart(e, index)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => onDrop(e, index)}>
+                                                {editingPlaceId === place.id ? (
+                                                    <div className="bg-slate-800 p-4 rounded-xl border-2 border-blue-500 shadow-xl animate-fade-in relative z-20">
+                                                        <input type="text" value={editPlaceForm.name} onChange={(e) => setEditPlaceForm({...editPlaceForm, name: e.target.value})} className="w-full font-bold text-slate-100 bg-slate-900 border-b border-slate-700 focus:border-blue-500 outline-none mb-3" />
+                                                        <div className="flex gap-2 justify-end"><button onClick={cancelEditingPlace} className="px-3 py-1 text-slate-400">取消</button><button onClick={saveEditingPlace} className="px-4 py-1 bg-blue-600 rounded text-white">儲存</button></div>
+                                                    </div>
+                                                ) : (
+                                                    <div className={`relative flex items-start gap-3 p-3 rounded-xl border transition-all duration-200 cursor-pointer ${hoveredPlaceId === place.id ? 'bg-slate-800 border-blue-500 shadow-xl translate-x-1' : 'bg-slate-800 border-slate-700 hover:border-slate-600'}`} onClick={() => startEditingPlace(place)} onMouseEnter={() => setHoveredPlaceId(place.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
+                                                        <div className="hidden md:block absolute left-1 top-1/2 -translate-y-1/2 text-slate-600 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing"><Icons.Move size={12}/></div><div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 z-10 transition-colors ${hoveredPlaceId === place.id ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-400'}`}>{index + 1}</div><div className="flex-1 min-w-0"><div className="flex justify-between items-start"><h3 className="font-bold text-slate-100 truncate pr-2">{place.name}</h3><div className="flex items-center text-xs text-slate-400 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800"><Icons.Clock size={10} className="mr-1"/>{place.time}</div></div><div className="text-xs text-slate-500 mt-1 flex items-center gap-1"><span className={`px-1.5 py-0.5 rounded text-[10px] ${place.type === 'food' ? 'bg-orange-900/40 text-orange-400' : 'bg-blue-900/40 text-blue-400'}`}>{getCategoryName(place.type)}</span>{place.note && <span className="text-slate-500 truncate max-w-[150px]">- {place.note}</span>}</div></div>
+                                                        <div className="flex flex-col gap-2 items-end md:gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                                                            <button onClick={(e) => { e.stopPropagation(); setPlaceToDelete(place.id); }} className="text-slate-500 hover:text-red-400 transition-colors p-1"><Icons.Trash2 size={16}/></button>
+                                                            <div className="md:hidden flex flex-col gap-3 mt-1 bg-slate-900/50 p-1 rounded-lg border border-slate-800"><button onClick={(e) => { e.stopPropagation(); movePlace(index, 'up'); }} className={`p-1 ${index === 0 ? 'text-slate-700' : 'text-blue-400 active:scale-90'}`} disabled={index === 0}><Icons.ChevronUp size={20}/></button><button onClick={(e) => { e.stopPropagation(); movePlace(index, 'down'); }} className={`p-1 ${index === activeDayData.places.length - 1 ? 'text-slate-700' : 'text-blue-400 active:scale-90'}`} disabled={index === activeDayData.places.length - 1}><Icons.ChevronDown size={20}/></button></div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {activeDayData && index !== activeDayData.places.length - 1 && <TravelSegmentUI p1={place} p2={activeDayData.places[index+1]} />}
+                                            </div>
+                                        ))}
+                                        <button onClick={() => setShowAddModal(true)} className="w-full py-3 border-2 border-dashed border-slate-700 rounded-xl text-slate-500 font-medium hover:border-blue-500 hover:text-blue-400 hover:bg-blue-900/20 transition-all flex items-center justify-center gap-2"><Icons.Plus size={18} /> 新增行程</button>
+                                        <div className="block md:hidden w-full h-[300px] mt-6 rounded-xl overflow-hidden border border-slate-700 shadow-2xl shrink-0"><RealMap places={activeDayData?.places || []} zoomControlKey={activeDayId} /></div>
+                                    </div>
+                                </div>
+                                <div className="flex-1 relative hidden md:block"><RealMap places={activeDayData?.places || []} hoveredId={hoveredPlaceId} zoomControlKey={activeDayId} /></div>
+                            </>
+                        )}
+
+                        {activeTab === 'subway' && (
+                             <div className="w-full h-full flex flex-col items-center justify-center bg-black p-4">
+                                 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Tokyo_subway_map_zh_hant.png/1280px-Tokyo_subway_map_zh_hant.png" alt="東京地鐵路線圖" className="max-w-full max-h-full object-contain shadow-2xl rounded-lg" />
+                             </div>
+                        )}
+
+                        {/* Modals */}
+                        {showAddModal && <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">新增行程</h3><button onClick={() => setShowAddModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><form onSubmit={handleManualAddSubmit} className="p-6 space-y-4"><div><label className="block text-sm font-bold text-slate-400 mb-1">名稱</label><input required type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">時間</label><input type="time" value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">類型</label><select value={newItem.type} onChange={e => setNewItem({...newItem, type: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="sight">景點</option><option value="food">餐廳</option><option value="shopping">購物</option><option value="transport">交通</option></select></div></div><button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2">確認新增</button></form></div></div>}
+                        
+                        {showDeleteDayConfirm && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-6 text-center"><h3 className="font-bold text-lg text-slate-100 mb-2">確定要刪除此日行程嗎？</h3><div className="flex gap-3 mt-6"><button onClick={() => setShowDeleteDayConfirm(false)} className="flex-1 py-2.5 border border-slate-700 rounded-xl font-bold text-slate-400 hover:bg-slate-700 transition-colors">取消</button><button onClick={confirmDeleteDay} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-colors">確認刪除</button></div></div></div></div>)}
+                        
+                        {placeToDelete && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-6 text-center"><h3 className="font-bold text-lg text-slate-100 mb-2">確定要刪除此行程嗎？</h3><div className="flex gap-3 mt-6"><button onClick={() => setPlaceToDelete(null)} className="flex-1 py-2.5 border border-slate-700 rounded-xl font-bold text-slate-400 hover:bg-slate-700 transition-colors">取消</button><button onClick={confirmDeletePlace} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-colors">確認刪除</button></div></div></div></div>)}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
