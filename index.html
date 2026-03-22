@@ -14,6 +14,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/default.css">
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mobile-drag-drop@2.3.0-rc.2/scroll-behaviour.min.js"></script>
+
     <script type="module">
         import { initializeApp } from "https://gs.jurieo.com/gemini/gstatic/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://gs.jurieo.com/gemini/gstatic/firebasejs/11.6.1/firebase-auth.js";
@@ -79,14 +83,31 @@
 
         /* 備註框自動延伸支援 */
         textarea.auto-extend {
-            field-sizing: content; /* 現代瀏覽器 */
+            field-sizing: content; 
             min-height: 1.5em;
+        }
+
+        /* 防止拖曳把手在觸控設備上觸發滾動 */
+        .drag-handle {
+            touch-action: none;
         }
 
         img[alt="東京地鐵路線圖"] {
             filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
         }
     </style>
+    
+    <script>
+        // 初始化手機拖曳支援
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.MobileDragDrop) {
+                window.MobileDragDrop.polyfill({
+                    dragImageTranslateOverride: window.MobileDragDrop.scrollBehaviourDragImageTranslateOverride
+                });
+                window.addEventListener('touchmove', function() {}, {passive: false});
+            }
+        });
+    </script>
 </head>
 <body>
     <div id="root"></div>
@@ -436,7 +457,6 @@
                 }
             }, [zoomControlKey]); 
 
-            // 1. 路線渲染核心邏輯
             useEffect(() => {
                 const map = mapInstanceRef.current;
                 if (!map) return;
@@ -715,15 +735,12 @@
             const [activeTab, setActiveTab] = useState('itinerary'); 
             const [activeDayId, setActiveDayId] = useState(1);
             
-            // Mode replacement for global isEditing
-            // 'list' = viewing itinerary list, 'add' = adding new place, 'edit' = editing specific place
             const [panelMode, setPanelMode] = useState('list'); 
             const [newItem, setNewItem] = useState({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
             
             const [tempMarker, setTempMarker] = useState(null);
             const [addressSuggestions, setAddressSuggestions] = useState([]);
             const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-            const [dragEnabledId, setDragEnabledId] = useState(null);
             const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
             const [hoveredSegmentId, setHoveredSegmentId] = useState(null);
             const [toast, setToast] = useState(null);
@@ -835,7 +852,6 @@
                                 type: newItem.type,
                                 time: newItem.time,
                                 stayTime: newItem.stayTime || '1',
-                                // 如果有新搜尋的地標才更新座標
                                 ...(tempMarker ? { lat: tempMarker.lat, lng: tempMarker.lng } : {})
                             } : p)
                         };
@@ -862,7 +878,7 @@
                 const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: d.places.filter(p => p.id !== placeToDelete) } : d);
                 pushUpdate({ trip: { ...trip, days: newDays } });
                 setPlaceToDelete(null);
-                setPanelMode('list'); // 刪除後返回列表
+                setPanelMode('list');
             };
 
             const toggleNote = (placeId, e) => {
@@ -870,18 +886,27 @@
                 setExpandedNotes(prev => ({ ...prev, [placeId]: !prev[placeId] }));
             };
 
+            // 修正拖曳邏輯：驗證 Drag Handle 並相容行動版 Polyfill
             const handleDragStart = (e, idx) => { 
-                if (!e.target.closest('.drag-handle')) { e.preventDefault(); return; }
-                setDraggedPlaceIndex(idx); e.dataTransfer.effectAllowed = 'move'; 
+                if (!e.target.closest('.drag-handle')) { 
+                    e.preventDefault(); 
+                    return; 
+                }
+                setDraggedPlaceIndex(idx); 
+                e.dataTransfer.effectAllowed = 'move';
+                if (e.dataTransfer.setData) e.dataTransfer.setData('text/plain', ''); 
             };
             const handleDrop = (e, dropIdx) => {
-                e.preventDefault(); if (draggedPlaceIndex === null || draggedPlaceIndex === dropIdx) return;
-                const newPs = [...activeDayData.places]; const item = newPs.splice(draggedPlaceIndex, 1)[0];
+                e.preventDefault(); 
+                if (draggedPlaceIndex === null || draggedPlaceIndex === dropIdx) return;
+                const newPs = [...activeDayData.places]; 
+                const item = newPs.splice(draggedPlaceIndex, 1)[0];
                 newPs.splice(dropIdx, 0, item);
                 const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: newPs } : d);
-                pushUpdate({ trip: { ...trip, days: newDays } }); setDraggedPlaceIndex(null);
+                pushUpdate({ trip: { ...trip, days: newDays } }); 
+                setDraggedPlaceIndex(null);
             };
-            const handleDragEnd = () => { setDraggedPlaceIndex(null); setDragEnabledId(null); };
+            const handleDragEnd = () => { setDraggedPlaceIndex(null); };
 
             const [jpyToHkdRate] = React.useState(0.0496); 
             const [jpyToTwdRate] = React.useState(0.215);
@@ -1087,12 +1112,21 @@
                                                     {activeDayData?.places.map((p, i) => {
                                                         const isNoteExpanded = expandedNotes[p.id];
                                                         return (
-                                                            <div key={p.id} draggable={dragEnabledId === p.id} onDragStart={e => handleDragStart(e, i)} onDragOver={e => e.preventDefault()} onDrop={e => handleDrop(e, i)} onDragEnd={handleDragEnd} className={`flex flex-col group/card transition-all duration-200 ${draggedPlaceIndex === i ? 'opacity-30 scale-[0.98]' : ''}`}>
+                                                            <div 
+                                                                key={p.id} 
+                                                                draggable={true} 
+                                                                onDragStart={e => handleDragStart(e, i)} 
+                                                                onDragOver={e => e.preventDefault()} 
+                                                                onDrop={e => handleDrop(e, i)} 
+                                                                onDragEnd={handleDragEnd} 
+                                                                className={`flex flex-col group/card transition-all duration-200 ${draggedPlaceIndex === i ? 'opacity-30 scale-[0.98]' : ''}`}
+                                                            >
                                                                 <div className="flex gap-3 items-stretch">
                                                                     {/* Timeline Visual */}
                                                                     <div className="flex flex-col items-center w-12 shrink-0">
                                                                         <div className="text-[12px] font-bold text-blue-300 font-mono mb-1.5 pt-1">{p.time}</div>
-                                                                        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900">
+                                                                        {/* 左側拖曳把手 1：數字圓圈 */}
+                                                                        <div className="drag-handle w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors" title="按住拖動排序">
                                                                             {i+1}
                                                                         </div>
                                                                         {i < activeDayData.places.length - 1 && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}
@@ -1102,10 +1136,9 @@
                                                                     <div className="flex-1 pb-3">
                                                                         <div className={`flex items-start gap-3 p-3 rounded-xl border border-slate-700 bg-slate-800/80 transition-all ${hoveredPlaceId === p.id ? 'border-blue-500 shadow-xl' : ''}`} onMouseEnter={() => setHoveredPlaceId(p.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
                                                                             
+                                                                            {/* 移除了 drag-handle，純粹做圖片預覽使用 */}
                                                                             <div 
-                                                                                onMouseEnter={() => setDragEnabledId(p.id)} 
-                                                                                onMouseLeave={() => setDragEnabledId(null)} 
-                                                                                className="drag-handle w-[60px] h-[60px] bg-slate-700 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden cursor-grab active:cursor-grabbing shadow-inner hover:ring-2 hover:ring-blue-500 transition-all" 
+                                                                                className="w-[60px] h-[60px] bg-slate-700 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden cursor-pointer shadow-inner hover:ring-2 hover:ring-blue-500 transition-all" 
                                                                                 onClick={() => p.image && setPreviewImage(p.image)}
                                                                             >
                                                                                 {p.image ? (
@@ -1135,13 +1168,20 @@
                                                                                         )}
                                                                                     </div>
                                                                                     
-                                                                                    {/* 3 Dots Menu Button for Edit */}
-                                                                                    <button onClick={() => {
-                                                                                        setNewItem({ id: p.id, name: p.name, time: p.time, type: p.type, address: p.address || '', note: p.note || '', stayTime: p.stayTime || '1' });
-                                                                                        setPanelMode('edit');
-                                                                                    }} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors ml-2 shrink-0">
-                                                                                        <Icons.MoreVertical size={18} />
-                                                                                    </button>
+                                                                                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                                                        {/* 右側拖曳把手 2：明確的 Grip 圖示 */}
+                                                                                        <div className="drag-handle p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors" title="按住拖動排序">
+                                                                                            <Icons.GripVertical size={18} />
+                                                                                        </div>
+                                                                                        
+                                                                                        {/* 3 Dots Menu Button for Edit */}
+                                                                                        <button onClick={() => {
+                                                                                            setNewItem({ id: p.id, name: p.name, time: p.time, type: p.type, address: p.address || '', note: p.note || '', stayTime: p.stayTime || '1' });
+                                                                                            setPanelMode('edit');
+                                                                                        }} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                                                                                            <Icons.MoreVertical size={18} />
+                                                                                        </button>
+                                                                                    </div>
                                                                                 </div>
                                                                                 
                                                                                 <div className={`text-[11px] text-slate-400 mt-1.5 ${p.note ? 'ml-5' : ''}`}>停留 {p.stayTime || '1'} 小時</div>
