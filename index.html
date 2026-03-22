@@ -144,7 +144,7 @@
             const walkMin = Math.round((dist / 5) * 60); 
             const driveMin = Math.round((dist / 30) * 60) + 5; 
             const format = (m) => m > 60 ? `${Math.floor(m/60)}小時${m%60}分` : `${m}分`;
-            return { walk: format(walkMin), drive: format(driveMin) };
+            return { walk: format(walkMin), drive: format(driveMin), dist };
         };
 
         const getEndTime = (timeStr, hoursToAdd = 1) => {
@@ -323,25 +323,35 @@
             Lock: (p) => <Icon {...p} path={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></>} />,
             Unlock: (p) => <Icon {...p} path={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></>} />,
             GripVertical: (p) => <Icon {...p} path={<><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></>} />,
-            Camera: (p) => <Icon {...p} path={<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></>} />
+            Camera: (p) => <Icon {...p} path={<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></>} />,
+            Pen: (p) => <Icon {...p} path={<><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></>} />,
+            Download: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>} />,
+            Upload: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>} />
         };
 
-        const TravelSegmentUI = ({ p1, p2, onMouseEnter, onMouseLeave }) => {
-            const [mode, setMode] = useState('drive'); 
+        const TravelSegmentUI = ({ p1, p2, isEditing, onUpdateMode, onMouseEnter, onMouseLeave }) => {
+            const mode = p1.travelMode || 'drive'; 
             const travelInfo = calculateTravelInfo(p1, p2);
+            
+            const handleModeChange = (newMode) => {
+                if (!isEditing) return; 
+                if (onUpdateMode) onUpdateMode(newMode);
+            };
+
             if (!travelInfo) return <div className="h-8 px-3 rounded-full border border-slate-700 bg-slate-800/50 flex items-center gap-1 text-[10px] text-slate-500"><span>🚗</span><span>計算中</span></div>;
             return (
                 <div 
-                    className="flex items-center gap-3 py-1 animate-fade-in group cursor-pointer"
+                    className={`flex items-center gap-3 py-1 animate-fade-in group ${isEditing ? 'cursor-pointer' : ''}`}
                     onMouseEnter={onMouseEnter}
                     onMouseLeave={onMouseLeave}
                 >
                     <div className="flex bg-slate-800 border border-slate-700 rounded-md p-0.5 shadow-md group-hover:border-amber-500 transition-colors">
-                        <button onClick={() => setMode('drive')} className={`p-1 rounded transition-all flex items-center justify-center ${mode === 'drive' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`}><Icons.Bus size={12} /></button>
-                        <button onClick={() => setMode('walk')} className={`p-1 rounded transition-all flex items-center justify-center ${mode === 'walk' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`}><Icons.Walking size={12} /></button>
+                        <button onClick={() => handleModeChange('drive')} className={`p-1 rounded transition-all flex items-center justify-center ${mode === 'drive' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="開車導航"><Icons.Bus size={12} /></button>
+                        <button onClick={() => handleModeChange('walk')} className={`p-1 rounded transition-all flex items-center justify-center ${mode === 'walk' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="步行導航"><Icons.Walking size={12} /></button>
+                        <button onClick={() => handleModeChange('straight')} className={`p-1 rounded transition-all flex items-center justify-center ${mode === 'straight' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="直線連接 (自訂線路)"><Icons.Minus size={12} /></button>
                     </div>
                     <div className="text-xs font-bold text-slate-400 group-hover:text-amber-400 transition-colors">
-                        約 {mode === 'walk' ? travelInfo.walk : travelInfo.drive}
+                        {mode === 'straight' ? `直線距離 ${travelInfo.dist.toFixed(1)} km` : `約 ${mode === 'walk' ? travelInfo.walk : travelInfo.drive}`}
                     </div>
                 </div>
             );
@@ -390,12 +400,13 @@
             );
         };
 
-        const RealMap = React.memo(({ places, hoveredId, hoveredSegmentId, zoomControlKey, dayColor }) => {
+        const RealMap = React.memo(({ places, hoveredId, hoveredSegmentId, zoomControlKey, dayColor, isEditing, onRouteAltSelect, tempMarker }) => {
             const mapRef = useRef(null);
             const mapInstanceRef = useRef(null);
             const markersRef = useRef({}); 
             const routeLayersRef = useRef({}); 
             const mapDataHashRef = useRef('');
+            const tempMarkerRef = useRef(null);
 
             useEffect(() => {
                 if (mapInstanceRef.current) return;
@@ -406,6 +417,27 @@
                 setTimeout(() => { if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize(); }, 200);
                 return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
             }, []);
+
+            useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
+                
+                // 清除舊的暫存標記
+                if (tempMarkerRef.current) {
+                    map.removeLayer(tempMarkerRef.current);
+                    tempMarkerRef.current = null;
+                }
+                
+                // 畫上搜尋到的暫存地點
+                if (tempMarker) {
+                    const iconHtml = `<div class="flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.5)] text-white font-bold text-xl bg-red-500 animate-bounce" style="z-index: 2000;">📍</div>`;
+                    const customIcon = L.divIcon({ className: 'leaflet-div-icon', html: iconHtml, iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
+                    const marker = L.marker([tempMarker.lat, tempMarker.lng], { icon: customIcon }).bindPopup(`<b>${tempMarker.name}</b>`).addTo(map);
+                    marker.openPopup();
+                    map.setView([tempMarker.lat, tempMarker.lng], 15, { animate: true });
+                    tempMarkerRef.current = marker;
+                }
+            }, [tempMarker]);
 
             useEffect(() => {
                 const map = mapInstanceRef.current;
@@ -424,11 +456,12 @@
                 let isMounted = true; 
                 
                 const markerColor = dayColor || '#3b82f6';
-                const routeColor = '#3b82f6'; // 整條路線皆固定顯示為藍色
+                const routeColor = '#3b82f6';
 
                 const validPlaces = places.filter(p => p.lat && p.lng);
 
-                const currentHash = JSON.stringify(validPlaces.map(p => `${p.id}-${p.lat}-${p.lng}-${p.name}`)) + markerColor + routeColor;
+                // 更新 Hash 邏輯以包含 routeIndex，確保切換替代路徑時會重新渲染
+                const currentHash = JSON.stringify(validPlaces.map(p => `${p.id}-${p.lat}-${p.lng}-${p.travelMode || 'drive'}-${p.routeIndex || 0}`)) + markerColor + routeColor + isEditing;
                 if (mapDataHashRef.current === currentHash) return;
                 mapDataHashRef.current = currentHash;
 
@@ -441,6 +474,11 @@
                     const layers = routeLayersRef.current[key];
                     if (layers.outline && map.hasLayer(layers.outline)) map.removeLayer(layers.outline);
                     if (layers.main && map.hasLayer(layers.main)) map.removeLayer(layers.main);
+                    if (layers.alts) {
+                        layers.alts.forEach(altLayer => {
+                            if (map.hasLayer(altLayer)) map.removeLayer(altLayer);
+                        });
+                    }
                     delete routeLayersRef.current[key];
                 });
 
@@ -465,48 +503,90 @@
                                 const p2 = validPlaces[i + 1];
                                 if (p1.lat === p2.lat && p1.lng === p2.lng) continue;
                                 
-                                const segmentKey = `${p1.id}-${p2.id}-${p1.lat},${p1.lng}-${p2.lat},${p2.lng}`;
+                                const travelMode = p1.travelMode || 'drive';
+                                const segmentKey = `${p1.id}-${p2.id}-${p1.lat},${p1.lng}-${p2.lat},${p2.lng}-${travelMode}`;
                                 
                                 let geoData = window.routeCache ? window.routeCache[segmentKey] : null;
 
                                 if (!geoData) {
-                                    const url = `https://router.project-osrm.org/route/v1/driving/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=simplified&geometries=geojson`;
-                                    try {
-                                        const res = await fetch(url);
-                                        if (res.ok) {
-                                            const data = await res.json();
-                                            if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
-                                                geoData = data.routes[0].geometry;
+                                    if (travelMode === 'straight') {
+                                        geoData = ['straight_line']; // 存成陣列以統一格式
+                                        if (!window.routeCache) window.routeCache = {};
+                                        window.routeCache[segmentKey] = geoData;
+                                    } else {
+                                        // 加上 alternatives=true 請求替代路線
+                                        const profile = travelMode === 'walk' ? 'foot' : 'driving';
+                                        const url = `https://router.project-osrm.org/route/v1/${profile}/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=simplified&geometries=geojson&alternatives=true`;
+                                        try {
+                                            const res = await fetch(url);
+                                            if (res.ok) {
+                                                const data = await res.json();
+                                                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                                                    // 將所有回傳的路線幾何資料存成陣列
+                                                    geoData = data.routes.map(r => r.geometry);
+                                                } else {
+                                                    geoData = ['straight_line']; 
+                                                }
                                             } else {
-                                                geoData = 'straight_line'; 
+                                                geoData = ['straight_line'];
                                             }
-                                        } else {
-                                            geoData = 'straight_line';
+                                        } catch (e) {
+                                            geoData = ['straight_line'];
                                         }
-                                    } catch (e) {
-                                        geoData = 'straight_line';
+                                        if (!window.routeCache) window.routeCache = {};
+                                        window.routeCache[segmentKey] = geoData;
                                     }
-                                    if (!window.routeCache) window.routeCache = {};
-                                    window.routeCache[segmentKey] = geoData;
                                 }
 
                                 if (!isMounted || !mapInstanceRef.current) return;
 
                                 let outline, main;
+                                let alts = [];
                                 
-                                if (geoData === 'straight_line') {
+                                // 相容舊的快取資料格式
+                                const geometries = Array.isArray(geoData) ? geoData : [geoData];
+                                const selectedIndex = p1.routeIndex || 0;
+                                const validIndex = selectedIndex < geometries.length ? selectedIndex : 0;
+
+                                // 畫未選中的替代路線 (墊在底層，供點擊切換)
+                                if (isEditing && geometries.length > 1) {
+                                    geometries.forEach((geo, idx) => {
+                                        if (idx === validIndex || geo === 'straight_line') return;
+                                        
+                                        const altStyle = { color: '#94a3b8', weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round', dashArray: '5, 10' };
+                                        const clickStyle = { color: 'transparent', weight: 20, opacity: 0 }; // 加寬點擊判定區
+                                        
+                                        const altMain = L.geoJSON(geo, { style: altStyle }).addTo(mapInstanceRef.current);
+                                        const altClick = L.geoJSON(geo, { style: clickStyle }).addTo(mapInstanceRef.current);
+                                        
+                                        altClick.on('click', () => {
+                                            if (isEditing && onRouteAltSelect) onRouteAltSelect(p1.id, idx);
+                                        });
+                                        
+                                        altClick.on('mouseover', () => {
+                                            altMain.setStyle({ color: '#cbd5e1', weight: 8, cursor: 'pointer' });
+                                            if (altMain.bringToFront) altMain.bringToFront();
+                                        });
+                                        altClick.on('mouseout', () => altMain.setStyle(altStyle));
+                                        
+                                        alts.push(altMain, altClick);
+                                    });
+                                }
+
+                                // 畫主線 (選中的路線，蓋在最上層)
+                                const mainGeo = geometries[validIndex];
+                                if (mainGeo === 'straight_line') {
                                     const latlngs = [[p1.lat, p1.lng], [p2.lat, p2.lng]];
                                     outline = L.polyline(latlngs, outlineStyle).addTo(mapInstanceRef.current);
                                     main = L.polyline(latlngs, mainStyle).addTo(mapInstanceRef.current);
                                 } else {
-                                    outline = L.geoJSON(geoData, { style: outlineStyle }).addTo(mapInstanceRef.current);
-                                    main = L.geoJSON(geoData, { style: mainStyle }).addTo(mapInstanceRef.current);
+                                    outline = L.geoJSON(mainGeo, { style: outlineStyle }).addTo(mapInstanceRef.current);
+                                    main = L.geoJSON(mainGeo, { style: mainStyle }).addTo(mapInstanceRef.current);
                                 }
                                 
-                                if (main.bringToBack) main.bringToBack();
-                                if (outline.bringToBack) outline.bringToBack();
+                                if (main.bringToFront) main.bringToFront();
 
-                                routeLayersRef.current[segmentKey] = { outline, main, p1Id: p1.id, p2Id: p2.id, baseColor: routeColor };
+                                routeLayersRef.current[segmentKey] = { outline, main, alts, p1Id: p1.id, p2Id: p2.id, baseColor: routeColor };
                                 await new Promise(resolve => setTimeout(resolve, 30));
                             }
                         };
@@ -514,7 +594,7 @@
                     }
                 }
                 return () => { isMounted = false; };
-            }, [places, dayColor]); 
+            }, [places, dayColor, isEditing]); 
 
             // 2. 標記的 Hover 邏輯
             useEffect(() => {
@@ -555,15 +635,38 @@
         // ==========================================
         // Dashboard Component (Trip List)
         // ==========================================
-        function Dashboard({ trips, onCreateTrip, onSelectTrip, onDeleteTrip }) {
+        function Dashboard({ trips, onCreateTrip, onSelectTrip, onDeleteTrip, onImportTrip, onExportTrip }) {
+            const fileInputRef = useRef(null);
+
+            const handleImportClick = () => {
+                fileInputRef.current?.click();
+            };
+
             return (
                 <div className="flex justify-center h-full bg-[#0f172a] overflow-y-auto w-full">
                     <div className="max-w-[960px] w-full px-4 md:px-0">
                         <div className="my-10">
                             <h1 className="text-3xl font-bold mb-4 text-slate-100">我的行程</h1>
                         </div>
-                        <div className="my-8 flex justify-end">
-                            <button onClick={onCreateTrip} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-900/30 transition-all cursor-pointer">
+                        <div className="my-8 flex justify-end gap-3">
+                            {/* 隱藏的檔案選擇器 */}
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept=".json" 
+                                onChange={onImportTrip} 
+                            />
+                            <button 
+                                onClick={handleImportClick} 
+                                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all cursor-pointer border border-slate-600"
+                            >
+                                <Icons.Upload size={20} /> 匯入行程
+                            </button>
+                            <button 
+                                onClick={onCreateTrip} 
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-900/30 transition-all cursor-pointer"
+                            >
                                 <Icons.Plus size={20} /> 建立新行程
                             </button>
                         </div>
@@ -599,9 +702,22 @@
                                                         </div>
                                                     )}
                                                 </div>
-                                                <button onClick={(e) => { e.stopPropagation(); onDeleteTrip(tripData.id); }} className="w-8 h-8 bg-slate-900/60 hover:bg-red-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" title="刪除行程">
-                                                    <Icons.Trash2 size={14} />
-                                                </button>
+                                                <div className="flex flex-col gap-2">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); onExportTrip(tripData); }} 
+                                                        className="w-8 h-8 bg-slate-900/60 hover:bg-blue-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" 
+                                                        title="匯出行程"
+                                                    >
+                                                        <Icons.Download size={14} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); onDeleteTrip(tripData.id); }} 
+                                                        className="w-8 h-8 bg-slate-900/60 hover:bg-red-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" 
+                                                        title="刪除行程"
+                                                    >
+                                                        <Icons.Trash2 size={14} />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     );
@@ -627,34 +743,38 @@
             const [activeDayId, setActiveDayId] = useState(1);
             const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
             const [hoveredSegmentId, setHoveredSegmentId] = useState(null);
-            const [isWeatherLoading, setIsWeatherLoading] = useState(false);
 
-            // Modals
+            // Modals & Panels
             const [showExpenseModal, setShowExpenseModal] = useState(false);
             const [showShoppingModal, setShowShoppingModal] = useState(false);
             const [showPackingModal, setShowPackingModal] = useState(false);
             const [showSettlementPlan, setShowSettlementPlan] = useState(false); 
             const [showMemberSettings, setShowMemberSettings] = useState(false);
-            const [showAddModal, setShowAddModal] = useState(false);
             const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
-            const [showMapModal, setShowMapModal] = useState(false); 
+            
+            // Sidebar 新增行程相關狀態
+            const [isAddingPlace, setIsAddingPlace] = useState(false);
+            const [tempMarker, setTempMarker] = useState(null);
+            const [isSearchingAddress, setIsSearchingAddress] = useState(false);
             
             const [placeToDelete, setPlaceToDelete] = useState(null);
             const [expenseToDelete, setExpenseToDelete] = useState(null);
             const [shoppingToDelete, setShoppingToDelete] = useState(null);
 
             const [expenseFilter, setExpenseFilter] = useState('all'); 
-            const [packingFilter, setPackingFilter] = useState('all');
             const [searchQuery, setSearchQuery] = useState("");
             const [showSearchResults, setShowSearchResults] = useState(false);
-            const [mapZoom, setMapZoom] = useState(1);
             const [previewImage, setPreviewImage] = useState(null);
-            const [toast, setToast] = useState(null);
-            const [draggedPlaceIndex, setDraggedPlaceIndex] = useState(null);
-            const [editingPlaceId, setEditingPlaceId] = useState(null);
-            const [editPlaceForm, setEditPlaceForm] = useState({});
-            const [displayCurrency, setDisplayCurrency] = useState('HKD');
-            const [isEditing, setIsEditing] = useState(false);
+
+            const [toast, setToast] = React.useState(null);
+            const [draggedPlaceIndex, setDraggedPlaceIndex] = React.useState(null);
+            
+            // 新增：用來精準控制只有碰到「拖曳把手」才能拖動卡片
+            const [dragEnabledId, setDragEnabledId] = React.useState(null); 
+            
+            const [displayCurrency, setDisplayCurrency] = React.useState('HKD');
+            const [isEditing, setIsEditing] = React.useState(false);
+            const [addModalTab, setAddModalTab] = React.useState('custom');
             const daysContainerRef = useRef(null); 
 
             // --- 滑鼠按住拖曳 (Drag to Scroll) 邏輯 ---
@@ -713,12 +833,9 @@
             const getMemberInfo = useCallback((name) => members.find(m => m.name === name) || { color: 'bg-gray-400', avatar: '👤' }, [members]);
             const showToastMessage = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
-            const [jpyToHkdRate] = useState(0.0496); 
-            const [jpyToTwdRate] = useState(0.215);
-            const [jpyToMopRate] = useState(0.0511);
-            const EXCHANGE_RATE_JPY_TO_HKD = jpyToHkdRate;
-            const HKD_TO_JPY_RATE = 1 / jpyToHkdRate;
-            const TWD_TO_JPY_RATE = 1 / jpyToTwdRate; 
+            const [jpyToHkdRate] = React.useState(0.0496); 
+            const [jpyToTwdRate] = React.useState(0.215);
+            const [jpyToMopRate] = React.useState(0.0511);
 
             const currentExchangeRate = useMemo(() => {
                 switch(displayCurrency) {
@@ -755,14 +872,130 @@
                 setShowDeleteDayConfirm(false);
             };
 
-            const [newItem, setNewItem] = useState({ name: '', time: '12:00', type: 'sight', note: '' });
+            const [newItem, setNewItem] = React.useState({ name: '', time: '12:00', type: 'sight', note: '', address: '', website: '', saveToCollection: true });
+            
+            // 新增：下拉選單狀態與防抖計時器
+            const [addressSuggestions, setAddressSuggestions] = React.useState([]);
+            const searchTimeoutRef = useRef(null);
+
+            // 新增：處理地址輸入並動態搜尋建議
+            const handleAddressInput = (e) => {
+                const val = e.target.value;
+                setNewItem(prev => ({...prev, address: val}));
+                
+                if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                
+                if (!val.trim()) {
+                    setAddressSuggestions([]);
+                    return;
+                }
+
+                // 設定 800ms 的防抖，避免過度頻繁打 API
+                searchTimeoutRef.current = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5`);
+                        const data = await res.json();
+                        setAddressSuggestions(data || []);
+                    } catch(e) {
+                        console.error("Suggestion fetch error", e);
+                    }
+                }, 800);
+            };
+
+            // 新增：點擊下拉選單項目的處理
+            const handleSuggestionClick = (suggestion) => {
+                const shortName = suggestion.display_name.split(',')[0];
+                setNewItem(prev => ({
+                    ...prev, 
+                    address: suggestion.display_name,
+                    // 如果原本沒有填名稱，就自動帶入
+                    name: prev.name ? prev.name : shortName 
+                }));
+                setTempMarker({ 
+                    lat: parseFloat(suggestion.lat), 
+                    lng: parseFloat(suggestion.lon), 
+                    name: shortName 
+                });
+                setAddressSuggestions([]); // 選完後清空下拉選單
+            };
+
+            const handleAddressSearch = async () => {
+                if (!newItem.address) {
+                    showToastMessage("請先輸入地址或關鍵字！");
+                    return;
+                }
+                setIsSearchingAddress(true);
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newItem.address)}&limit=1`);
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        const { lat, lon, display_name } = data[0];
+                        const shortName = display_name.split(',')[0];
+                        setTempMarker({ lat: parseFloat(lat), lng: parseFloat(lon), name: shortName });
+                        if (!newItem.name) {
+                            setNewItem(prev => ({...prev, name: shortName}));
+                        }
+                        showToastMessage("已找到地點並標記於地圖！");
+                    } else {
+                        showToastMessage("找不到該地點，請嘗試更換關鍵字。");
+                    }
+                } catch(e) {
+                    showToastMessage("搜尋時發生錯誤。");
+                }
+                setIsSearchingAddress(false);
+            };
+            
             const handleManualAddSubmit = (e) => {
                 e.preventDefault();
-                const newPlace = { id: 'p' + Date.now(), ...newItem, lat: 35.6895 + (Math.random()-0.5)*0.1, lng: 139.6917 + (Math.random()-0.5)*0.1 };
+                // 若有搜尋到的座標就用，否則給予附近隨機亂數(模擬原機制)
+                const lat = tempMarker ? tempMarker.lat : 35.6895 + (Math.random()-0.5)*0.1;
+                const lng = tempMarker ? tempMarker.lng : 139.6917 + (Math.random()-0.5)*0.1;
+                
+                const newPlace = { id: 'p' + Date.now(), ...newItem, lat, lng, travelMode: 'drive', routeIndex: 0 };
                 const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: [...d.places, newPlace] } : d);
                 pushUpdate({ trip: { ...trip, days: newDays } });
-                setShowAddModal(false);
-                setNewItem({ name: '', time: '12:00', type: 'sight', note: '' });
+                
+                setIsAddingPlace(false);
+                setTempMarker(null);
+                setNewItem({ name: '', time: '12:00', type: 'sight', note: '', address: '', website: '', saveToCollection: true });
+            };
+
+            const handleSearchResultClick = (place) => {
+                const newPlace = { id: 'p' + Date.now(), name: place.name, type: place.type, lat: place.lat, lng: place.lng, time: '12:00', note: place.note, travelMode: 'drive', routeIndex: 0 };
+                const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: [...d.places, newPlace] } : d);
+                pushUpdate({ trip: { ...trip, days: newDays } });
+                setSearchQuery("");
+                setShowSearchResults(false);
+            };
+
+            const handleUpdateTravelMode = (dayId, placeId, newMode) => {
+                const newDays = trip.days.map(d => {
+                    if (d.id === dayId) {
+                        return { ...d, places: d.places.map(p => p.id === placeId ? { ...p, travelMode: newMode, routeIndex: 0 } : p) };
+                    }
+                    return d;
+                });
+                pushUpdate({ trip: { ...trip, days: newDays } });
+            };
+
+            const handleUpdatePlaceName = (dayId, placeId, newName) => {
+                const newDays = trip.days.map(d => {
+                    if (d.id === dayId) {
+                        return { ...d, places: d.places.map(p => p.id === placeId ? { ...p, name: newName } : p) };
+                    }
+                    return d;
+                });
+                pushUpdate({ trip: { ...trip, days: newDays } });
+            };
+
+            const handleUpdateRouteIndex = (dayId, placeId, index) => {
+                const newDays = trip.days.map(d => {
+                    if (d.id === dayId) {
+                        return { ...d, places: d.places.map(p => p.id === placeId ? { ...p, routeIndex: index } : p) };
+                    }
+                    return d;
+                });
+                pushUpdate({ trip: { ...trip, days: newDays } });
             };
 
             const confirmDeletePlace = () => {
@@ -771,7 +1004,7 @@
                 setPlaceToDelete(null);
             };
 
-            const [newPacking, setNewPacking] = useState("");
+            const [newPacking, setNewPacking] = React.useState("");
             const handleAddPacking = (e) => {
                 e.preventDefault();
                 if (!newPacking) return;
@@ -814,14 +1047,11 @@
 
             const shoppingTotalStats = useMemo(() => {
                 let totalJPY = 0;
-                shoppingItems.forEach(item => {
-                    // 修正 Bug: item.price 在存入時已經是 JPY，直接乘上數量即可
-                    totalJPY += item.price * item.qty;
-                });
+                shoppingItems.forEach(item => { totalJPY += item.price * item.qty; });
                 return { jpy: Math.round(totalJPY), display: Math.round(totalJPY * currentExchangeRate) };
             }, [shoppingItems, currentExchangeRate]); 
 
-            const [newExpenseItem, setNewExpenseItem] = useState({ date: '2026-04-03', title: '', category: 'food', payer: members[0]?.name || '', amount: '', currency: 'JPY', sharedBy: members.map(m=>m.name), image: null });
+            const [newExpenseItem, setNewExpenseItem] = React.useState({ date: '2026-04-03', title: '', category: 'food', payer: members[0]?.name || '', amount: '', currency: 'JPY', sharedBy: members.map(m=>m.name), image: null });
             const handleAddExpenseSubmit = (e) => {
                 e.preventDefault();
                 let finalAmountJPY = Number(newExpenseItem.amount) * getRateToJPY(newExpenseItem.currency);
@@ -844,7 +1074,7 @@
                 }
             };
 
-            const [newShoppingItem, setNewShoppingItem] = useState({ name: '', qty: 1, price: 0, currency: 'MOP', requester: members[0]?.name || '', note: '', image: null });
+            const [newShoppingItem, setNewShoppingItem] = React.useState({ name: '', qty: 1, price: 0, currency: 'MOP', requester: members[0]?.name || '', note: '', image: null });
             const handleAddShoppingSubmit = (e) => {
                 e.preventDefault();
                 let jpyPrice = Number(newShoppingItem.price) * getRateToJPY(newShoppingItem.currency);
@@ -859,7 +1089,6 @@
                 }
             };
 
-            // --- 新增：圖片壓縮與上傳邏輯 ---
             const handlePlaceImageUpload = (dayId, placeId, e) => {
                 const file = e.target.files[0];
                 if (!file) return;
@@ -867,13 +1096,11 @@
                 reader.onload = (event) => {
                     const img = new Image();
                     img.onload = () => {
-                        // 建立 Canvas 進行智慧壓縮，防止 Base64 檔案過大超過 Firebase 限制
                         const canvas = document.createElement('canvas');
                         const MAX_WIDTH = 800;
                         const MAX_HEIGHT = 800;
                         let width = img.width;
                         let height = img.height;
-
                         if (width > height) {
                             if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
                         } else {
@@ -885,7 +1112,6 @@
                         ctx.drawImage(img, 0, 0, width, height);
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
 
-                        // 更新 Firebase
                         const newDays = trip.days.map(d => {
                             if (d.id === dayId) {
                                 return { ...d, places: d.places.map(p => p.id === placeId ? { ...p, image: dataUrl } : p) };
@@ -909,7 +1135,6 @@
                 pushUpdate({ trip: { ...trip, days: newDays } });
             };
 
-            // --- 新增：拖動排序 (Drag & Drop) 邏輯 ---
             const handleDragStart = (e, index) => {
                 if (!isEditing) return;
                 setDraggedPlaceIndex(index);
@@ -937,17 +1162,8 @@
 
             const handleDragEnd = () => {
                 setDraggedPlaceIndex(null);
+                setDragEnabledId(null); 
             };
-
-            const handleImageUpload = useCallback((e, setter) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onloadend = () => { setter(prev => ({ ...prev, image: reader.result })); };
-                    reader.readAsDataURL(file);
-                }
-            }, []);
-            const removeImage = useCallback((setter) => { setter(prev => ({ ...prev, image: null })); }, []);
 
             const settlementResult = useMemo(() => {
                 const balances = {}; members.forEach(m => balances[m.name] = 0);
@@ -996,7 +1212,6 @@
 
             const toggleSharedMember = (m) => setNewExpenseItem(prev => { const shared = prev.sharedBy.includes(m) ? (prev.sharedBy.length > 1 ? prev.sharedBy.filter(name => name !== m) : prev.sharedBy) : [...prev.sharedBy, m]; return { ...prev, sharedBy: shared }; });
 
-            // 建立可共用的切換編輯按鈕，綠色底色
             const EditToggleButton = () => (
                 <button onClick={() => setIsEditing(!isEditing)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-md ${isEditing ? 'bg-green-500 hover:bg-green-400 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-300 border border-slate-600'}`}>
                     {isEditing ? <><Icons.Unlock size={14} /> 編輯模式</> : <><Icons.Lock size={14} /> 唯讀模式</>}
@@ -1038,182 +1253,317 @@
                         {activeTab === 'itinerary' && (
                             <>
                                 <div className="w-full md:w-[400px] flex flex-col border-r border-slate-800 bg-slate-900 shrink-0 relative z-10 shadow-2xl md:shadow-none h-full overflow-y-auto md:overflow-hidden">
-                                    <div 
-                                        ref={daysContainerRef} 
-                                        onMouseDown={onDayMouseDown}
-                                        onMouseLeave={onDayMouseLeave}
-                                        onMouseUp={onDayMouseUp}
-                                        onMouseMove={onDayMouseMove}
-                                        className="bg-slate-900 border-b border-slate-800 px-3 py-4 flex flex-nowrap gap-3 overflow-x-auto no-scrollbar shadow-sm shrink-0 w-full cursor-grab active:cursor-grabbing select-none"
-                                    >
-                                        {trip.days.map((day, idx) => (
-                                            <button 
-                                                key={day.id} 
-                                                onClick={(e) => {
-                                                    if (dragHasMoved.current) {
-                                                        dragHasMoved.current = false;
-                                                        return;
-                                                    }
-                                                    setActiveDayId(day.id);
-                                                }} 
-                                                className={`flex flex-col items-start min-w-[100px] shrink-0 p-3 rounded-xl border transition-all duration-200 ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 ring-blue-500 shadow-md shadow-blue-900/20' : 'bg-slate-800 border-slate-700 hover:border-slate-600 hover:bg-slate-700/50'}`}
+                                    {!isAddingPlace ? (
+                                        <>
+                                            <div 
+                                                ref={daysContainerRef} 
+                                                onMouseDown={onDayMouseDown}
+                                                onMouseLeave={onDayMouseLeave}
+                                                onMouseUp={onDayMouseUp}
+                                                onMouseMove={onDayMouseMove}
+                                                className="bg-slate-900 border-b border-slate-800 px-3 py-4 flex flex-nowrap gap-3 overflow-x-auto no-scrollbar shadow-sm shrink-0 w-full cursor-grab active:cursor-grabbing select-none"
                                             >
-                                                <div className="flex items-center justify-between w-full mb-1.5">
-                                                    <span className={`text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>Day {idx + 1}</span>
-                                                    <WeatherIcon type={day.weather?.type || 'sun'} size={16} />
-                                                </div>
-                                                <span className={`text-xs font-medium mb-1 ${activeDayId === day.id ? 'text-blue-300' : 'text-slate-500'}`}>{formatShortDate(day.date)}</span>
-                                                <span className="text-[10px] text-slate-500 mt-auto font-mono bg-slate-900/50 px-1.5 py-0.5 rounded w-full text-left">{day.weather?.minTemp || 0}°C~{day.weather?.maxTemp || 0}°C</span>
-                                            </button>
-                                        ))}
-                                        {isEditing && (
-                                            <button 
-                                                onClick={(e) => {
-                                                    if (dragHasMoved.current) {
-                                                        dragHasMoved.current = false;
-                                                        return;
-                                                    }
-                                                    handleAddDay();
-                                                }} 
-                                                className="flex flex-col items-center justify-center min-w-[80px] shrink-0 p-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:bg-slate-800 hover:text-blue-400 hover:border-blue-500 transition-all"
-                                            >
-                                                <div className="bg-slate-800 rounded-full p-1.5 mb-1.5"><Icons.Plus size={18} /></div>
-                                                <span className="text-xs font-bold mt-auto">新增</span>
-                                            </button>
-                                        )}
-                                    </div>
-                                    <div className="px-4 py-4 flex flex-col h-auto md:flex-1 md:overflow-y-auto pb-48">
-                                        <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 mb-4">
-                                            <div className="flex items-center gap-4">
-                                                <div>
-                                                    <h3 className="font-bold text-slate-200 text-sm text-blue-400">{activeDayData?.title || `第 ${trip.days.findIndex(d=>d.id===activeDayId)+1} 天`}</h3>
-                                                    <div className="text-[10px] text-slate-400 mt-1">{activeDayData?.places?.length || 0} 個景點</div>
-                                                </div>
-                                                <EditToggleButton />
-                                            </div>
-                                            {isEditing && (
-                                                <button onClick={() => setShowDeleteDayConfirm(true)} className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-full transition-colors"><Icons.Trash2 size={16} /></button>
-                                            )}
-                                        </div>
-
-                                        {isEditing && (
-                                            <div className="relative group mb-4">
-                                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"><Icons.Search size={16} /></div>
-                                                <input type="text" placeholder="搜尋景點並加入..." className="w-full pl-9 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:bg-slate-800 focus:border-blue-500 outline-none transition-all shadow-inner" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(true); }} onFocus={() => setShowSearchResults(true)} />
-                                                {showSearchResults && searchQuery && (<div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 z-50 max-h-60 overflow-y-auto">{MOCK_PLACES_DB.filter(p => p.name.includes(searchQuery)).map(place => (<div key={place.id} onClick={() => handleSearchResultClick(place)} className="p-3 hover:bg-slate-700 cursor-pointer flex items-center justify-between border-b border-slate-700 last:border-b-0"><div><div className="font-bold text-slate-200 text-sm">{place.name}</div></div><Icons.Plus size={16} className="text-blue-400"/></div>))}</div>)}
-                                            </div>
-                                        )}
-
-                                        <div className="flex flex-col">
-                                            {activeDayData?.places.map((place, index) => {
-                                                const isLast = index === activeDayData.places.length - 1;
-                                                const endTime = getEndTime(place.time, 1); // 自動推算結束時間（暫定停留1小時）
-                                                return (
-                                                    <div 
-                                                        key={place.id} 
-                                                        className={`flex flex-col transition-transform duration-200 ${draggedPlaceIndex === index ? 'opacity-40 scale-[0.98] z-50 relative' : ''}`}
-                                                        draggable={isEditing}
-                                                        onDragStart={(e) => handleDragStart(e, index)}
-                                                        onDragOver={(e) => handleDragOver(e, index)}
-                                                        onDrop={(e) => handleDrop(e, index)}
-                                                        onDragEnd={handleDragEnd}
+                                                {trip.days.map((day, idx) => (
+                                                    <button 
+                                                        key={day.id} 
+                                                        onClick={(e) => {
+                                                            if (dragHasMoved.current) {
+                                                                dragHasMoved.current = false;
+                                                                return;
+                                                            }
+                                                            setActiveDayId(day.id);
+                                                        }} 
+                                                        className={`flex flex-col items-start min-w-[100px] shrink-0 p-3 rounded-xl border transition-all duration-200 ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 ring-blue-500 shadow-md shadow-blue-900/20' : 'bg-slate-800 border-slate-700 hover:border-slate-600 hover:bg-slate-700/50'}`}
                                                     >
-                                                        {/* 1. 景點抵達與活動區塊 */}
-                                                        <div className="flex items-stretch gap-3">
-                                                            {/* 左側：精確時間軸與實線 */}
-                                                            <div className="flex flex-col items-center w-12 shrink-0">
-                                                                <div className="text-[11px] font-bold text-slate-300 font-mono mb-1.5 pt-1">{place.time}</div>
-                                                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md z-10 shrink-0" style={{ backgroundColor: activeDayData.color || '#3b82f6' }}>{index + 1}</div>
-                                                                {!isLast && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}
-                                                            </div>
-                                                            
-                                                            {/* 右側：景點卡片 */}
-                                                            <div className="flex-1 pb-3">
-                                                                <div className={`relative flex items-start gap-3 p-3 rounded-xl border transition-all ${isEditing ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'} ${hoveredPlaceId === place.id && !isEditing ? 'bg-slate-800 border-blue-500 shadow-xl translate-x-1' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600'}`} onMouseEnter={() => !isEditing && setHoveredPlaceId(place.id)} onMouseLeave={() => !isEditing && setHoveredPlaceId(null)}>
-                                                                    <div className="flex-1 min-w-0 flex flex-col">
-                                                                        <div className="flex flex-row gap-3 items-start">
-                                                                            {/* 左側：照片縮圖或預設佔位圖 */}
-                                                                            <div className="w-[60px] h-[60px] shrink-0 rounded-lg overflow-hidden relative group bg-slate-800 border border-slate-700 shadow-sm flex items-center justify-center">
-                                                                                {place.image ? (
-                                                                                    <>
-                                                                                        <div className="w-full h-full bg-cover bg-center transition-transform hover:scale-110 cursor-pointer" style={{ backgroundImage: `url(${place.image})` }} onClick={(e) => { e.stopPropagation(); setPreviewImage(place.image); }}></div>
-                                                                                        {isEditing && (
-                                                                                            <button onClick={(e) => { e.stopPropagation(); removePlaceImage(activeDayId, place.id); }} className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500">
-                                                                                                <Icons.X size={10} />
-                                                                                            </button>
+                                                        <div className="flex items-center justify-between w-full mb-1.5">
+                                                            <span className={`text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>Day {idx + 1}</span>
+                                                            <WeatherIcon type={day.weather?.type || 'sun'} size={16} />
+                                                        </div>
+                                                        <span className={`text-xs font-medium mb-1 ${activeDayId === day.id ? 'text-blue-300' : 'text-slate-500'}`}>{formatShortDate(day.date)}</span>
+                                                        <span className="text-[10px] text-slate-500 mt-auto font-mono bg-slate-900/50 px-1.5 py-0.5 rounded w-full text-left">{day.weather?.minTemp || 0}°C~{day.weather?.maxTemp || 0}°C</span>
+                                                    </button>
+                                                ))}
+                                                {isEditing && (
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            if (dragHasMoved.current) {
+                                                                dragHasMoved.current = false;
+                                                                return;
+                                                            }
+                                                            handleAddDay();
+                                                        }} 
+                                                        className="flex flex-col items-center justify-center min-w-[80px] shrink-0 p-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:bg-slate-800 hover:text-blue-400 hover:border-blue-500 transition-all"
+                                                    >
+                                                        <div className="bg-slate-800 rounded-full p-1.5 mb-1.5"><Icons.Plus size={18} /></div>
+                                                        <span className="text-xs font-bold mt-auto">新增</span>
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="px-4 py-4 flex flex-col h-auto md:flex-1 md:overflow-y-auto pb-48">
+                                                <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 mb-4">
+                                                    <div className="flex items-center gap-4">
+                                                        <div>
+                                                            <h3 className="font-bold text-slate-200 text-sm text-blue-400">{activeDayData?.title || `第 ${trip.days.findIndex(d=>d.id===activeDayId)+1} 天`}</h3>
+                                                            <div className="text-[10px] text-slate-400 mt-1">{activeDayData?.places?.length || 0} 個景點</div>
+                                                        </div>
+                                                        <EditToggleButton />
+                                                    </div>
+                                                    {isEditing && (
+                                                        <button onClick={() => setShowDeleteDayConfirm(true)} className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-full transition-colors"><Icons.Trash2 size={16} /></button>
+                                                    )}
+                                                </div>
+
+                                                {isEditing && (
+                                                    <div className="relative group mb-4">
+                                                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"><Icons.Search size={16} /></div>
+                                                        <input type="text" placeholder="搜尋景點並加入..." className="w-full pl-9 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:bg-slate-800 focus:border-blue-500 outline-none transition-all shadow-inner" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setShowSearchResults(true); }} onFocus={() => setShowSearchResults(true)} />
+                                                        {showSearchResults && searchQuery && (<div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 z-50 max-h-60 overflow-y-auto">{MOCK_PLACES_DB.filter(p => p.name.includes(searchQuery)).map(place => (<div key={place.id} onClick={() => handleSearchResultClick(place)} className="p-3 hover:bg-slate-700 cursor-pointer flex items-center justify-between border-b border-slate-700 last:border-b-0"><div><div className="font-bold text-slate-200 text-sm">{place.name}</div></div><Icons.Plus size={16} className="text-blue-400"/></div>))}</div>)}
+                                                    </div>
+                                                )}
+
+                                                <div className="flex flex-col">
+                                                    {activeDayData?.places.map((place, index) => {
+                                                        const isLast = index === activeDayData.places.length - 1;
+                                                        const endTime = getEndTime(place.time, 1);
+                                                        return (
+                                                            <div 
+                                                                key={place.id} 
+                                                                className={`flex flex-col transition-transform duration-200 ${draggedPlaceIndex === index ? 'opacity-40 scale-[0.98] z-50 relative' : ''}`}
+                                                                draggable={isEditing && dragEnabledId === place.id}
+                                                                onDragStart={(e) => handleDragStart(e, index)}
+                                                                onDragOver={(e) => handleDragOver(e, index)}
+                                                                onDrop={(e) => handleDrop(e, index)}
+                                                                onDragEnd={handleDragEnd}
+                                                            >
+                                                                <div className="flex items-stretch gap-3">
+                                                                    <div className="flex flex-col items-center w-12 shrink-0">
+                                                                        <div className="text-[11px] font-bold text-slate-300 font-mono mb-1.5 pt-1">{place.time}</div>
+                                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-md z-10 shrink-0" style={{ backgroundColor: activeDayData.color || '#3b82f6' }}>{index + 1}</div>
+                                                                        {!isLast && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}
+                                                                    </div>
+                                                                    <div className="flex-1 pb-3">
+                                                                        <div className={`relative flex items-start gap-3 p-3 rounded-xl border transition-all ${!isEditing ? 'cursor-pointer' : ''} ${hoveredPlaceId === place.id && !isEditing ? 'bg-slate-800 border-blue-500 shadow-xl translate-x-1' : 'bg-slate-800/80 border-slate-700 hover:border-slate-600'}`} onMouseEnter={() => !isEditing && setHoveredPlaceId(place.id)} onMouseLeave={() => !isEditing && setHoveredPlaceId(null)}>
+                                                                            <div className="flex-1 min-w-0 flex flex-col">
+                                                                                <div className="flex flex-row gap-3 items-start">
+                                                                                    <div 
+                                                                                        className={`w-[60px] h-[60px] shrink-0 rounded-lg overflow-hidden relative group bg-slate-800 border border-slate-700 shadow-sm flex items-center justify-center ${isEditing ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                                                                        onMouseEnter={() => isEditing && setDragEnabledId(place.id)}
+                                                                                        onMouseLeave={() => isEditing && setDragEnabledId(null)}
+                                                                                    >
+                                                                                        {place.image ? (
+                                                                                            <>
+                                                                                                <div className="w-full h-full bg-cover bg-center transition-transform hover:scale-110 cursor-pointer" style={{ backgroundImage: `url(${place.image})` }} onClick={(e) => { e.stopPropagation(); setPreviewImage(place.image); }}></div>
+                                                                                                {isEditing && (
+                                                                                                    <button onClick={(e) => { e.stopPropagation(); removePlaceImage(activeDayId, place.id); }} className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500">
+                                                                                                        <Icons.X size={10} />
+                                                                                                    </button>
+                                                                                                )}
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <div className="w-full h-full flex items-center justify-center bg-slate-800/50 text-slate-600">
+                                                                                                <Icons.Image size={24} />
+                                                                                            </div>
                                                                                         )}
-                                                                                    </>
-                                                                                ) : (
-                                                                                    <div className="w-full h-full flex items-center justify-center bg-slate-800/50 text-slate-600">
-                                                                                        <Icons.Image size={24} />
                                                                                     </div>
-                                                                                )}
+                                                                                    <div className="flex flex-col min-w-0 flex-1">
+                                                                                        {isEditing ? (
+                                                                                            <input 
+                                                                                                type="text" 
+                                                                                                value={place.name} 
+                                                                                                onChange={(e) => handleUpdatePlaceName(activeDayData.id, place.id, e.target.value)} 
+                                                                                                onMouseDown={(e) => e.stopPropagation()} 
+                                                                                                className="font-bold text-slate-100 text-base leading-snug bg-slate-900/80 border border-slate-600 focus:border-blue-500 rounded px-1.5 py-0.5 -ml-1.5 outline-none w-full transition-colors"
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <h3 className="font-bold text-slate-100 text-base leading-snug line-clamp-2">{place.name}</h3>
+                                                                                        )}
+                                                                                        <div className="text-[11px] text-slate-400 mt-1">停留 1 小時</div>
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="text-xs text-slate-500 mt-2 flex flex-wrap items-center gap-1.5">
+                                                                                    <span className="px-1.5 py-0.5 rounded text-slate-300 bg-slate-700">{getCategoryName(place.type)}</span>
+                                                                                    {place.note && <span className="truncate max-w-[200px] text-slate-400">- {place.note}</span>}
+                                                                                </div>
                                                                             </div>
-                                                                            
-                                                                            {/* 右側：景點名稱與停留時間 */}
-                                                                            <div className="flex flex-col min-w-0 flex-1">
-                                                                                <h3 className="font-bold text-slate-100 text-base leading-snug line-clamp-2">{place.name}</h3>
-                                                                                <div className="text-[11px] text-slate-400 mt-1">停留 1 小時</div>
-                                                                            </div>
-                                                                        </div>
-                                                                        
-                                                                        {/* 下方：標籤與備註 */}
-                                                                        <div className="text-xs text-slate-500 mt-2 flex flex-wrap items-center gap-1.5">
-                                                                            <span className="px-1.5 py-0.5 rounded text-slate-300 bg-slate-700">{getCategoryName(place.type)}</span>
-                                                                            {place.note && <span className="truncate max-w-[200px] text-slate-400">- {place.note}</span>}
+                                                                            {isEditing && (
+                                                                                <div className="flex flex-col items-center gap-2 border-l border-slate-700 pl-2 shrink-0">
+                                                                                    <label className="text-slate-500 hover:text-blue-400 p-1 cursor-pointer transition-colors" title="上傳圖片">
+                                                                                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePlaceImageUpload(activeDayId, place.id, e)} />
+                                                                                        <Icons.Camera size={16}/>
+                                                                                    </label>
+                                                                                    <button onClick={() => setPlaceToDelete(place.id)} className="text-slate-500 hover:text-red-400 p-1 transition-colors" title="刪除景點"><Icons.Trash2 size={16}/></button>
+                                                                                    <div 
+                                                                                        className="text-slate-600 hover:text-slate-300 p-1 mt-1 cursor-grab active:cursor-grabbing" 
+                                                                                        title="按住拖曳排序"
+                                                                                        onMouseEnter={() => isEditing && setDragEnabledId(place.id)}
+                                                                                        onMouseLeave={() => isEditing && setDragEnabledId(null)}
+                                                                                    >
+                                                                                        <Icons.GripVertical size={16}/>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     </div>
-                                                                    {/* 編輯模式功能區：上傳圖片、刪除、拖曳把手 */}
-                                                                    {isEditing && (
-                                                                        <div className="flex flex-col items-center gap-2 border-l border-slate-700 pl-2 shrink-0">
-                                                                            <label className="text-slate-500 hover:text-blue-400 p-1 cursor-pointer transition-colors" title="上傳圖片">
-                                                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePlaceImageUpload(activeDayId, place.id, e)} />
-                                                                                <Icons.Camera size={16}/>
-                                                                            </label>
-                                                                            <button onClick={() => setPlaceToDelete(place.id)} className="text-slate-500 hover:text-red-400 p-1 transition-colors" title="刪除景點"><Icons.Trash2 size={16}/></button>
-                                                                            <div className="text-slate-600 hover:text-slate-300 p-1 mt-1 cursor-grab" title="按住拖曳排序"><Icons.GripVertical size={16}/></div>
-                                                                        </div>
-                                                                    )}
                                                                 </div>
+                                                                {!isLast && (
+                                                                    <div className="flex items-stretch gap-3">
+                                                                        <div className="flex flex-col items-center w-12 shrink-0">
+                                                                            <div className="text-[10px] font-medium text-slate-500 font-mono mb-1">{endTime}</div>
+                                                                            <div className="w-2 h-2 rounded-full bg-slate-600 z-10 shrink-0"></div>
+                                                                            <div className="border-l-2 border-dashed border-slate-700 flex-1 mt-1 min-h-[1rem] w-0"></div>
+                                                                        </div>
+                                                                        <div className="flex-1 pb-3 flex items-start -mt-2">
+                                                                             <TravelSegmentUI 
+                                                                                p1={place} 
+                                                                                p2={activeDayData.places[index+1]} 
+                                                                                isEditing={isEditing}
+                                                                                onUpdateMode={(mode) => handleUpdateTravelMode(activeDayData.id, place.id, mode)}
+                                                                                onMouseEnter={() => setHoveredSegmentId(`${place.id}-${activeDayData.places[index+1].id}`)}
+                                                                                onMouseLeave={() => setHoveredSegmentId(null)}
+                                                                             />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                {isEditing && (
+                                                    <button onClick={() => setIsAddingPlace(true)} className="w-full py-3.5 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 font-bold hover:border-blue-500 hover:text-blue-400 transition-all flex items-center justify-center gap-2 mt-4"><Icons.Plus size={18} /> 新增行程景點</button>
+                                                )}
+                                                <div className="block md:hidden w-full h-[300px] mt-6 rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
+                                                    <RealMap 
+                                                        places={activeDayData?.places || []} 
+                                                        hoveredId={hoveredPlaceId} 
+                                                        hoveredSegmentId={hoveredSegmentId} 
+                                                        zoomControlKey={activeDayId} 
+                                                        dayColor={activeDayData?.color} 
+                                                        isEditing={isEditing}
+                                                        tempMarker={tempMarker}
+                                                        onRouteAltSelect={(placeId, altIdx) => handleUpdateRouteIndex(activeDayData.id, placeId, altIdx)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col h-full bg-slate-900 animate-fade-in">
+                                            <div className="flex items-center bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 backdrop-blur-md">
+                                                <button onClick={() => { setIsAddingPlace(false); setTempMarker(null); }} className="p-4 text-slate-400 hover:text-white transition-colors shrink-0">
+                                                    <Icons.ArrowLeft size={20} />
+                                                </button>
+                                                <div className="flex flex-1">
+                                                    <button onClick={() => setAddModalTab('search')} className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${addModalTab === 'search' ? 'text-blue-400 border-b-2 border-blue-500 bg-slate-800/50' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'}`}>
+                                                        <Icons.Search size={18} />
+                                                        <span className="text-[10px] font-bold">搜尋</span>
+                                                    </button>
+                                                    <button onClick={() => setAddModalTab('collections')} className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${addModalTab === 'collections' ? 'text-blue-400 border-b-2 border-blue-500 bg-slate-800/50' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'}`}>
+                                                        <Icons.MapPin size={18} />
+                                                        <span className="text-[10px] font-bold">我的景點收藏</span>
+                                                    </button>
+                                                    <button onClick={() => setAddModalTab('custom')} className={`flex-1 py-3 flex flex-col items-center gap-1 transition-colors ${addModalTab === 'custom' ? 'text-blue-400 border-b-2 border-blue-500 bg-slate-800/50' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'}`}>
+                                                        <Icons.Pen size={18} />
+                                                        <span className="text-[10px] font-bold">自訂景點</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="overflow-y-auto p-4 md:p-6 pb-20 flex-1">
+                                                {addModalTab === 'custom' && (
+                                                    <form onSubmit={handleManualAddSubmit} className="space-y-4">
+                                                        <div className="flex justify-between items-baseline mb-2">
+                                                            <h4 className="font-bold text-lg text-slate-100">自建新景點</h4>
+                                                            <span className="text-xs font-medium text-red-400">*必填欄位</span>
+                                                        </div>
+                                                        <div>
+                                                            <input required type="text" placeholder="*景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500" />
+                                                        </div>
+                                                        <div className="relative flex gap-2">
+                                                            <input type="text" placeholder="*地址或地標關鍵字" value={newItem.address} onChange={handleAddressInput} className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500" />
+                                                            <button type="button" onClick={handleAddressSearch} disabled={isSearchingAddress} className="bg-blue-600 hover:bg-blue-500 text-white p-2.5 rounded-lg transition-colors flex items-center justify-center w-12 shadow-md disabled:opacity-50 shrink-0">
+                                                                {isSearchingAddress ? <Icons.Refresh size={18} className="animate-spin" /> : <Icons.Search size={18} />}
+                                                            </button>
+                                                            {addressSuggestions.length > 0 && (
+                                                                <div className="absolute top-full left-0 right-14 mt-1 bg-slate-800 rounded-xl shadow-2xl border border-slate-600 z-[100] max-h-60 overflow-y-auto divide-y divide-slate-700">
+                                                                    {addressSuggestions.map((suggestion, idx) => (
+                                                                        <div 
+                                                                            key={idx} 
+                                                                            onClick={() => handleSuggestionClick(suggestion)} 
+                                                                            className="p-3 hover:bg-slate-700 cursor-pointer transition-colors"
+                                                                        >
+                                                                            <div className="font-bold text-slate-200 text-sm">{suggestion.display_name.split(',')[0]}</div>
+                                                                            <div className="text-xs text-slate-400 truncate mt-1">{suggestion.display_name}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <input type="text" placeholder="網站" value={newItem.website} onChange={e => setNewItem({...newItem, website: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500" />
+                                                        </div>
+                                                        <div className="flex gap-4 pt-2 border-t border-slate-700/50 mt-4">
+                                                            <div className="flex-1">
+                                                                <label className="block text-xs font-bold text-slate-400 mb-1">抵達時間</label>
+                                                                <input type="time" value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <label className="block text-xs font-bold text-slate-400 mb-1">景點類型</label>
+                                                                <select value={newItem.type} onChange={e => setNewItem({...newItem, type: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                                                                    <option value="sight">景點</option>
+                                                                    <option value="food">餐廳</option>
+                                                                    <option value="shopping">購物</option>
+                                                                    <option value="transport">交通</option>
+                                                                    <option value="accommodation">住宿</option>
+                                                                </select>
                                                             </div>
                                                         </div>
-
-                                                        {/* 2. 離開與交通路段 (若非最後一站) */}
-                                                        {!isLast && (
-                                                            <div className="flex items-stretch gap-3">
-                                                                {/* 左側：結束時間與虛線 */}
-                                                                <div className="flex flex-col items-center w-12 shrink-0">
-                                                                    <div className="text-[10px] font-medium text-slate-500 font-mono mb-1">{endTime}</div>
-                                                                    <div className="w-2 h-2 rounded-full bg-slate-600 z-10 shrink-0"></div>
-                                                                    <div className="border-l-2 border-dashed border-slate-700 flex-1 mt-1 min-h-[1rem] w-0"></div>
-                                                                </div>
-                                                                
-                                                                {/* 右側：交通時間卡片，加入負邊距修正空隙 */}
-                                                                <div className="flex-1 pb-3 flex items-start -mt-2">
-                                                                     <TravelSegmentUI 
-                                                                        p1={place} 
-                                                                        p2={activeDayData.places[index+1]} 
-                                                                        onMouseEnter={() => setHoveredSegmentId(`${place.id}-${activeDayData.places[index+1].id}`)}
-                                                                        onMouseLeave={() => setHoveredSegmentId(null)}
-                                                                     />
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                        <div className="flex items-center gap-2 pt-2 pb-2">
+                                                            <input id="saveToCollection" type="checkbox" checked={newItem.saveToCollection} onChange={e => setNewItem({...newItem, saveToCollection: e.target.checked})} className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500 focus:ring-offset-slate-800 cursor-pointer" />
+                                                            <label htmlFor="saveToCollection" className="text-sm font-medium text-slate-300 cursor-pointer select-none">儲存景點</label>
+                                                        </div>
+                                                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg transition-colors">完成</button>
+                                                    </form>
+                                                )}
+                                                {addModalTab === 'search' && (
+                                                    <div className="text-center py-10 text-slate-500">
+                                                        <Icons.Search size={40} className="mx-auto mb-3 opacity-20" />
+                                                        <p>請輸入關鍵字搜尋景點</p>
                                                     </div>
-                                                );
-                                            })}
+                                                )}
+                                                {addModalTab === 'collections' && (
+                                                    <div className="text-center py-10 text-slate-500">
+                                                        <Icons.MapPin size={40} className="mx-auto mb-3 opacity-20" />
+                                                        <p>您的收藏列表為空</p>
+                                                    </div>
+                                                )}
+                                                <div className="block md:hidden w-full h-[250px] mt-6 rounded-xl overflow-hidden border border-slate-700 shadow-2xl">
+                                                    <RealMap 
+                                                        places={activeDayData?.places || []} 
+                                                        hoveredId={hoveredPlaceId} 
+                                                        hoveredSegmentId={hoveredSegmentId} 
+                                                        zoomControlKey={activeDayId} 
+                                                        dayColor={activeDayData?.color} 
+                                                        isEditing={isEditing}
+                                                        tempMarker={tempMarker}
+                                                        onRouteAltSelect={(placeId, altIdx) => handleUpdateRouteIndex(activeDayData.id, placeId, altIdx)}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
-                                        
-                                        {isEditing && (
-                                            <button onClick={() => setShowAddModal(true)} className="w-full py-3.5 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 font-bold hover:border-blue-500 hover:text-blue-400 transition-all flex items-center justify-center gap-2 mt-4"><Icons.Plus size={18} /> 新增行程景點</button>
-                                        )}
-                                        <div className="block md:hidden w-full h-[300px] mt-6 rounded-xl overflow-hidden border border-slate-700 shadow-2xl"><RealMap places={activeDayData?.places || []} hoveredId={hoveredPlaceId} hoveredSegmentId={hoveredSegmentId} zoomControlKey={activeDayId} dayColor={activeDayData?.color} /></div>
-                                    </div>
+                                    )}
                                 </div>
-                                <div className="flex-1 relative hidden md:block"><RealMap places={activeDayData?.places || []} hoveredId={hoveredPlaceId} hoveredSegmentId={hoveredSegmentId} zoomControlKey={activeDayId} dayColor={activeDayData?.color} /></div>
+                                <div className="flex-1 relative hidden md:block">
+                                    <RealMap 
+                                        places={activeDayData?.places || []} 
+                                        hoveredId={hoveredPlaceId} 
+                                        hoveredSegmentId={hoveredSegmentId} 
+                                        zoomControlKey={activeDayId} 
+                                        dayColor={activeDayData?.color} 
+                                        isEditing={isEditing}
+                                        tempMarker={tempMarker}
+                                        onRouteAltSelect={(placeId, altIdx) => handleUpdateRouteIndex(activeDayData.id, placeId, altIdx)}
+                                    />
+                                </div>
                             </>
                         )}
-
                         {activeTab === 'expenses' && (
                             <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto">
                                 <div className="max-w-2xl mx-auto space-y-6">
@@ -1233,7 +1583,6 @@
                                         {isEditing && (
                                             <button 
                                                 onClick={() => {
-                                                    // 優化：點擊時預設帶入當前檢視行程的日期 (如果抓不到就維持預設)
                                                     const defaultDate = activeDayData?.date ? activeDayData.date.split(' ')[0].replace(/\//g, '-') : '2026-04-03';
                                                     setNewExpenseItem(prev => ({...prev, date: defaultDate}));
                                                     setShowExpenseModal(true);
@@ -1280,7 +1629,6 @@
                                 </div>
                             </div>
                         )}
-
                         {activeTab === 'shopping' && (
                             <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto">
                                 <div className="max-w-2xl mx-auto space-y-6">
@@ -1317,7 +1665,6 @@
                                 </div>
                             </div>
                         )}
-
                         {activeTab === 'packing' && (
                             <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto relative">
                                 <div className="max-w-2xl mx-auto space-y-6">
@@ -1341,270 +1688,6 @@
                             </div>
                         )}
                     </div>
-
-                    {/* Modals */}
-                    {showAddModal && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700">
-                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
-                                    <h3 className="font-bold text-lg text-slate-100">新增行程</h3>
-                                    <button onClick={() => setShowAddModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button>
-                                </div>
-                                <form onSubmit={handleManualAddSubmit} className="p-6 space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-400 mb-1">名稱</label>
-                                        <input required type="text" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-bold text-slate-400 mb-1">時間</label>
-                                            <input type="time" value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-bold text-slate-400 mb-1">類型</label>
-                                            <select value={newItem.type} onChange={e => setNewItem({...newItem, type: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none">
-                                                <option value="sight">景點</option>
-                                                <option value="food">餐廳</option>
-                                                <option value="shopping">購物</option>
-                                                <option value="transport">交通</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2">確認新增</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {showExpenseModal && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[90vh] border border-slate-700">
-                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
-                                    <h3 className="font-bold text-lg text-slate-100">新增花費</h3>
-                                    <button onClick={() => setShowExpenseModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button>
-                                </div>
-                                <form onSubmit={handleAddExpenseSubmit} className="p-6 space-y-4 overflow-y-auto">
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-400 mb-1">名稱</label>
-                                        <input required type="text" value={newExpenseItem.title} onChange={e => setNewExpenseItem({...newExpenseItem, title: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
-                                    </div>
-
-                                    {/* 新增的 日期 與 類別 選擇區塊 */}
-                                    <div className="flex gap-4">
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-bold text-slate-400 mb-1">日期</label>
-                                            <input required type="date" value={newExpenseItem.date} onChange={e => setNewExpenseItem({...newExpenseItem, date: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-bold text-slate-400 mb-1">類別</label>
-                                            <select value={newExpenseItem.category} onChange={e => setNewExpenseItem({...newExpenseItem, category: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none">
-                                                <option value="food">餐飲</option>
-                                                <option value="shopping">購物</option>
-                                                <option value="transport">交通</option>
-                                                <option value="sight">景點</option>
-                                                <option value="accommodation">住宿</option>
-                                                <option value="other">其他</option>
-                                            </select>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex gap-4">
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-bold text-slate-400 mb-1">金額</label>
-                                            <input required type="number" value={newExpenseItem.amount} onChange={e => setNewExpenseItem({...newExpenseItem, amount: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
-                                        </div>
-                                        <div className="w-24">
-                                            <label className="block text-sm font-bold text-slate-400 mb-1">幣別</label>
-                                            <select value={newExpenseItem.currency} onChange={e => setNewExpenseItem({...newExpenseItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none">
-                                                <option value="JPY">JPY</option>
-                                                <option value="HKD">HKD</option>
-                                                <option value="TWD">TWD</option>
-                                                <option value="MOP">MOP</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
-                                        <label className="block text-sm font-bold text-slate-300 mb-2">付款人</label>
-                                        <select value={newExpenseItem.payer} onChange={e => setNewExpenseItem({...newExpenseItem, payer: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">
-                                            {members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}
-                                        </select>
-                                    </div>
-                                    <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
-                                        <label className="block text-sm font-bold text-slate-300 mb-2">分攤成員</label>
-                                        <div className="flex flex-wrap gap-2">
-                                            {members.map(member => { 
-                                                const isChecked = newExpenseItem.sharedBy.includes(member.name); 
-                                                return (
-                                                    <button key={member.id} type="button" onClick={() => toggleSharedMember(member.name)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1 ${isChecked ? 'bg-blue-900/40 text-blue-400 border-blue-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
-                                                        {isChecked ? '✓ ' : ''}{member.avatar} {member.name}
-                                                    </button>
-                                                ); 
-                                            })}
-                                        </div>
-                                    </div>
-                                    <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg">確認新增</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {showShoppingModal && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700">
-                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
-                                    <h3 className="font-bold text-lg text-slate-100">新增待買項目</h3>
-                                    <button onClick={() => setShowShoppingModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button>
-                                </div>
-                                <form onSubmit={handleAddShoppingSubmit} className="p-6 space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-bold text-slate-400 mb-1">品名</label>
-                                        <input required type="text" value={newShoppingItem.name} onChange={e => setNewShoppingItem({...newShoppingItem, name: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-teal-500" placeholder="例如: 東京香蕉" />
-                                    </div>
-                                    <div className="flex gap-4">
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-bold text-slate-400 mb-1">數量</label>
-                                            <input type="number" min="1" value={newShoppingItem.qty} onChange={e => setNewShoppingItem({...newShoppingItem, qty: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-teal-500" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-sm font-bold text-slate-400 mb-1">單價</label>
-                                            <input required type="number" min="0" value={newShoppingItem.price} onChange={e => setNewShoppingItem({...newShoppingItem, price: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-teal-500" />
-                                        </div>
-                                    </div>
-                                    <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
-                                        <label className="block text-sm font-bold text-slate-300 mb-2">訂購人</label>
-                                        <select value={newShoppingItem.requester} onChange={e => setNewShoppingItem({...newShoppingItem, requester: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">
-                                            {members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}
-                                        </select>
-                                    </div>
-                                    <button type="submit" className="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold mt-2 shadow-lg">確認新增</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {showPackingModal && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full border border-slate-700">
-                                <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-900/50">
-                                    <h3 className="font-bold text-lg text-slate-100">新增行李項目</h3>
-                                    <button onClick={() => setShowPackingModal(false)}><Icons.X size={20} /></button>
-                                </div>
-                                <form onSubmit={handleAddPacking} className="p-6 space-y-4">
-                                    <input required type="text" placeholder="物品名稱" value={newPacking} onChange={e => setNewPacking(e.target.value)} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100"/>
-                                    <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg">新增</button>
-                                </form>
-                            </div>
-                        </div>
-                    )}
-
-                    {showSettlementPlan && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-700">
-                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
-                                    <h3 className="font-bold text-lg text-slate-100 flex items-center gap-2">
-                                        <Icons.Calculator size={20} className="text-blue-400"/>結算方案
-                                    </h3>
-                                    <button onClick={() => setShowSettlementPlan(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full">
-                                        <Icons.X size={20} />
-                                    </button>
-                                </div>
-                                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                                    <div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800/30">
-                                        <h4 className="text-sm font-bold text-blue-400 mb-2">建議轉帳</h4>
-                                        <div className="space-y-2">
-                                            {settlementResult.transactions.length > 0 ? settlementResult.transactions.map((t, idx) => (
-                                                <div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex items-center justify-between">
-                                                    <div className="text-sm text-slate-300">{t.from} ➔ {t.to}</div>
-                                                    <div className="text-blue-400 font-bold">{displayCurrency} {formatNumber(t.amount * currentExchangeRate)}</div>
-                                                </div>
-                                            )) : <div className="text-center text-slate-500 text-sm py-2">目前帳目已平衡</div>}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {showMemberSettings && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700">
-                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
-                                    <h3 className="font-bold text-lg text-slate-100 flex items-center gap-2">
-                                        <Icons.Settings size={20} className="text-slate-400"/>成員資料
-                                    </h3>
-                                    <button onClick={() => setShowMemberSettings(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full">
-                                        <Icons.X size={20} />
-                                    </button>
-                                </div>
-                                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                                    {members.map(m => (
-                                        <div key={m.id} className="flex items-center gap-3 p-3 border border-slate-700 rounded-xl bg-slate-900/50">
-                                            <input type="text" value={m.name} readOnly={!isEditing} onChange={(e) => updateMember(m.id, 'name', e.target.value)} className={`flex-1 px-3 py-1.5 rounded-lg text-slate-200 outline-none ${isEditing ? 'border border-slate-700 bg-slate-800 focus:ring-2 focus:ring-blue-500' : 'border-transparent bg-transparent pointer-events-none'}`} />
-                                            {isEditing && (
-                                                <button onClick={() => handleDeleteMember(m.id)} className="p-2 text-slate-600 hover:text-red-400 transition-colors">
-                                                    <Icons.Trash2 size={18} />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                    {isEditing && (
-                                        <button onClick={handleAddMember} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2">
-                                            <Icons.Plus size={16} /> 新增成員
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {showDeleteDayConfirm && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
-                                <h3 className="font-bold text-lg text-slate-100">確定刪除此日？</h3>
-                                <div className="flex gap-3 mt-6">
-                                    <button onClick={() => setShowDeleteDayConfirm(false)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300">取消</button>
-                                    <button onClick={confirmDeleteDay} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl">刪除</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                    
-                    {placeToDelete && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
-                                <h3 className="font-bold text-lg text-slate-100">確定刪除此景點？</h3>
-                                <div className="flex gap-3 mt-6">
-                                    <button onClick={() => setPlaceToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300">取消</button>
-                                    <button onClick={confirmDeletePlace} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl">刪除</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {expenseToDelete && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
-                                <h3 className="font-bold text-lg text-slate-100">確定刪除此筆消費嗎？</h3>
-                                <div className="flex gap-3 mt-6">
-                                    <button onClick={() => setExpenseToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300">取消</button>
-                                    <button onClick={confirmDeleteExpense} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl">刪除</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {shoppingToDelete && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
-                                <h3 className="font-bold text-lg text-slate-100">確定刪除此待買項目嗎？</h3>
-                                <div className="flex gap-3 mt-6">
-                                    <button onClick={() => setShoppingToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300">取消</button>
-                                    <button onClick={confirmDeleteShopping} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl">刪除</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
                 </div>
             );
         }
@@ -1691,6 +1774,50 @@
                 }
             };
 
+            const handleExportTrip = (tripData) => {
+                const dataStr = JSON.stringify(tripData, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `${tripData.trip?.title || 'trip'}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            const handleImportTrip = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if (!importedData.trip) {
+                            alert("檔案格式錯誤：找不到行程資料");
+                            return;
+                        }
+
+                        // 為匯入的行程建立新 ID 以避免覆蓋
+                        const newTripId = 'trip_imported_' + Date.now();
+                        const tripRef = window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', newTripId);
+                        
+                        // 更新內部 ID
+                        importedData.id = newTripId;
+                        if (importedData.trip) importedData.trip.id = newTripId;
+
+                        await window.FirebaseSDK.setDoc(tripRef, importedData);
+                        alert("行程匯入成功！");
+                    } catch (err) {
+                        console.error("Import error", err);
+                        alert("匯入失敗：無效的 JSON 檔案");
+                    }
+                    // 清除 input
+                    e.target.value = '';
+                };
+                reader.readAsText(file);
+            };
+
             if (!user) return <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-blue-400 font-bold">同步連線中...</div>;
 
             if (currentView === 'dashboard') {
@@ -1700,6 +1827,8 @@
                         onCreateTrip={createNewTrip} 
                         onSelectTrip={(id) => { setActiveTripId(id); setCurrentView('planner'); }} 
                         onDeleteTrip={deleteTrip}
+                        onImportTrip={handleImportTrip}
+                        onExportTrip={handleExportTrip}
                     />
                 );
             }
