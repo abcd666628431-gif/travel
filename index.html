@@ -87,7 +87,7 @@
             min-height: 1.5em;
         }
 
-        /* 防止拖曳把手在觸控設備上觸發滾動 */
+        /* 防止拖曳把手在觸控設備上觸發原生滾動 */
         .drag-handle {
             touch-action: none;
         }
@@ -457,6 +457,7 @@
                 }
             }, [zoomControlKey]); 
 
+            // 1. 路線渲染核心邏輯
             useEffect(() => {
                 const map = mapInstanceRef.current;
                 if (!map) return;
@@ -741,6 +742,7 @@
             const [tempMarker, setTempMarker] = useState(null);
             const [addressSuggestions, setAddressSuggestions] = useState([]);
             const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+            const [dragEnabledId, setDragEnabledId] = useState(null);
             const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
             const [hoveredSegmentId, setHoveredSegmentId] = useState(null);
             const [toast, setToast] = useState(null);
@@ -887,13 +889,15 @@
             };
 
             // 修正拖曳邏輯：驗證 Drag Handle 並相容行動版 Polyfill
-            const handleDragStart = (e, idx) => { 
-                if (!e.target.closest('.drag-handle')) { 
+            const handleDragStart = (e, idx, pId) => { 
+                // 只有滑鼠/手指有確實按在 .drag-handle 區塊上(設定了dragEnabledId)時，才允許拖動
+                if (dragEnabledId !== pId) { 
                     e.preventDefault(); 
                     return; 
                 }
                 setDraggedPlaceIndex(idx); 
                 e.dataTransfer.effectAllowed = 'move';
+                // 相容 Firefox/Polyfill
                 if (e.dataTransfer.setData) e.dataTransfer.setData('text/plain', ''); 
             };
             const handleDrop = (e, dropIdx) => {
@@ -905,8 +909,12 @@
                 const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: newPs } : d);
                 pushUpdate({ trip: { ...trip, days: newDays } }); 
                 setDraggedPlaceIndex(null);
+                setDragEnabledId(null);
             };
-            const handleDragEnd = () => { setDraggedPlaceIndex(null); };
+            const handleDragEnd = () => { 
+                setDraggedPlaceIndex(null); 
+                setDragEnabledId(null);
+            };
 
             const [jpyToHkdRate] = React.useState(0.0496); 
             const [jpyToTwdRate] = React.useState(0.215);
@@ -1115,7 +1123,7 @@
                                                             <div 
                                                                 key={p.id} 
                                                                 draggable={true} 
-                                                                onDragStart={e => handleDragStart(e, i)} 
+                                                                onDragStart={e => handleDragStart(e, i, p.id)} 
                                                                 onDragOver={e => e.preventDefault()} 
                                                                 onDrop={e => handleDrop(e, i)} 
                                                                 onDragEnd={handleDragEnd} 
@@ -1126,7 +1134,14 @@
                                                                     <div className="flex flex-col items-center w-12 shrink-0">
                                                                         <div className="text-[12px] font-bold text-blue-300 font-mono mb-1.5 pt-1">{p.time}</div>
                                                                         {/* 左側拖曳把手 1：數字圓圈 */}
-                                                                        <div className="drag-handle w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors" title="按住拖動排序">
+                                                                        <div 
+                                                                            onMouseEnter={() => setDragEnabledId(p.id)} 
+                                                                            onMouseLeave={() => setDragEnabledId(null)}
+                                                                            onTouchStart={() => setDragEnabledId(p.id)}
+                                                                            onTouchEnd={() => setDragEnabledId(null)}
+                                                                            className="drag-handle w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors" 
+                                                                            title="按住拖動排序"
+                                                                        >
                                                                             {i+1}
                                                                         </div>
                                                                         {i < activeDayData.places.length - 1 && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}
@@ -1136,7 +1151,7 @@
                                                                     <div className="flex-1 pb-3">
                                                                         <div className={`flex items-start gap-3 p-3 rounded-xl border border-slate-700 bg-slate-800/80 transition-all ${hoveredPlaceId === p.id ? 'border-blue-500 shadow-xl' : ''}`} onMouseEnter={() => setHoveredPlaceId(p.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
                                                                             
-                                                                            {/* 移除了 drag-handle，純粹做圖片預覽使用 */}
+                                                                            {/* 圖片預覽區域 (不再作為拖曳把手) */}
                                                                             <div 
                                                                                 className="w-[60px] h-[60px] bg-slate-700 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden cursor-pointer shadow-inner hover:ring-2 hover:ring-blue-500 transition-all" 
                                                                                 onClick={() => p.image && setPreviewImage(p.image)}
@@ -1170,7 +1185,14 @@
                                                                                     
                                                                                     <div className="flex items-center gap-1 shrink-0 ml-2">
                                                                                         {/* 右側拖曳把手 2：明確的 Grip 圖示 */}
-                                                                                        <div className="drag-handle p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors" title="按住拖動排序">
+                                                                                        <div 
+                                                                                            onMouseEnter={() => setDragEnabledId(p.id)} 
+                                                                                            onMouseLeave={() => setDragEnabledId(null)}
+                                                                                            onTouchStart={() => setDragEnabledId(p.id)}
+                                                                                            onTouchEnd={() => setDragEnabledId(null)}
+                                                                                            className="drag-handle p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors" 
+                                                                                            title="按住拖動排序"
+                                                                                        >
                                                                                             <Icons.GripVertical size={18} />
                                                                                         </div>
                                                                                         
