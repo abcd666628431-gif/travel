@@ -81,13 +81,11 @@
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
 
-        /* 備註框自動延伸支援 */
         textarea.auto-extend {
             field-sizing: content; 
             min-height: 1.5em;
         }
 
-        /* 防止拖曳把手在觸控設備上觸發原生滾動 */
         .drag-handle {
             touch-action: none;
         }
@@ -98,7 +96,6 @@
     </style>
     
     <script>
-        // 初始化手機拖曳支援
         window.addEventListener('DOMContentLoaded', () => {
             if (window.MobileDragDrop) {
                 window.MobileDragDrop.polyfill({
@@ -144,7 +141,6 @@
             return globalFirebase;
         }
 
-        // --- Utility Functions ---
         const getFutureDate = (daysToAdd) => {
             const date = new Date();
             date.setDate(date.getDate() + daysToAdd);
@@ -178,8 +174,6 @@
         const getEndTime = (timeStr, hoursToAdd = 1) => {
             if (!timeStr) return '';
             let [h, m] = timeStr.split(':').map(Number);
-            
-            // 處理小數點小時 (例如 1.5 小時 = 1小時30分)
             const addH = Math.floor(hoursToAdd);
             const addM = Math.round((hoursToAdd - addH) * 60);
             
@@ -336,7 +330,8 @@
             Hotel: (p) => <Icon {...p} path={<><path d="M10 22v-6.57"/><path d="M12 11h.01"/><path d="M12 7h.01"/><path d="M14 11h.01"/><path d="M14 7h.01"/><path d="M16 11h.01"/><path d="M16 7h.01"/><path d="M18 11h.01"/><path d="M18 7h.01"/><path d="M4 11h.01"/><path d="M4 7h.01"/><path d="M6 11h.01"/><path d="M6 7h.01"/><path d="M8 11h.01"/><path d="M8 7h.01"/><rect x="4" y="2" width="16" height="20" rx="2"/></>} />,
             ChevronDown: (p) => <Icon {...p} path={<polyline points="6 9 12 15 18 9" />} />,
             ChevronUp: (p) => <Icon {...p} path={<polyline points="18 15 12 9 6 15" />} />,
-            MoreVertical: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></>} />
+            MoreVertical: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></>} />,
+            Pen: (p) => <Icon {...p} path={<><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></>} />,
         };
 
         const CategoryIcon = ({ type, size = 20 }) => {
@@ -457,7 +452,6 @@
                 }
             }, [zoomControlKey]); 
 
-            // 1. 路線渲染核心邏輯
             useEffect(() => {
                 const map = mapInstanceRef.current;
                 if (!map) return;
@@ -742,8 +736,8 @@
             const [tempMarker, setTempMarker] = useState(null);
             const [addressSuggestions, setAddressSuggestions] = useState([]);
             const [isSearchingAddress, setIsSearchingAddress] = useState(false);
-            const [dragEnabledId, setDragEnabledId] = useState(null);
             const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
+            const [dragEnabledId, setDragEnabledId] = useState(null);
             const [hoveredSegmentId, setHoveredSegmentId] = useState(null);
             const [toast, setToast] = useState(null);
             const [previewImage, setPreviewImage] = useState(null);
@@ -793,6 +787,66 @@
             const showMsg = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
             const activeDayData = useMemo(() => trip.days?.find(d => d.id === activeDayId) || trip.days?.[0], [trip, activeDayId]);
             const getMemberInfo = useCallback((name) => members.find(m => m.name === name) || { color: 'bg-gray-400', avatar: '👤' }, [members]);
+
+            // --- 全域貼上監聽器 (支援 CTRL+V) ---
+            const stateRef = useRef({ trip, activeDayId, hoveredPlaceId, panelMode, newItem });
+            useEffect(() => {
+                stateRef.current = { trip, activeDayId, hoveredPlaceId, panelMode, newItem };
+            }, [trip, activeDayId, hoveredPlaceId, panelMode, newItem]);
+
+            useEffect(() => {
+                const handleGlobalPaste = (e) => {
+                    if (activeTab !== 'itinerary') return;
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+
+                    let imageFile = null;
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type.indexOf('image') !== -1) {
+                            imageFile = items[i].getAsFile();
+                            break;
+                        }
+                    }
+
+                    if (imageFile) {
+                        const current = stateRef.current;
+                        let targetPlaceId = null;
+                        
+                        if (current.panelMode === 'edit' && current.newItem.id) {
+                            targetPlaceId = current.newItem.id;
+                        } else if (current.hoveredPlaceId) {
+                            targetPlaceId = current.hoveredPlaceId;
+                        }
+
+                        if (targetPlaceId) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    const canvas = document.createElement('canvas');
+                                    let w = img.width, h = img.height;
+                                    if (w > h) { if (w > 800) { h *= 800/w; w = 800; } } else { if (h > 800) { w *= 800/h; h = 800; } }
+                                    canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                                    
+                                    const newDays = current.trip.days.map(d => 
+                                        String(d.id) === String(current.activeDayId) ? { 
+                                            ...d, 
+                                            places: d.places.map(p => p.id === targetPlaceId ? { ...p, image: canvas.toDataURL('image/jpeg', 0.7) } : p) 
+                                        } : d
+                                    );
+                                    pushUpdate({ trip: { ...current.trip, days: newDays } });
+                                    showMsg('✅ 圖片已從剪貼簿貼上！');
+                                };
+                                img.src = event.target.result;
+                            };
+                            reader.readAsDataURL(imageFile);
+                        }
+                    }
+                };
+
+                document.addEventListener('paste', handleGlobalPaste);
+                return () => document.removeEventListener('paste', handleGlobalPaste);
+            }, [activeTab]);
 
             const handleAddressInput = (e) => {
                 const val = e.target.value; setNewItem(p => ({...p, address: val}));
@@ -876,8 +930,9 @@
                 pushUpdate({ trip: { ...trip, days: newDays } });
             };
 
+            // 修正刪除驗證邏輯
             const confirmDeletePlace = () => {
-                const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: d.places.filter(p => p.id !== placeToDelete) } : d);
+                const newDays = trip.days.map(d => String(d.id) === String(activeDayId) ? { ...d, places: d.places.filter(p => p.id !== placeToDelete) } : d);
                 pushUpdate({ trip: { ...trip, days: newDays } });
                 setPlaceToDelete(null);
                 setPanelMode('list');
@@ -888,16 +943,14 @@
                 setExpandedNotes(prev => ({ ...prev, [placeId]: !prev[placeId] }));
             };
 
-            // 修正拖曳邏輯：驗證 Drag Handle 並相容行動版 Polyfill
+            // 修正拖曳邏輯：必須有 Drag Handle 觸發
             const handleDragStart = (e, idx, pId) => { 
-                // 只有滑鼠/手指有確實按在 .drag-handle 區塊上(設定了dragEnabledId)時，才允許拖動
                 if (dragEnabledId !== pId) { 
                     e.preventDefault(); 
                     return; 
                 }
                 setDraggedPlaceIndex(idx); 
                 e.dataTransfer.effectAllowed = 'move';
-                // 相容 Firefox/Polyfill
                 if (e.dataTransfer.setData) e.dataTransfer.setData('text/plain', ''); 
             };
             const handleDrop = (e, dropIdx) => {
@@ -1062,7 +1115,7 @@
 
             return (
                 <div className="flex flex-col h-[100dvh] bg-slate-900 text-slate-100 font-sans relative">
-                    {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700 shadow-2xl"><span>{toast}</span></div></div>}
+                    {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700 shadow-2xl font-bold tracking-wide"><span>{toast}</span></div></div>}
                     {previewImage && <div className="fixed inset-0 z-[110] bg-black/90 flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreviewImage(null)}><button className="absolute top-4 right-4 p-2 bg-slate-800 text-white rounded-full hover:bg-slate-700 transition-colors shadow-lg"><Icons.X size={24} /></button><img src={previewImage} className="max-w-full max-h-full object-contain" /></div>}
                     <header className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 shrink-0 z-20 shadow-lg">
                         <div className="flex items-center gap-3 flex-1">
@@ -1133,6 +1186,7 @@
                                                                     {/* Timeline Visual */}
                                                                     <div className="flex flex-col items-center w-12 shrink-0">
                                                                         <div className="text-[12px] font-bold text-blue-300 font-mono mb-1.5 pt-1">{p.time}</div>
+                                                                        
                                                                         {/* 左側拖曳把手 1：數字圓圈 */}
                                                                         <div 
                                                                             onMouseEnter={() => setDragEnabledId(p.id)} 
@@ -1154,6 +1208,7 @@
                                                                             {/* 圖片預覽區域 (不再作為拖曳把手) */}
                                                                             <div 
                                                                                 className="w-[60px] h-[60px] bg-slate-700 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden cursor-pointer shadow-inner hover:ring-2 hover:ring-blue-500 transition-all" 
+                                                                                title="點擊預覽圖片 (可直接 Ctrl+V 貼上圖片)"
                                                                                 onClick={() => p.image && setPreviewImage(p.image)}
                                                                             >
                                                                                 {p.image ? (
@@ -1176,14 +1231,21 @@
                                                                                             )}
                                                                                             <h3 className={`font-bold text-slate-100 leading-snug ${isNoteExpanded ? '' : 'line-clamp-2'}`}>{p.name}</h3>
                                                                                         </div>
+                                                                                        {/* 去除框線的備註內容 */}
                                                                                         {p.note && isNoteExpanded && (
-                                                                                            <div className="mt-1.5 ml-5 text-sm text-slate-300 bg-slate-900/50 p-2.5 rounded-lg border border-slate-700/50 whitespace-pre-wrap leading-relaxed">
+                                                                                            <div className="mt-1.5 ml-5 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
                                                                                                 {p.note}
                                                                                             </div>
                                                                                         )}
                                                                                     </div>
                                                                                     
+                                                                                    {/* 卡片右側的動作按鈕列 */}
                                                                                     <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                                                        {/* 直接刪除按鈕 (免進選單) */}
+                                                                                        <button onClick={(e) => { e.stopPropagation(); setPlaceToDelete(p.id); }} className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-lg transition-colors" title="刪除景點">
+                                                                                            <Icons.Trash2 size={18} />
+                                                                                        </button>
+                                                                                        
                                                                                         {/* 右側拖曳把手 2：明確的 Grip 圖示 */}
                                                                                         <div 
                                                                                             onMouseEnter={() => setDragEnabledId(p.id)} 
@@ -1320,16 +1382,13 @@
                                                             {panelMode === 'add' ? '完成新增' : '儲存修改'}
                                                         </button>
 
-                                                        {/* 編輯模式下的額外操作：刪除與圖片 */}
                                                         {panelMode === 'edit' && (
                                                             <div className="flex gap-4 pt-6 mt-4 border-t border-slate-800">
-                                                                <label className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-all text-center cursor-pointer border border-slate-600 flex justify-center items-center gap-2 text-sm shadow-sm">
+                                                                <label className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-all text-center cursor-pointer border border-slate-600 flex justify-center items-center gap-2 text-sm shadow-sm" title="也可以直接 Ctrl+V 貼上圖片">
                                                                     <Icons.Camera size={16} /> 更換圖片
-                                                                    <input type="file" accept="image/*" className="hidden" onChange={e => { handlePlaceImageUpload(activeDayId, newItem.id, e); showMsg('圖片已更新'); }} />
+                                                                    <input type="file" accept="image/*" className="hidden" onChange={e => { handlePlaceImageUpload(activeDayId, newItem.id, e); showMsg('✅ 圖片已更新'); }} />
                                                                 </label>
-                                                                <button type="button" onClick={() => setPlaceToDelete(newItem.id)} className="flex-1 py-2.5 bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white border border-red-800/50 rounded-xl font-bold transition-all flex justify-center items-center gap-2 text-sm shadow-sm">
-                                                                    <Icons.Trash2 size={16} /> 刪除景點
-                                                                </button>
+                                                                {/* Edit Mode Delete Button is kept for redundancy */}
                                                             </div>
                                                         )}
                                                     </form>
