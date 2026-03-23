@@ -150,10 +150,14 @@
             return map[type] || '其他';
         };
 
-        const INITIAL_TRIP_DATA = { 
-            trip: { id: 'trip-default', title: '我的旅行', dates: '2026/04/03 - 2026/04/06', icon: '🚀', days: [{ id: 1, date: '2026/04/03 (五)', title: '出發', places: [], color: '#3b82f6', weather: { type: 'sun', minTemp: 22, maxTemp: 28, label: '晴天' } }] }, 
-            members: [{ id: 'm1', name: '我', color: 'bg-blue-500', avatar: '👤' }], expenses: [], shoppingItems: [], packingList: [] 
+        const INITIAL_TRIP = {
+            id: 'trip-sz-macau', title: '深圳澳門四日遊', dates: `2026/04/03 - 2026/04/06`, icon: '🚀', author: 'CANDY',
+            days: [{ id: 1, date: '2026/04/03 (五)', title: '深圳出發', color: '#f9115d', weather: { type: 'cloud', minTemp: 22, maxTemp: 28, label: '多雲' }, places: [] }]
         };
+
+        const INITIAL_MEMBERS = [{ id: 'm1', name: 'CANDY', color: 'bg-pink-500', avatar: '👩' }, { id: 'm2', name: '神雲', color: 'bg-blue-500', avatar: '🧑' }];
+
+        const INITIAL_TRIP_DATA = { trip: INITIAL_TRIP, members: INITIAL_MEMBERS, expenses: [], shoppingItems: [], packingList: [] };
 
         const Icon = ({ path, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
@@ -164,10 +168,45 @@
             MapPin: (p) => <Icon {...p} path={<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></>} />,
             Plus: (p) => <Icon {...p} path={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>} />,
             Minus: (p) => <Icon {...p} path={<line x1="5" y1="12" x2="19" y2="12"/>} />,
+            Map: (p) => <Icon {...p} path={<><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></>} />,
             Users: (p) => <Icon {...p} path={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />,
+            X: (p) => <Icon {...p} path={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>} />,
             Trash2: (p) => <Icon {...p} path={<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>} />,
+            Search: (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />,
+            Wallet: (p) => <Icon {...p} path={<><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></>} />,
+            ShoppingBag: (p) => <Icon {...p} path={<><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></>} />,
+            Briefcase: (p) => <Icon {...p} path={<><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></>} />,
+            Calculator: (p) => <Icon {...p} path={<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/></>} />,
             ArrowLeft: (p) => <Icon {...p} path={<><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></>} />,
+            Settings: (p) => <Icon {...p} path={<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>} />,
+            GripVertical: (p) => <Icon {...p} path={<><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></>} />,
+            Camera: (p) => <Icon {...p} path={<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></>} />,
             MoreVertical: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></>} />,
+            ChevronDown: (p) => <Icon {...p} path={<polyline points="6 9 12 15 18 9" />} />,
+            ChevronUp: (p) => <Icon {...p} path={<polyline points="18 15 12 9 6 15" />} />,
+            Pen: (p) => <Icon {...p} path={<><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></>} />,
+        };
+
+        const CategoryIcon = ({ type, size = 20 }) => {
+            const baseClass = "rounded-full flex items-center justify-center text-white shrink-0";
+            const style = { width: `${size*2}px`, height: `${size*2}px` };
+            switch(type) {
+                case 'food': return <div className={`${baseClass} bg-orange-400`} style={style}>🍴</div>;
+                case 'shopping': return <div className={`${baseClass} bg-pink-400`} style={style}>🛍️</div>;
+                case 'transport': return <div className={`${baseClass} bg-blue-400`} style={style}>🚌</div>;
+                case 'sight': return <div className={`${baseClass} bg-green-500`} style={style}>📍</div>;
+                case 'accommodation': return <div className={`${baseClass} bg-purple-500`} style={style}>🏨</div>;
+                default: return <div className={`${baseClass} bg-gray-400`} style={style}>📄</div>;
+            }
+        };
+
+        const WeatherIcon = ({ type, size = 16 }) => {
+            switch(type) {
+                case 'sun': return <span style={{fontSize: size}}>☀️</span>;
+                case 'cloud': return <span style={{fontSize: size}}>☁️</span>;
+                case 'rain': return <span style={{fontSize: size}}>🌧️</span>;
+                default: return <span style={{fontSize: size}}>☀️</span>;
+            }
         };
 
         const OnlineUserBadge = () => {
@@ -189,21 +228,29 @@
             const mode = p1.travelMode || 'drive'; 
             const travelInfo = calculateTravelInfo(p1, p2);
             if (!travelInfo) return null;
+            const getTravelText = () => {
+                if (mode === 'straight') return `直線 ${travelInfo.dist.toFixed(1)} km`;
+                if (mode === 'walk') return `步行約 ${travelInfo.walk}`;
+                return `車程約 ${travelInfo.drive}`;
+            };
             return (
-                <div className="flex items-center gap-3 py-1.5 px-3 bg-slate-800/90 border border-slate-600 shadow-md rounded-xl" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-                    <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-0.5 h-7 items-center">
-                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('drive'); }} className={`w-7 h-6 rounded-md flex items-center justify-center text-sm leading-none transition-all ${mode === 'drive' ? 'bg-blue-600 text-white scale-105' : 'text-slate-500'}`}>🚗</button>
-                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('walk'); }} className={`w-7 h-6 rounded-md flex items-center justify-center text-sm leading-none transition-all ${mode === 'walk' ? 'bg-blue-600 text-white scale-105' : 'text-slate-500'}`}>🚶</button>
-                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('straight'); }} className={`w-7 h-6 rounded-md flex items-center justify-center transition-all ${mode === 'straight' ? 'bg-blue-600 text-white scale-105' : 'text-slate-500'}`}><Icons.Minus size={12} /></button>
+                <div className="flex items-center gap-3 py-2 px-3.5 bg-slate-800/90 border border-slate-600 shadow-lg rounded-xl group" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+                    <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-0.5 h-8 items-center">
+                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('drive'); }} className={`w-8 h-7 rounded-md flex items-center justify-center text-sm ${mode === 'drive' ? 'bg-blue-600 text-white scale-110' : 'text-slate-500'}`}>🚗</button>
+                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('walk'); }} className={`w-8 h-7 rounded-md flex items-center justify-center text-sm ${mode === 'walk' ? 'bg-blue-600 text-white scale-110' : 'text-slate-500'}`}>🚶</button>
+                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('straight'); }} className={`w-8 h-7 rounded-md flex items-center justify-center ${mode === 'straight' ? 'bg-blue-600 text-white scale-110' : 'text-slate-500'}`}><Icons.Minus size={14} /></button>
                     </div>
-                    <div className="text-xs font-bold text-amber-400">{mode === 'straight' ? `直線 ${travelInfo.dist.toFixed(1)} km` : mode === 'walk' ? `步行 ${travelInfo.walk}` : `車程 ${travelInfo.drive}`}</div>
+                    <div className="text-sm font-black text-amber-400">{getTravelText()}</div>
                 </div>
             );
         };
 
-        const RealMap = React.memo(({ places, zoomControlKey }) => {
+        const RealMap = React.memo(({ places, hoveredId, hoveredSegmentId, zoomControlKey, dayColor, onRouteAltSelect, tempMarker }) => {
             const mapRef = useRef(null);
             const mapInstanceRef = useRef(null);
+            const markersRef = useRef({}); 
+            const routeLayersRef = useRef({}); 
+            
             useEffect(() => {
                 if (!mapInstanceRef.current) {
                     const map = L.map(mapRef.current, { zoomControl: false }).setView([22.5, 114.1], 13);
@@ -211,16 +258,20 @@
                     mapInstanceRef.current = map;
                 }
             }, []);
+
             return <div ref={mapRef} className="w-full h-full z-0" />;
         });
 
-        function Dashboard({ trips, onCreateTrip, onSelectTrip }) {
+        function Dashboard({ trips, onCreateTrip, onSelectTrip, onDeleteTrip, onImportTrip, onExportTrip, toast }) {
             return (
                 <div className="flex justify-center h-full bg-[#0f172a] overflow-y-auto w-full relative">
+                    {toast && (<div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700"><span>{toast}</span></div></div>)}
                     <div className="max-w-[960px] w-full px-4">
                         <div className="my-10 flex justify-between items-center">
                             <h1 className="text-3xl font-bold text-slate-100">我的行程 🚀</h1>
-                            <button onClick={onCreateTrip} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg">建立新行程</button>
+                            <div className="flex gap-3">
+                                <button onClick={onCreateTrip} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg">建立新行程</button>
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
                             {trips.map((tripData) => (
@@ -241,6 +292,8 @@
         function TripPlanner({ tripId, onBack, db, user }) {
             const [trip, setTrip] = useState({ title: '', dates: '', days: [] });
             const [members, setMembers] = useState([]);
+            const [expenses, setExpenses] = useState([]);
+            const [shoppingItems, setShoppingItems] = useState([]);
             const [packingList, setPackingList] = useState([]);
             const [activeTab, setActiveTab] = useState('itinerary'); 
             const [activeDayId, setActiveDayId] = useState(null);
@@ -248,10 +301,12 @@
             const [newItem, setNewItem] = useState({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
             const [toast, setToast] = useState(null);
             const [expandedNotes, setExpandedNotes] = useState({});
+            const [placeToDelete, setPlaceToDelete] = useState(null);
             const [showPackingModal, setShowPackingModal] = useState(false);
             const [newPackingItem, setNewPackingItem] = useState({ text: '', owner: 'all' });
             const [packingFilter, setPackingFilter] = useState('all');
 
+            // 強制固定 appId 為一個共通值，確保所有人看到同樣數據
             const SHARED_APP_ID = "main-travel-planner-v2";
 
             useEffect(() => {
@@ -262,6 +317,8 @@
                         const data = snap.data();
                         setTrip(data.trip || {});
                         setMembers(data.members || []);
+                        setExpenses(data.expenses || []);
+                        setShoppingItems(data.shoppingItems || []);
                         setPackingList(data.packingList || []);
                         if (!activeDayId && data.trip?.days?.length > 0) setActiveDayId(data.trip.days[0].id);
                     }
@@ -272,9 +329,12 @@
             const showMsg = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
             const activeDayData = useMemo(() => trip.days?.find(d => d.id === activeDayId) || trip.days?.[0], [trip, activeDayId]);
 
+            const toggleNote = (id, e) => { e.stopPropagation(); setExpandedNotes(prev => ({...prev, [id]: !prev[id]})); };
+
             return (
                 <div className="flex flex-col h-[100dvh] bg-slate-900 text-slate-100 font-sans relative">
                     {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700 font-bold"><span>{toast}</span></div></div>}
+                    
                     <header className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 z-20">
                         <div className="flex items-center gap-3">
                             <button onClick={onBack} className="p-1.5 bg-slate-800 rounded-full"><Icons.ArrowLeft size={20} /></button>
@@ -282,14 +342,16 @@
                         </div>
                         <OnlineUserBadge />
                     </header>
+
                     <div className="flex border-b border-slate-800 bg-slate-900 px-4 gap-6 text-sm">
                         <button onClick={() => setActiveTab('itinerary')} className={`py-3 border-b-2 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}>行程</button>
                         <button onClick={() => setActiveTab('packing')} className={`py-3 border-b-2 ${activeTab === 'packing' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}>行李</button>
                     </div>
+
                     <div className="flex flex-1 overflow-hidden">
                         {activeTab === 'itinerary' && (
                             <>
-                                <div className="w-full md:w-[550px] flex flex-col border-r border-slate-800 bg-slate-900 transition-all overflow-hidden shrink-0">
+                                <div className="w-full md:w-[550px] flex flex-col border-r border-slate-800 bg-slate-900 transition-all overflow-hidden">
                                     {panelMode === 'list' ? (
                                         <div className="p-4 overflow-y-auto h-full">
                                             <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
@@ -301,14 +363,17 @@
                                                 {activeDayData?.places.map((p, i) => (
                                                     <div key={p.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
                                                         <div className="flex justify-between items-start">
-                                                            <div onClick={() => setExpandedNotes(prev => ({...prev, [p.id]: !prev[p.id]}))} className="flex-1 cursor-pointer">
+                                                            <div onClick={(e) => toggleNote(p.id, e)} className="flex-1 cursor-pointer">
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="text-blue-400 font-mono text-xs">{p.time}</span>
                                                                     <h3 className="font-bold">{p.name}</h3>
                                                                 </div>
                                                                 {expandedNotes[p.id] && <p className="mt-2 text-sm text-slate-400 whitespace-pre-wrap">{p.note}</p>}
                                                             </div>
-                                                            <button onClick={() => { setNewItem({...p}); setPanelMode('edit'); }} className="p-1.5 text-slate-500 hover:text-white"><Icons.MoreVertical size={18} /></button>
+                                                            <button onClick={() => {
+                                                                setNewItem({ ...p });
+                                                                setPanelMode('edit');
+                                                            }} className="p-1.5 text-slate-500 hover:text-white"><Icons.MoreVertical size={18} /></button>
                                                         </div>
                                                         {i < activeDayData.places.length - 1 && (
                                                             <div className="mt-4 flex justify-center">
@@ -336,6 +401,7 @@
                                                     <input type="number" step="0.5" placeholder="停留小時" value={newItem.stayTime} onChange={e => setNewItem({...newItem, stayTime: e.target.value})} className="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 outline-none" />
                                                 </div>
                                                 <textarea placeholder="備註內容" value={newItem.note} onChange={e => setNewItem({...newItem, note: e.target.value})} rows="5" className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 outline-none resize-none" />
+                                                
                                                 <button onClick={() => {
                                                     if (!newItem.name) return showMsg("請輸入名稱");
                                                     let newDays;
@@ -348,6 +414,7 @@
                                                     pushUpdate({trip: {...trip, days: newDays}});
                                                     setPanelMode('list');
                                                 }} className="w-full py-4 bg-blue-600 rounded-xl font-bold">儲存景點</button>
+                                                
                                                 {panelMode === 'edit' && (
                                                     <button onClick={() => {
                                                         if (window.confirm("確定要刪除此景點嗎？")) {
@@ -356,7 +423,9 @@
                                                             setPanelMode('list');
                                                             showMsg("🗑️ 已刪除");
                                                         }
-                                                    }} className="w-full py-4 bg-slate-800 border border-red-500/50 text-red-400 rounded-xl font-bold flex items-center justify-center gap-2 mt-4"><Icons.Trash2 size={18} /> 刪除景點</button>
+                                                    }} className="w-full py-4 bg-slate-800 border border-red-500/50 text-red-400 rounded-xl font-bold flex items-center justify-center gap-2 mt-4">
+                                                        <Icons.Trash2 size={18} /> 刪除景點
+                                                    </button>
                                                 )}
                                             </div>
                                         </div>
@@ -367,6 +436,7 @@
                                 </div>
                             </>
                         )}
+
                         {activeTab === 'packing' && (
                             <div className="w-full p-4 overflow-y-auto">
                                 <div className="max-w-xl mx-auto space-y-6 pb-20">
@@ -391,6 +461,7 @@
                             </div>
                         )}
                     </div>
+
                     {showPackingModal && (
                         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
                             <div className="bg-slate-800 p-6 rounded-2xl w-full max-w-xs border border-slate-700">
@@ -448,7 +519,7 @@
             return <TripPlanner tripId={activeTripId} onBack={() => setCurrentView('dashboard')} db={db} user={user} />;
         }
 
-            ReactDOM.createRoot(document.getElementById('root')).render(<MainApp />);
+        ReactDOM.createRoot(document.getElementById('root')).render(<MainApp />);
     </script>
 </body>
 </html>
