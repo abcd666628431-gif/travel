@@ -395,8 +395,8 @@
                     onMouseLeave={onMouseLeave}
                 >
                     <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-0.5 h-8 items-center overflow-hidden">
-                        <button onClick={(e) => { e.stopPropagation(); handleModeChange('drive'); }} className={`w-8 h-7 rounded-md transition-all flex items-center justify-center text-sm ${mode === 'drive' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="開車導航">🚗</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleModeChange('walk'); }} className={`w-8 h-7 rounded-md transition-all flex items-center justify-center text-sm ${mode === 'walk' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="步行導航">🚶</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleModeChange('drive'); }} className={`w-8 h-7 rounded-md transition-all flex items-center justify-center text-[16px] leading-none ${mode === 'drive' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="開車導航">🚗</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleModeChange('walk'); }} className={`w-8 h-7 rounded-md transition-all flex items-center justify-center text-[16px] leading-none ${mode === 'walk' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="步行導航">🚶</button>
                         <button onClick={(e) => { e.stopPropagation(); handleModeChange('straight'); }} className={`w-8 h-7 rounded-md transition-all flex items-center justify-center ${mode === 'straight' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="直線連接 (自訂線路)"><Icons.Minus size={14} /></button>
                     </div>
                     <div className="text-sm font-black text-amber-400 group-hover:text-amber-300 transition-colors tracking-wide">
