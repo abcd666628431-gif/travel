@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="referrer" content="no-referrer" />
-    <title>旅遊行程規劃助手 - 🚀</title>
+    <title>旅遊行程規劃助手 - 完美路線版</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚀</text></svg>">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -38,9 +38,23 @@
         body { margin: 0; padding: 0; overflow: hidden; background: #0f172a; height: 100dvh; width: 100vw; color: #f3f4f6; }
         #root { height: 100%; width: 100%; }
         .leaflet-div-icon { background: transparent; border: none; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
         .animate-toast { animation: fadeIn 0.3s ease-out forwards; }
+        
+        .dragging {
+            opacity: 1 !important;
+            background: #1e293b;
+            border: 2px dashed #3b82f6;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            transform: scale(1.02);
+            z-index: 50;
+        }
+
         .bg-white { background-color: #1f2937 !important; }
         .bg-gray-50 { background-color: #111827 !important; }
         .bg-gray-100 { background-color: #374151 !important; }
@@ -53,16 +67,45 @@
         .text-gray-400 { color: #6b7280 !important; }
         .border-gray-200 { border-color: #4b5563 !important; }
         .border, .border-t, .border-b, .border-l, .border-r, .border-b-2, .border-2 { border-color: #4b5563; }
+        
         .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }
         .bg-blue-100 { background-color: rgba(59, 130, 246, 0.25) !important; }
         .text-blue-600 { color: #60a5fa !important; }
-        input:not(.bg-transparent), select, textarea { background-color: #374151 !important; color: #f3f4f6 !important; border-color: #4b5563 !important; }
+        
+        input:not(.bg-transparent), select, textarea {
+            background-color: #374151 !important;
+            color: #f3f4f6 !important;
+            border-color: #4b5563 !important;
+        }
+        
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
-        textarea.auto-extend { field-sizing: content; min-height: 1.5em; }
-        .drag-handle { touch-action: none; }
+
+        textarea.auto-extend {
+            field-sizing: content; 
+            min-height: 1.5em;
+        }
+
+        .drag-handle {
+            touch-action: none;
+        }
+
+        img[alt="東京地鐵路線圖"] {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
     </style>
+    
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            if (window.MobileDragDrop) {
+                window.MobileDragDrop.polyfill({
+                    dragImageTranslateOverride: window.MobileDragDrop.scrollBehaviourDragImageTranslateOverride
+                });
+                window.addEventListener('touchmove', function() {}, {passive: false});
+            }
+        });
+    </script>
 </head>
 <body>
     <div id="root"></div>
@@ -134,7 +177,12 @@
             let [h, m] = timeStr.split(':').map(Number);
             const addH = Math.floor(hoursToAdd);
             const addM = Math.round((hoursToAdd - addH) * 60);
-            m += addM; h += addH + Math.floor(m / 60); m = m % 60; h = h % 24;
+            
+            m += addM;
+            h += addH + Math.floor(m / 60);
+            m = m % 60;
+            h = h % 24;
+            
             return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         };
 
@@ -151,13 +199,97 @@
         };
 
         const INITIAL_TRIP = {
-            id: 'trip-sz-macau', title: '深圳澳門四日遊', dates: `2026/04/03 - 2026/04/06`, icon: '🚀', author: 'CANDY',
-            days: [{ id: 1, date: '2026/04/03 (五)', title: '深圳出發', color: '#f9115d', weather: { type: 'cloud', minTemp: 22, maxTemp: 28, label: '多雲' }, places: [] }]
+            id: 'trip-sz-macau',
+            title: '深圳澳門四日遊',
+            dates: `2026/04/03 - 2026/04/06`,
+            icon: '🚀',
+            author: 'CANDY',
+            days: [
+                {
+                    id: 1, date: '2026/04/03 (五)', title: '深圳出發', color: '#f9115d', weather: { type: 'cloud', minTemp: 22, maxTemp: 28, label: '多雲' },
+                    places: [
+                        { id: 'p1', time: '12:00', name: '羅湖口岸出口', type: 'transport', lat: 22.5312, lng: 114.1136, note: '集合', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p2', time: '13:09', name: '玩壹把电竞酒店', type: 'accommodation', lat: 22.5400, lng: 114.0500, note: 'Check-in', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p3', time: '14:30', name: '燒肉公社（梅林店）', type: 'food', lat: 22.5600, lng: 114.0400, note: '午餐', stayTime: '1.5', travelMode: 'drive' },
+                        { id: 'p4', time: '15:58', name: '寶可夢 (壹方城購物中心)', type: 'shopping', lat: 22.5533, lng: 113.8870, note: '', stayTime: '2.5', travelMode: 'drive' },
+                        { id: 'p5', time: '18:39', name: '(跳格子) (金光華廣場)', type: 'sight', lat: 22.5390, lng: 114.1180, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p6', time: '19:39', name: '按摩 (玖玖·影院足道)', type: 'sight', lat: 22.5360, lng: 114.0550, note: '福田COCO Park', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p7', time: '20:59', name: '野妹火锅（东门町店）', type: 'food', lat: 22.5450, lng: 114.1170, note: '晚餐', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p8', time: '22:08', name: '玩壹把电竞酒店', type: 'accommodation', lat: 22.5400, lng: 114.0500, note: '休息', stayTime: '1', travelMode: 'drive' }
+                    ]
+                },
+                {
+                    id: 2, date: '2026/04/04 (六)', title: '前往澳門', color: '#25c9dc', weather: { type: 'sun', minTemp: 23, maxTemp: 29, label: '晴天' },
+                    places: [
+                        { id: 'p9', time: '12:00', name: '玩壹把电竞酒店', type: 'accommodation', lat: 22.5400, lng: 114.0500, note: '退房', stayTime: '0.5', travelMode: 'drive' },
+                        { id: 'p10', time: '12:08', name: '羅湖口岸出口', type: 'transport', lat: 22.5312, lng: 114.1136, note: '出境', stayTime: '3', travelMode: 'drive' },
+                        { id: 'p11', time: '15:18', name: '愛電競酒店', type: 'accommodation', lat: 22.1400, lng: 113.5300, note: '珠海/澳門 Check-in', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p12', time: '16:52', name: '橫琴口岸', type: 'transport', lat: 22.1380, lng: 113.5440, note: '過關', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p13', time: '17:52', name: '橫琴澳方口岸', type: 'transport', lat: 22.1380, lng: 113.5460, note: '抵達澳門', stayTime: '1.5', travelMode: 'drive' },
+                        { id: 'p14', time: '19:29', name: '旅遊塔(空中漫步)', type: 'sight', lat: 22.1790, lng: 113.5370, note: '看夜景', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p15', time: '20:33', name: '澳門科學館', type: 'sight', lat: 22.1860, lng: 113.5560, note: '', stayTime: '1.5', travelMode: 'drive' },
+                        { id: 'p16', time: '22:22', name: '橫琴澳方口岸', type: 'transport', lat: 22.1380, lng: 113.5460, note: '回程', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p17', time: '23:22', name: '橫琴口岸', type: 'transport', lat: 22.1380, lng: 113.5440, note: '', stayTime: '1.5', travelMode: 'drive' },
+                        { id: 'p18', time: '00:58', name: '愛電競酒店', type: 'accommodation', lat: 22.1400, lng: 113.5300, note: '休息', stayTime: '1', travelMode: 'drive' }
+                    ]
+                },
+                {
+                    id: 3, date: '2026/04/05 (日)', title: '水上樂園', color: '#3fbd22', weather: { type: 'cloud', minTemp: 24, maxTemp: 30, label: '多雲' },
+                    places: [
+                        { id: 'p19', time: '11:00', name: '愛電競酒店', type: 'accommodation', lat: 22.1400, lng: 113.5300, note: '', stayTime: '0.5', travelMode: 'drive' },
+                        { id: 'p20', time: '11:33', name: '橫琴口岸', type: 'transport', lat: 22.1380, lng: 113.5440, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p21', time: '12:33', name: '橫琴澳方口岸', type: 'transport', lat: 22.1380, lng: 113.5460, note: '', stayTime: '1.5', travelMode: 'drive' },
+                        { id: 'p22', time: '14:23', name: '新濠影匯 (澳門飛索)', type: 'sight', lat: 22.1400, lng: 113.5610, note: '', stayTime: '1.5', travelMode: 'drive' },
+                        { id: 'p23', time: '15:56', name: '新濠影滙水上樂園', type: 'sight', lat: 22.1400, lng: 113.5610, note: '玩水', stayTime: '3', travelMode: 'drive' },
+                        { id: 'p24', time: '19:14', name: '永利皇宮纜車站', type: 'sight', lat: 22.1470, lng: 113.5680, note: '看水舞', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p25', time: '20:19', name: '橫琴澳方口岸', type: 'transport', lat: 22.1380, lng: 113.5460, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p26', time: '21:19', name: '橫琴口岸', type: 'transport', lat: 22.1380, lng: 113.5440, note: '', stayTime: '1.5', travelMode: 'drive' },
+                        { id: 'p27', time: '22:56', name: '愛電競酒店', type: 'accommodation', lat: 22.1400, lng: 113.5300, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p28', time: '00:06', name: '麻雀', type: 'other', lat: 22.1500, lng: 113.5500, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p29', time: '01:06', name: '唱K', type: 'other', lat: 22.1520, lng: 113.5520, note: '', stayTime: '1', travelMode: 'drive' }
+                    ]
+                },
+                {
+                    id: 4, date: '2026/04/06 (一)', title: '購物與美食', color: '#af54ff', weather: { type: 'rain', minTemp: 22, maxTemp: 26, label: '有雨' },
+                    places: [
+                        { id: 'p30', time: '12:00', name: '愛電競酒店', type: 'accommodation', lat: 22.1400, lng: 113.5300, note: '', stayTime: '0.5', travelMode: 'drive' },
+                        { id: 'p31', time: '12:33', name: '橫琴口岸', type: 'transport', lat: 22.1380, lng: 113.5440, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p32', time: '13:33', name: '橫琴澳方口岸', type: 'transport', lat: 22.1380, lng: 113.5460, note: '', stayTime: '2', travelMode: 'drive' },
+                        { id: 'p34', time: '15:33', name: '橫琴口岸', type: 'transport', lat: 22.1380, lng: 113.5440, note: '', stayTime: '1.5', travelMode: 'drive' },
+                        { id: 'p35', time: '17:10', name: '愛電競酒店', type: 'accommodation', lat: 22.1400, lng: 113.5300, note: '取行李', stayTime: '3', travelMode: 'drive' },
+                        { id: 'p36', time: '20:18', name: '羅湖口岸出口', type: 'transport', lat: 22.5312, lng: 114.1136, note: '回到深圳', stayTime: '3', travelMode: 'drive' },
+                        { id: 'p37', time: '23:26', name: '珠海万象汇', type: 'shopping', lat: 22.2460, lng: 113.4980, note: '逛街', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p38', time: '00:41', name: '華發商都', type: 'shopping', lat: 22.2220, lng: 113.5040, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p39', time: '01:49', name: '中海環宇城濱河灣', type: 'shopping', lat: 22.2290, lng: 113.5180, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p40', time: '02:53', name: '富華里', type: 'shopping', lat: 22.2350, lng: 113.5350, note: '', stayTime: '2', travelMode: 'drive' },
+                        { id: 'p41', time: '05:04', name: '山卡谷·日式烧肉店', type: 'food', lat: 22.2220, lng: 113.5040, note: '宵夜', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p42', time: '06:04', name: '官也街', type: 'sight', lat: 22.1530, lng: 113.5560, note: '伴手禮', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p43', time: '07:08', name: '安德魯蛋撻', type: 'food', lat: 22.1180, lng: 113.5510, note: '必吃', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p44', time: '08:08', name: '大利來記豬扒包', type: 'food', lat: 22.1540, lng: 113.5550, note: '必吃', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p45', time: '09:08', name: '檸檬車露 雪糕', type: 'food', lat: 22.1535, lng: 113.5565, note: '米其林', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p46', time: '10:08', name: '老Day牛雜', type: 'food', lat: 22.1532, lng: 113.5562, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p47', time: '11:08', name: '澤賢記 雞蛋仔', type: 'food', lat: 22.1538, lng: 113.5558, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p48', time: '12:08', name: 'Goat Bakers 蛋撻', type: 'food', lat: 22.1542, lng: 113.5568, note: '', stayTime: '1', travelMode: 'drive' },
+                        { id: 'p49', time: '13:29', name: 'Pablo 蛋撻', type: 'food', lat: 22.1545, lng: 113.5570, note: '回程', stayTime: '1', travelMode: 'drive' }
+                    ]
+                }
+            ]
         };
 
-        const INITIAL_MEMBERS = [{ id: 'm1', name: 'CANDY', color: 'bg-pink-500', avatar: '👩' }, { id: 'm2', name: '神雲', color: 'bg-blue-500', avatar: '🧑' }];
+        const INITIAL_MEMBERS = [
+            { id: 'm1', name: 'CANDY', color: 'bg-pink-500', avatar: '👩' },
+            { id: 'm2', name: '神雲', color: 'bg-blue-500', avatar: '🧑' },
+            { id: 'm3', name: 'Neko Leung', color: 'bg-yellow-500', avatar: '🐱' },
+            { id: 'm4', name: 'Mok Max', color: 'bg-green-500', avatar: '🧑' }
+        ];
 
-        const INITIAL_TRIP_DATA = { trip: INITIAL_TRIP, members: INITIAL_MEMBERS, expenses: [], shoppingItems: [], packingList: [] };
+        const INITIAL_TRIP_DATA = {
+            trip: INITIAL_TRIP,
+            members: INITIAL_MEMBERS,
+            expenses: [],
+            shoppingItems: [],
+            packingList: []
+        };
 
         const Icon = ({ path, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
@@ -168,22 +300,38 @@
             MapPin: (p) => <Icon {...p} path={<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></>} />,
             Plus: (p) => <Icon {...p} path={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>} />,
             Minus: (p) => <Icon {...p} path={<line x1="5" y1="12" x2="19" y2="12"/>} />,
+            Walking: (p) => <Icon {...p} path={<><path d="m9 20 1-5"/><path d="M10.7 7.5c-1.1.2-2.1.8-2.8 1.7L5.1 12"/><path d="M17 22V11l-2-3"/><path d="M15 15.5 17 22"/><path d="m15 15.5-3-4.5"/><path d="M12.5 5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></>} />,
+            Bus: (p) => <Icon {...p} path={<><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></>} />,
             Map: (p) => <Icon {...p} path={<><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></>} />,
             Users: (p) => <Icon {...p} path={<><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>} />,
             X: (p) => <Icon {...p} path={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>} />,
             Trash2: (p) => <Icon {...p} path={<><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></>} />,
+            Refresh: (p) => <Icon {...p} path={<><path d="M21.5 2v6h-6"/><path d="M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3"/><path d="M22 12.5a10 10 0 0 1-18.8 4.2"/></>} />,
+            Move: (p) => <Icon {...p} path={<><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></>} />,
             Search: (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />,
             Wallet: (p) => <Icon {...p} path={<><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></>} />,
             ShoppingBag: (p) => <Icon {...p} path={<><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></>} />,
             Briefcase: (p) => <Icon {...p} path={<><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></>} />,
-            Calculator: (p) => <Icon {...p} path={<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/></>} />,
+            Calculator: (p) => <Icon {...p} path={<><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></>} />,
+            FileText: (p) => <Icon {...p} path={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>} />,
             ArrowLeft: (p) => <Icon {...p} path={<><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></>} />,
             Settings: (p) => <Icon {...p} path={<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.47a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.39a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>} />,
+            Lock: (p) => <Icon {...p} path={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></>} />,
+            Unlock: (p) => <Icon {...p} path={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></>} />,
             GripVertical: (p) => <Icon {...p} path={<><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></>} />,
             Camera: (p) => <Icon {...p} path={<><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></>} />,
-            MoreVertical: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></>} />,
+            Pen: (p) => <Icon {...p} path={<><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></>} />,
+            Download: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>} />,
+            Upload: (p) => <Icon {...p} path={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></>} />,
+            Image: (p) => <Icon {...p} path={<><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>} />,
+            Sun: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></>} />,
+            Cloud: (p) => <Icon {...p} path={<><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></>} />,
+            CloudRain: (p) => <Icon {...p} path={<><line x1="16" y1="13" x2="16" y2="21"/><line x1="8" y1="13" x2="8" y2="21"/><line x1="12" y1="15" x2="12" y2="23"/><path d="M20 16.58A5 5 0 0 0 18 7h-1.26A8 8 0 1 0 4 15.25"/></>} />,
+            Utensils: (p) => <Icon {...p} path={<><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></>} />,
+            Hotel: (p) => <Icon {...p} path={<><path d="M10 22v-6.57"/><path d="M12 11h.01"/><path d="M12 7h.01"/><path d="M14 11h.01"/><path d="M14 7h.01"/><path d="M16 11h.01"/><path d="M16 7h.01"/><path d="M18 11h.01"/><path d="M18 7h.01"/><path d="M4 11h.01"/><path d="M4 7h.01"/><path d="M6 11h.01"/><path d="M6 7h.01"/><path d="M8 11h.01"/><path d="M8 7h.01"/><rect x="4" y="2" width="16" height="20" rx="2"/></>} />,
             ChevronDown: (p) => <Icon {...p} path={<polyline points="6 9 12 15 18 9" />} />,
             ChevronUp: (p) => <Icon {...p} path={<polyline points="18 15 12 9 6 15" />} />,
+            MoreVertical: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></>} />,
             Pen: (p) => <Icon {...p} path={<><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></>} />,
         };
 
@@ -191,21 +339,21 @@
             const baseClass = "rounded-full flex items-center justify-center text-white shrink-0";
             const style = { width: `${size*2}px`, height: `${size*2}px` };
             switch(type) {
-                case 'food': return <div className={`${baseClass} bg-orange-400`} style={style}>🍴</div>;
-                case 'shopping': return <div className={`${baseClass} bg-pink-400`} style={style}>🛍️</div>;
-                case 'transport': return <div className={`${baseClass} bg-blue-400`} style={style}>🚌</div>;
-                case 'sight': return <div className={`${baseClass} bg-green-500`} style={style}>📍</div>;
-                case 'accommodation': return <div className={`${baseClass} bg-purple-500`} style={style}>🏨</div>;
-                default: return <div className={`${baseClass} bg-gray-400`} style={style}>📄</div>;
+                case 'food': return <div className={`${baseClass} bg-orange-400`} style={style}><Icons.Utensils size={size} /></div>;
+                case 'shopping': return <div className={`${baseClass} bg-pink-400`} style={style}><Icons.ShoppingBag size={size} /></div>;
+                case 'transport': return <div className={`${baseClass} bg-blue-400`} style={style}><Icons.Bus size={size} /></div>;
+                case 'sight': return <div className={`${baseClass} bg-green-500`} style={style}><Icons.MapPin size={size} /></div>;
+                case 'accommodation': return <div className={`${baseClass} bg-purple-500`} style={style}><Icons.Hotel size={size} /></div>;
+                default: return <div className={`${baseClass} bg-gray-400`} style={style}><Icons.FileText size={size} /></div>;
             }
         };
 
         const WeatherIcon = ({ type, size = 16 }) => {
             switch(type) {
-                case 'sun': return <span style={{fontSize: size}}>☀️</span>;
-                case 'cloud': return <span style={{fontSize: size}}>☁️</span>;
-                case 'rain': return <span style={{fontSize: size}}>🌧️</span>;
-                default: return <span style={{fontSize: size}}>☀️</span>;
+                case 'sun': return <Icons.Sun size={size} className="text-orange-500" />;
+                case 'cloud': return <Icons.Cloud size={size} className="text-gray-500" />;
+                case 'rain': return <Icons.CloudRain size={size} className="text-blue-500" />;
+                default: return <Icons.Sun size={size} className="text-orange-500" />;
             }
         };
 
@@ -213,7 +361,9 @@
             const [onlineUsers, setOnlineUsers] = useState(1);
             useEffect(() => {
                 setOnlineUsers(Math.floor(Math.random() * 5) + 1);
-                const interval = setInterval(() => setOnlineUsers(prev => Math.max(1, prev + (Math.floor(Math.random() * 3) - 1))), 5000);
+                const interval = setInterval(() => {
+                     setOnlineUsers(prev => Math.max(1, prev + (Math.floor(Math.random() * 3) - 1)));
+                }, 5000);
                 return () => clearInterval(interval);
             }, []);
             return (
@@ -227,20 +377,31 @@
         const TravelSegmentUI = ({ p1, p2, onUpdateMode, onMouseEnter, onMouseLeave }) => {
             const mode = p1.travelMode || 'drive'; 
             const travelInfo = calculateTravelInfo(p1, p2);
-            if (!travelInfo) return null;
+            const handleModeChange = (newMode) => {
+                if (onUpdateMode) onUpdateMode(newMode);
+            };
+            if (!travelInfo) return <div className="h-8 px-3 rounded-full border border-slate-700 bg-slate-800/50 flex items-center gap-1 text-[10px] text-slate-500"><span>🚗</span><span>計算中</span></div>;
+            
             const getTravelText = () => {
                 if (mode === 'straight') return `直線 ${travelInfo.dist.toFixed(1)} km`;
                 if (mode === 'walk') return `步行約 ${travelInfo.walk}`;
                 return `車程約 ${travelInfo.drive}`;
             };
+
             return (
-                <div className="flex items-center gap-3 py-2 px-3.5 bg-slate-800/90 border border-slate-600 shadow-lg rounded-xl group" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-                    <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-0.5 h-8 items-center">
-                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('drive'); }} className={`w-8 h-7 rounded-md flex items-center justify-center text-sm ${mode === 'drive' ? 'bg-blue-600 text-white scale-110' : 'text-slate-500'}`}>🚗</button>
-                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('walk'); }} className={`w-8 h-7 rounded-md flex items-center justify-center text-sm ${mode === 'walk' ? 'bg-blue-600 text-white scale-110' : 'text-slate-500'}`}>🚶</button>
-                        <button onClick={(e) => { e.stopPropagation(); onUpdateMode('straight'); }} className={`w-8 h-7 rounded-md flex items-center justify-center ${mode === 'straight' ? 'bg-blue-600 text-white scale-110' : 'text-slate-500'}`}><Icons.Minus size={14} /></button>
+                <div 
+                    className={`flex items-center gap-3 py-2 px-3.5 bg-slate-800/90 border border-slate-600 shadow-lg rounded-xl animate-fade-in group cursor-pointer hover:border-blue-500 hover:shadow-blue-900/30`}
+                    onMouseEnter={onMouseEnter}
+                    onMouseLeave={onMouseLeave}
+                >
+                    <div className="flex bg-slate-900 border border-slate-700 rounded-lg p-0.5 h-8 items-center overflow-hidden">
+                        <button onClick={(e) => { e.stopPropagation(); handleModeChange('drive'); }} className={`w-8 h-7 rounded-md transition-all flex items-center justify-center text-[16px] leading-none ${mode === 'drive' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="開車導航">🚗</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleModeChange('walk'); }} className={`w-8 h-7 rounded-md transition-all flex items-center justify-center text-[16px] leading-none ${mode === 'walk' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="步行導航">🚶</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleModeChange('straight'); }} className={`w-8 h-7 rounded-md transition-all flex items-center justify-center ${mode === 'straight' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="直線連接 (自訂線路)"><Icons.Minus size={14} /></button>
                     </div>
-                    <div className="text-sm font-black text-amber-400">{getTravelText()}</div>
+                    <div className="text-sm font-black text-amber-400 group-hover:text-amber-300 transition-colors tracking-wide">
+                        {getTravelText()}
+                    </div>
                 </div>
             );
         };
@@ -250,238 +411,1092 @@
             const mapInstanceRef = useRef(null);
             const markersRef = useRef({}); 
             const routeLayersRef = useRef({}); 
-            
+            const mapDataHashRef = useRef('');
+            const tempMarkerRef = useRef(null);
+
             useEffect(() => {
-                if (!mapInstanceRef.current) {
-                    const map = L.map(mapRef.current, { zoomControl: false }).setView([22.5, 114.1], 13);
-                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                    mapInstanceRef.current = map;
-                }
+                if (mapInstanceRef.current) return;
+                const map = L.map(mapRef.current, { zoomControl: false }).setView([22.5, 114.1], 13);
+                L.control.zoom({ position: 'bottomright' }).addTo(map);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
+                mapInstanceRef.current = map;
+                setTimeout(() => { if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize(); }, 200);
+                return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
             }, []);
 
-            return <div ref={mapRef} className="w-full h-full z-0" />;
+            useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
+                
+                if (tempMarkerRef.current) {
+                    map.removeLayer(tempMarkerRef.current);
+                    tempMarkerRef.current = null;
+                }
+                
+                if (tempMarker) {
+                    const iconHtml = `<div class="flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.5)] text-white font-bold text-xl bg-red-500 animate-bounce" style="z-index: 2000;">📍</div>`;
+                    const customIcon = L.divIcon({ className: 'leaflet-div-icon', html: iconHtml, iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
+                    const marker = L.marker([tempMarker.lat, tempMarker.lng], { icon: customIcon }).bindPopup(`<b>${tempMarker.name}</b>`).addTo(map);
+                    marker.openPopup();
+                    map.setView([tempMarker.lat, tempMarker.lng], 15, { animate: true });
+                    tempMarkerRef.current = marker;
+                }
+            }, [tempMarker]);
+
+            useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
+                const validPlaces = places.filter(p => p.lat && p.lng);
+                if (validPlaces.length > 0) {
+                     const bounds = L.latLngBounds(validPlaces.map(p => [p.lat, p.lng]));
+                     if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                }
+            }, [zoomControlKey]); 
+
+            useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
+                let isMounted = true; 
+                
+                const markerColor = dayColor || '#3b82f6';
+                const routeColor = '#3b82f6';
+
+                const validPlaces = places.filter(p => p.lat && p.lng);
+
+                const currentHash = JSON.stringify(validPlaces.map(p => `${p.id}-${p.lat}-${p.lng}-${p.travelMode || 'drive'}-${p.routeIndex || 0}`)) + markerColor + routeColor;
+                if (mapDataHashRef.current === currentHash) return;
+                mapDataHashRef.current = currentHash;
+
+                Object.keys(markersRef.current).forEach(id => {
+                    if (map.hasLayer(markersRef.current[id].marker)) { map.removeLayer(markersRef.current[id].marker); }
+                    delete markersRef.current[id];
+                });
+                
+                Object.keys(routeLayersRef.current).forEach(key => {
+                    const layers = routeLayersRef.current[key];
+                    if (layers.outline && map.hasLayer(layers.outline)) map.removeLayer(layers.outline);
+                    if (layers.main && map.hasLayer(layers.main)) map.removeLayer(layers.main);
+                    if (layers.alts) {
+                        layers.alts.forEach(altLayer => {
+                            if (map.hasLayer(altLayer)) map.removeLayer(altLayer);
+                        });
+                    }
+                    delete routeLayersRef.current[key];
+                });
+
+                if (validPlaces.length > 0) {
+                    validPlaces.forEach((place, index) => {
+                        const isHovered = hoveredId === place.id;
+                        const iconHtml = `<div class="flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.5)] text-white font-bold text-sm transition-all duration-200" style="background-color: ${markerColor}; ${isHovered ? 'transform: scale(1.3); z-index: 1000;' : ''}">${index + 1}</div>`;
+                        const customIcon = L.divIcon({ className: 'leaflet-div-icon', html: iconHtml, iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
+                        const marker = L.marker([place.lat, place.lng], { icon: customIcon }).bindPopup(`<b>${place.name}</b>`).addTo(map);
+                        if (isHovered) marker.openPopup();
+                        markersRef.current[place.id] = { marker, index, baseColor: markerColor, isHovered };
+                    });
+
+                    if (validPlaces.length > 1) {
+                        const drawSegments = async () => {
+                            const outlineStyle = { color: '#ffffff', weight: 12, opacity: 1, lineCap: 'round', lineJoin: 'round' };
+                            const mainStyle = { color: routeColor, weight: 8, opacity: 1, lineCap: 'round', lineJoin: 'round' };
+
+                            for (let i = 0; i < validPlaces.length - 1; i++) {
+                                if (!isMounted) break;
+                                const p1 = validPlaces[i];
+                                const p2 = validPlaces[i + 1];
+                                if (p1.lat === p2.lat && p1.lng === p2.lng) continue;
+                                
+                                const travelMode = p1.travelMode || 'drive';
+                                const segmentKey = `${p1.id}-${p2.id}-${p1.lat},${p1.lng}-${p2.lat},${p2.lng}-${travelMode}`;
+                                
+                                let geoData = window.routeCache ? window.routeCache[segmentKey] : null;
+
+                                if (!geoData) {
+                                    if (travelMode === 'straight') {
+                                        geoData = ['straight_line']; 
+                                        if (!window.routeCache) window.routeCache = {};
+                                        window.routeCache[segmentKey] = geoData;
+                                    } else {
+                                        const profile = travelMode === 'walk' ? 'foot' : 'driving';
+                                        const url = `https://router.project-osrm.org/route/v1/${profile}/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=simplified&geometries=geojson&alternatives=true`;
+                                        try {
+                                            const res = await fetch(url);
+                                            if (res.ok) {
+                                                const data = await res.json();
+                                                if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                                                    geoData = data.routes.map(r => r.geometry);
+                                                } else {
+                                                    geoData = ['straight_line']; 
+                                                }
+                                            } else {
+                                                geoData = ['straight_line'];
+                                            }
+                                        } catch (e) {
+                                            geoData = ['straight_line'];
+                                        }
+                                        if (!window.routeCache) window.routeCache = {};
+                                        window.routeCache[segmentKey] = geoData;
+                                    }
+                                }
+
+                                if (!isMounted || !mapInstanceRef.current) return;
+
+                                let outline, main;
+                                let alts = [];
+                                
+                                const geometries = Array.isArray(geoData) ? geoData : [geoData];
+                                const selectedIndex = p1.routeIndex || 0;
+                                const validIndex = selectedIndex < geometries.length ? selectedIndex : 0;
+
+                                if (geometries.length > 1) {
+                                    geometries.forEach((geo, idx) => {
+                                        if (idx === validIndex || geo === 'straight_line') return;
+                                        
+                                        const altStyle = { color: '#94a3b8', weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round', dashArray: '5, 10' };
+                                        const clickStyle = { color: 'transparent', weight: 20, opacity: 0 }; 
+                                        
+                                        const altMain = L.geoJSON(geo, { style: altStyle }).addTo(mapInstanceRef.current);
+                                        const altClick = L.geoJSON(geo, { style: clickStyle }).addTo(mapInstanceRef.current);
+                                        
+                                        altClick.on('click', () => {
+                                            if (onRouteAltSelect) onRouteAltSelect(p1.id, idx);
+                                        });
+                                        
+                                        altClick.on('mouseover', () => {
+                                            altMain.setStyle({ color: '#cbd5e1', weight: 8, cursor: 'pointer' });
+                                            if (altMain.bringToFront) altMain.bringToFront();
+                                        });
+                                        altClick.on('mouseout', () => altMain.setStyle(altStyle));
+                                        
+                                        alts.push(altMain, altClick);
+                                    });
+                                }
+
+                                const mainGeo = geometries[validIndex];
+                                if (mainGeo === 'straight_line') {
+                                    const latlngs = [[p1.lat, p1.lng], [p2.lat, p2.lng]];
+                                    outline = L.polyline(latlngs, outlineStyle).addTo(mapInstanceRef.current);
+                                    main = L.polyline(latlngs, mainStyle).addTo(mapInstanceRef.current);
+                                } else {
+                                    outline = L.geoJSON(mainGeo, { style: outlineStyle }).addTo(mapInstanceRef.current);
+                                    main = L.geoJSON(mainGeo, { style: mainStyle }).addTo(mapInstanceRef.current);
+                                }
+                                
+                                if (main.bringToFront) main.bringToFront();
+
+                                routeLayersRef.current[segmentKey] = { outline, main, alts, p1Id: p1.id, p2Id: p2.id, baseColor: routeColor };
+                                await new Promise(resolve => setTimeout(resolve, 30));
+                            }
+                        };
+                        drawSegments();
+                    }
+                }
+                return () => { isMounted = false; };
+            }, [places, dayColor]); 
+
+            useEffect(() => {
+                Object.entries(markersRef.current).forEach(([placeId, data]) => {
+                    const { marker, index, baseColor } = data;
+                    if (!marker) return;
+                    const isHovered = hoveredId === placeId;
+                    const iconHtml = `<div class="flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.5)] text-white font-bold text-sm transition-all duration-200" style="background-color: ${baseColor}; ${isHovered ? 'transform: scale(1.3); z-index: 1000;' : ''}">${index + 1}</div>`;
+                    const customIcon = L.divIcon({ className: 'leaflet-div-icon', html: iconHtml, iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
+                    marker.setIcon(customIcon);
+                    if (isHovered && !data.isHovered) { 
+                        marker.openPopup(); 
+                    } else if (!isHovered && data.isHovered) { 
+                        marker.closePopup(); 
+                    }
+                    data.isHovered = isHovered;
+                });
+            }, [hoveredId]);
+
+            useEffect(() => {
+                Object.values(routeLayersRef.current).forEach(data => {
+                    const { main, p1Id, p2Id, baseColor } = data;
+                    if (!main) return;
+                    const isHovered = hoveredSegmentId === `${p1Id}-${p2Id}`;
+                    if (isHovered) {
+                        main.setStyle({ color: '#f59e0b', weight: 10 });
+                        if (main.bringToFront) main.bringToFront();
+                    } else {
+                        main.setStyle({ color: baseColor, weight: 8 });
+                    }
+                });
+            }, [hoveredSegmentId]);
+
+            return <div ref={mapRef} className="w-full h-full z-0 min-h-[300px]" />;
         });
 
         function Dashboard({ trips, onCreateTrip, onSelectTrip, onDeleteTrip, onImportTrip, onExportTrip, toast }) {
+            const fileInputRef = useRef(null);
+
+            const handleImportClick = () => {
+                fileInputRef.current?.click();
+            };
+
             return (
                 <div className="flex justify-center h-full bg-[#0f172a] overflow-y-auto w-full relative">
-                    {toast && (<div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700"><span>{toast}</span></div></div>)}
-                    <div className="max-w-[960px] w-full px-4">
-                        <div className="my-10 flex justify-between items-center">
-                            <h1 className="text-3xl font-bold text-slate-100">我的行程 🚀</h1>
-                            <div className="flex gap-3">
-                                <button onClick={onCreateTrip} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg">建立新行程</button>
-                            </div>
+                    {toast && (<div className="fixed top-10 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl flex items-center gap-2 border border-slate-700"><span>{toast}</span></div></div>)}
+                    <div className="max-w-[960px] w-full px-4 md:px-0">
+                        <div className="my-10">
+                            <h1 className="text-3xl font-bold mb-4 text-slate-100">我的行程</h1>
+                        </div>
+                        <div className="my-8 flex justify-end gap-3 flex-wrap">
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden" 
+                                accept=".json" 
+                                onChange={onImportTrip} 
+                            />
+                            <button 
+                                onClick={handleImportClick} 
+                                className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all cursor-pointer border border-slate-600"
+                            >
+                                <Icons.Upload size={20} /> 匯入行程
+                            </button>
+                            <button 
+                                onClick={onCreateTrip} 
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-900/30 transition-all cursor-pointer"
+                            >
+                                <Icons.Plus size={20} /> 建立新行程
+                            </button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
-                            {trips.map((tripData) => (
-                                <div key={tripData.id} onClick={() => onSelectTrip(tripData.id)} className="bg-slate-800 rounded-2xl overflow-hidden border border-slate-700 hover:border-blue-500 transition-all cursor-pointer group">
-                                    <div className="h-40 bg-slate-700 relative flex items-center justify-center text-4xl">{tripData.trip?.icon || '🚀'}</div>
-                                    <div className="p-5">
-                                        <h3 className="font-bold text-lg text-slate-100 truncate">{tripData.trip?.title || '未命名'}</h3>
-                                        <p className="text-sm text-slate-400">{tripData.trip?.dates}</p>
-                                    </div>
+                            {trips.length === 0 ? (
+                                <div className="col-span-full text-center py-20 text-slate-500">
+                                    <p>目前還沒有行程，開始建立你的第一個旅程吧！</p>
                                 </div>
-                            ))}
+                            ) : (
+                                trips.map((tripData, index) => {
+                                    const mockImgNum = (index % 20) + 30; 
+                                    return (
+                                        <div key={tripData.id} onClick={() => onSelectTrip(tripData.id)} className="relative bg-slate-800 rounded-2xl overflow-hidden shadow-xl border border-slate-700 hover:border-blue-500 hover:shadow-blue-900/20 transition-all cursor-pointer group flex flex-col h-[280px]">
+                                            <div className="h-40 overflow-hidden relative">
+                                                <img src={`https://assets.funliday.com/trip-default-cover/${mockImgNum}.png`} alt="cover" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { e.target.onerror = null; e.target.src = 'https://assets.funliday.com/trip-default-cover/33.png'; }} />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 to-transparent"></div>
+                                            </div>
+                                            <div className="p-5 flex-1 flex flex-col justify-end bg-slate-800 relative z-10 -mt-4 rounded-t-xl">
+                                                <h3 className="font-bold text-lg text-slate-100 truncate">{tripData.trip?.title || '未命名行程'}</h3>
+                                                <p className="text-sm text-slate-400 mt-1">{tripData.trip?.dates || '未設定日期'}</p>
+                                            </div>
+                                            
+                                            <div className="absolute top-3 right-3 flex items-start gap-2">
+                                                <div className="flex -space-x-2">
+                                                    {(tripData.members || []).slice(0, 3).map((m, i) => (
+                                                        <div key={i} className={`w-8 h-8 rounded-full border-2 border-slate-800 flex items-center justify-center text-xs text-white shadow-md ${m.color || 'bg-slate-600'}`} title={m.name}>
+                                                            {m.avatar || '👤'}
+                                                        </div>
+                                                    ))}
+                                                    {(tripData.members || []).length > 3 && (
+                                                        <div className="w-8 h-8 rounded-full border-2 border-slate-800 flex items-center justify-center text-xs text-white bg-slate-700 shadow-md">
+                                                            +{(tripData.members || []).length - 3}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); onExportTrip(tripData); }} 
+                                                        className="w-8 h-8 bg-slate-900/60 hover:bg-blue-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" 
+                                                        title="匯出行程"
+                                                    >
+                                                        <Icons.Download size={14} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); onDeleteTrip(tripData.id); }} 
+                                                        className="w-8 h-8 bg-slate-900/60 hover:bg-red-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" 
+                                                        title="刪除行程"
+                                                    >
+                                                        <Icons.Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
                 </div>
             );
         }
 
-        function TripPlanner({ tripId, onBack, db, user }) {
+        function TripPlanner({ tripId, onBack, db, appId, user }) {
             const [trip, setTrip] = useState({ title: '', dates: '', days: [] });
             const [members, setMembers] = useState([]);
             const [expenses, setExpenses] = useState([]);
             const [shoppingItems, setShoppingItems] = useState([]);
             const [packingList, setPackingList] = useState([]);
+            
             const [activeTab, setActiveTab] = useState('itinerary'); 
-            const [activeDayId, setActiveDayId] = useState(null);
+            const [activeDayId, setActiveDayId] = useState(1);
+            
             const [panelMode, setPanelMode] = useState('list'); 
             const [newItem, setNewItem] = useState({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
+            
+            const [tempMarker, setTempMarker] = useState(null);
+            const [addressSuggestions, setAddressSuggestions] = useState([]);
+            const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+            const [hoveredPlaceId, setHoveredPlaceId] = useState(null);
+            const [dragEnabledId, setDragEnabledId] = useState(null);
+            const [hoveredSegmentId, setHoveredSegmentId] = useState(null);
             const [toast, setToast] = useState(null);
-            const [expandedNotes, setExpandedNotes] = useState({});
-            const [placeToDelete, setPlaceToDelete] = useState(null);
-            const [showPackingModal, setShowPackingModal] = useState(false);
-            const [newPackingItem, setNewPackingItem] = useState({ text: '', owner: 'all' });
-            const [packingFilter, setPackingFilter] = useState('all');
+            const [previewImage, setPreviewImage] = useState(null);
+            const [draggedPlaceIndex, setDraggedPlaceIndex] = useState(null);
+            
+            const [newExpenseItem, setNewExpenseItem] = useState({ date: '2026-04-03', title: '', category: 'food', payer: '', amount: '', currency: 'JPY', sharedBy: [], image: null });
+            const [newShoppingItem, setNewShoppingItem] = useState({ name: '', qty: 1, price: 0, currency: 'MOP', requester: '', note: '', image: null });
+            const searchTimeoutRef = useRef(null);
+            const daysContainerRef = useRef(null);
 
-            // 強制固定 appId 為一個共通值，確保所有人看到同樣數據
-            const SHARED_APP_ID = "main-travel-planner-v2";
+            const [expandedNotes, setExpandedNotes] = useState({});
+
+            const [showExpenseModal, setShowExpenseModal] = useState(false);
+            const [showShoppingModal, setShowShoppingModal] = useState(false);
+            const [showPackingModal, setShowPackingModal] = useState(false);
+            const [showSettlementPlan, setShowSettlementPlan] = useState(false); 
+            const [showMemberSettings, setShowMemberSettings] = useState(false);
+            const [showDeleteDayConfirm, setShowDeleteDayConfirm] = useState(false);
+            
+            const [placeToDelete, setPlaceToDelete] = useState(null);
+            const [expenseToDelete, setExpenseToDelete] = useState(null);
+            const [shoppingToDelete, setShoppingToDelete] = useState(null);
+
+            const [expenseFilter, setExpenseFilter] = useState('all'); 
+            const [packingFilter, setPackingFilter] = useState('all'); 
+            const [displayCurrency, setDisplayCurrency] = useState('HKD');
+            const [addModalTab, setAddModalTab] = useState('custom');
+            const [newPackingItem, setNewPackingItem] = useState({ text: '', owner: '' });
 
             useEffect(() => {
                 if (!user || !tripId) return;
-                const tripDocRef = window.FirebaseSDK.doc(db, 'artifacts', SHARED_APP_ID, 'public', 'data', 'trips', tripId);
+                const tripDocRef = window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', tripId);
                 return window.FirebaseSDK.onSnapshot(tripDocRef, (snap) => {
                     if (snap.exists()) {
                         const data = snap.data();
-                        setTrip(data.trip || {});
-                        setMembers(data.members || []);
-                        setExpenses(data.expenses || []);
-                        setShoppingItems(data.shoppingItems || []);
-                        setPackingList(data.packingList || []);
+                        if (data.trip) setTrip(data.trip);
+                        if (data.members) setMembers(data.members);
+                        if (data.expenses) setExpenses(data.expenses);
+                        if (data.shoppingItems) setShoppingItems(data.shoppingItems);
+                        if (data.packingList) setPackingList(data.packingList);
                         if (!activeDayId && data.trip?.days?.length > 0) setActiveDayId(data.trip.days[0].id);
                     }
                 });
             }, [user, tripId]);
 
-            const pushUpdate = (data) => window.FirebaseSDK.updateDoc(window.FirebaseSDK.doc(db, 'artifacts', SHARED_APP_ID, 'public', 'data', 'trips', tripId), data);
+            const pushUpdate = (data) => window.FirebaseSDK.updateDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', tripId), data);
             const showMsg = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
             const activeDayData = useMemo(() => trip.days?.find(d => d.id === activeDayId) || trip.days?.[0], [trip, activeDayId]);
+            const getMemberInfo = useCallback((name) => members.find(m => m.name === name) || { color: 'bg-gray-400', avatar: '👤' }, [members]);
 
-            const toggleNote = (id, e) => { e.stopPropagation(); setExpandedNotes(prev => ({...prev, [id]: !prev[id]})); };
+            // --- 全域貼上監聽器 (支援 CTRL+V) ---
+            const stateRef = useRef({ trip, activeDayId, hoveredPlaceId, panelMode, newItem });
+            useEffect(() => {
+                stateRef.current = { trip, activeDayId, hoveredPlaceId, panelMode, newItem };
+            }, [trip, activeDayId, hoveredPlaceId, panelMode, newItem]);
+
+            useEffect(() => {
+                const handleGlobalPaste = (e) => {
+                    if (activeTab !== 'itinerary') return;
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+
+                    let imageFile = null;
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type.indexOf('image') !== -1) {
+                            imageFile = items[i].getAsFile();
+                            break;
+                        }
+                    }
+
+                    if (imageFile) {
+                        const current = stateRef.current;
+                        let targetPlaceId = null;
+                        
+                        if (current.panelMode === 'edit' && current.newItem.id) {
+                            targetPlaceId = current.newItem.id;
+                        } else if (current.hoveredPlaceId) {
+                            targetPlaceId = current.hoveredPlaceId;
+                        }
+
+                        if (targetPlaceId) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    const canvas = document.createElement('canvas');
+                                    let w = img.width, h = img.height;
+                                    if (w > h) { if (w > 800) { h *= 800/w; w = 800; } } else { if (h > 800) { w *= 800/h; h = 800; } }
+                                    canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                                    
+                                    const newDays = current.trip.days.map(d => 
+                                        String(d.id) === String(current.activeDayId) ? { 
+                                            ...d, 
+                                            places: d.places.map(p => p.id === targetPlaceId ? { ...p, image: canvas.toDataURL('image/jpeg', 0.7) } : p) 
+                                        } : d
+                                    );
+                                    pushUpdate({ trip: { ...current.trip, days: newDays } });
+                                    showMsg('✅ 圖片已從剪貼簿貼上！');
+                                };
+                                img.src = event.target.result;
+                            };
+                            reader.readAsDataURL(imageFile);
+                        }
+                    }
+                };
+
+                document.addEventListener('paste', handleGlobalPaste);
+                return () => document.removeEventListener('paste', handleGlobalPaste);
+            }, [activeTab]);
+
+            const handleAddressInput = (e) => {
+                const val = e.target.value; setNewItem(p => ({...p, address: val}));
+                if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+                if (!val.trim()) { setAddressSuggestions([]); return; }
+                searchTimeoutRef.current = setTimeout(async () => {
+                    try {
+                        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5`);
+                        const data = await res.json(); setAddressSuggestions(data || []);
+                    } catch(e) {}
+                }, 800);
+            };
+
+            const handleSuggestionClick = (s) => {
+                const name = s.display_name.split(',')[0];
+                setNewItem(p => ({...p, address: s.display_name, name: p.name || name}));
+                setTempMarker({ lat: parseFloat(s.lat), lng: parseFloat(s.lon), name });
+                setAddressSuggestions([]);
+            };
+
+            const handleAddressSearch = async () => {
+                if (!newItem.address) return showMsg("請先輸入地址或關鍵字！");
+                setIsSearchingAddress(true);
+                try {
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(newItem.address)}&limit=1`);
+                    const data = await res.json();
+                    if (data && data.length > 0) {
+                        const { lat, lon, display_name } = data[0];
+                        const shortName = display_name.split(',')[0];
+                        setTempMarker({ lat: parseFloat(lat), lng: parseFloat(lon), name: shortName });
+                        if (!newItem.name) setNewItem(prev => ({...prev, name: shortName}));
+                        showMsg("已找到地點！");
+                    } else showMsg("找不到該地點。");
+                } catch(e) { showMsg("搜尋時發生錯誤。"); }
+                setIsSearchingAddress(false);
+            };
+
+            const handleManualAddSubmit = (e) => {
+                e.preventDefault();
+                const lat = tempMarker ? tempMarker.lat : 22.5 + Math.random()*0.1;
+                const lng = tempMarker ? tempMarker.lng : 114.1 + Math.random()*0.1;
+                const newP = { id: 'p' + Date.now(), ...newItem, lat, lng, travelMode: 'drive', routeIndex: 0 };
+                const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: [...d.places, newP] } : d);
+                pushUpdate({ trip: { ...trip, days: newDays } });
+                setPanelMode('list'); setTempMarker(null);
+                setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
+            };
+
+            const handleEditSubmit = (e) => {
+                e.preventDefault();
+                const newDays = trip.days.map(d => {
+                    if (d.id === activeDayId) {
+                        return {
+                            ...d,
+                            places: d.places.map(p => p.id === newItem.id ? { 
+                                ...p, 
+                                name: newItem.name,
+                                note: newItem.note,
+                                type: newItem.type,
+                                time: newItem.time,
+                                stayTime: newItem.stayTime || '1',
+                                ...(tempMarker ? { lat: tempMarker.lat, lng: tempMarker.lng } : {})
+                            } : p)
+                        };
+                    }
+                    return d;
+                });
+                pushUpdate({ trip: { ...trip, days: newDays } });
+                setPanelMode('list'); 
+                setTempMarker(null);
+                setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
+            };
+
+            const handleUpdateTravelMode = (dayId, placeId, newMode) => {
+                const newDays = trip.days.map(d => d.id === dayId ? { ...d, places: d.places.map(p => p.id === placeId ? { ...p, travelMode: newMode, routeIndex: 0 } : p) } : d);
+                pushUpdate({ trip: { ...trip, days: newDays } });
+            };
+
+            const handleUpdateRouteIndex = (dayId, placeId, index) => {
+                const newDays = trip.days.map(d => d.id === dayId ? { ...d, places: d.places.map(p => p.id === placeId ? { ...p, routeIndex: index } : p) } : d);
+                pushUpdate({ trip: { ...trip, days: newDays } });
+            };
+
+            const confirmDeletePlace = () => {
+                const newDays = trip.days.map(d => String(d.id) === String(activeDayId) ? { ...d, places: d.places.filter(p => p.id !== placeToDelete) } : d);
+                pushUpdate({ trip: { ...trip, days: newDays } });
+                setPlaceToDelete(null);
+                setPanelMode('list');
+            };
+
+            const toggleNote = (placeId, e) => {
+                e.stopPropagation();
+                setExpandedNotes(prev => ({ ...prev, [placeId]: !prev[placeId] }));
+            };
+
+            const handleDragStart = (e, idx, pId) => { 
+                if (dragEnabledId !== pId) { 
+                    e.preventDefault(); 
+                    return; 
+                }
+                setDraggedPlaceIndex(idx); 
+                e.dataTransfer.effectAllowed = 'move';
+                if (e.dataTransfer.setData) e.dataTransfer.setData('text/plain', ''); 
+            };
+            const handleDrop = (e, dropIdx) => {
+                e.preventDefault(); 
+                if (draggedPlaceIndex === null || draggedPlaceIndex === dropIdx) return;
+                const newPs = [...activeDayData.places]; 
+                const item = newPs.splice(draggedPlaceIndex, 1)[0];
+                newPs.splice(dropIdx, 0, item);
+                const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: newPs } : d);
+                pushUpdate({ trip: { ...trip, days: newDays } }); 
+                setDraggedPlaceIndex(null);
+                setDragEnabledId(null);
+            };
+            const handleDragEnd = () => { 
+                setDraggedPlaceIndex(null); 
+                setDragEnabledId(null);
+            };
+
+            const [jpyToHkdRate] = React.useState(0.0496); 
+            const [jpyToTwdRate] = React.useState(0.215);
+            const [jpyToMopRate] = React.useState(0.0511);
+
+            const currentExchangeRate = useMemo(() => {
+                switch(displayCurrency) { case 'HKD': return jpyToHkdRate; case 'TWD': return jpyToTwdRate; case 'MOP': return jpyToMopRate; default: return 1; }
+            }, [displayCurrency, jpyToHkdRate, jpyToTwdRate, jpyToMopRate]);
+            
+            const getRateToJPY = (currency) => {
+                switch(currency) { case 'HKD': return 1 / jpyToHkdRate; case 'TWD': return 1 / jpyToTwdRate; case 'MOP': return 1 / jpyToMopRate; default: return 1; }
+            };
+
+            const filteredExpenses = useMemo(() => {
+                if (!expenses) return [];
+                let result = expenseFilter === 'all' ? [...expenses] : expenses.map(day => ({...day, items: day.items.filter(item => item.payer === expenseFilter || (item.sharedBy && item.sharedBy.includes(expenseFilter)))})).filter(day => day.items.length > 0);
+                return result.sort((a, b) => new Date(b.date) - new Date(a.date));
+            }, [expenses, expenseFilter]);
+
+            const filteredTotalStats = useMemo(() => {
+                let totalJPY = 0; filteredExpenses.forEach(d => d.items.forEach(i => totalJPY += i.amountJPY));
+                return { jpy: totalJPY, display: Math.round(totalJPY * currentExchangeRate) };
+            }, [filteredExpenses, currentExchangeRate]);
+
+            const shoppingTotalStats = useMemo(() => {
+                let totalJPY = 0; shoppingItems.forEach(item => { totalJPY += item.price * item.qty; });
+                return { jpy: Math.round(totalJPY), display: Math.round(totalJPY * currentExchangeRate) };
+            }, [shoppingItems, currentExchangeRate]); 
+
+            const handleAddExpenseSubmit = (e) => {
+                e.preventDefault();
+                let finalAmountJPY = Number(newExpenseItem.amount) * getRateToJPY(newExpenseItem.currency);
+                const newExpense = { id: 'e_' + Date.now(), payer: newExpenseItem.payer, title: newExpenseItem.title, category: newExpenseItem.category, sharedBy: newExpenseItem.sharedBy, amountJPY: Math.round(finalAmountJPY), image: newExpenseItem.image };
+                const newExpenses = [...expenses]; const dayIndex = newExpenses.findIndex(d => d.date === newExpenseItem.date);
+                if (dayIndex >= 0) newExpenses[dayIndex].items.push(newExpense); else newExpenses.push({ date: newExpenseItem.date, items: [newExpense] });
+                pushUpdate({ expenses: newExpenses.sort((a, b) => new Date(a.date) - new Date(b.date)) }); 
+                setShowExpenseModal(false); 
+                setNewExpenseItem({ date: '2026-04-03', title: '', category: 'food', payer: members[0]?.name, amount: '', currency: 'JPY', sharedBy: members.map(m => m.name), image: null });
+            };
+
+            const confirmDeleteExpense = () => {
+                if (expenseToDelete) { pushUpdate({ expenses: expenses.map(day => ({...day, items: day.items.filter(item => item.id !== expenseToDelete.id)})).filter(day => day.items.length > 0) }); setExpenseToDelete(null); }
+            };
+
+            const handleAddShoppingSubmit = (e) => {
+                e.preventDefault();
+                let jpyPrice = Number(newShoppingItem.price) * getRateToJPY(newShoppingItem.currency);
+                pushUpdate({ shoppingItems: [...shoppingItems, { id: 's_' + Date.now(), ...newShoppingItem, qty: Number(newShoppingItem.qty), price: Math.round(jpyPrice), currency: newShoppingItem.currency, requester: members[0]?.name, note: '', image: null }] }); 
+                setShowShoppingModal(false); setNewShoppingItem({ name: '', qty: 1, price: 0, currency: 'MOP', requester: members[0]?.name, note: '', image: null });
+            };
+
+            const confirmDeleteShopping = () => {
+                if (shoppingToDelete) { pushUpdate({ shoppingItems: shoppingItems.filter(item => item.id !== shoppingToDelete) }); setShoppingToDelete(null); }
+            };
+
+            const filteredPackingList = useMemo(() => {
+                if (!packingList) return [];
+                if (packingFilter === 'all') return packingList;
+                return packingList.filter(item => item.owner === packingFilter || item.owner === 'all');
+            }, [packingList, packingFilter]);
+
+            const handleAddPacking = (e) => {
+                e.preventDefault(); if (!newPackingItem.text) return;
+                pushUpdate({ packingList: [...packingList, { id: 'pk'+Date.now(), text: newPackingItem.text, checked: false, owner: newPackingItem.owner }] });
+                setNewPackingItem({ text: '', owner: '' }); setShowPackingModal(false);
+            };
+
+            const togglePacking = (id) => pushUpdate({ packingList: packingList.map(i => i.id === id ? { ...i, checked: !i.checked } : i) });
+            const deletePacking = (e, id) => { e.stopPropagation(); pushUpdate({ packingList: packingList.filter(i => i.id !== id) }); };
+
+            const settlementResult = useMemo(() => {
+                const balances = {}; members.forEach(m => balances[m.name] = 0);
+                expenses.forEach(day => day.items.forEach(item => {
+                    const splitBy = item.sharedBy || []; if (splitBy.length === 0) return;
+                    const splitAmount = item.amountJPY / splitBy.length;
+                    if (balances[item.payer] !== undefined) balances[item.payer] += item.amountJPY;
+                    splitBy.forEach(person => { if (balances[person] !== undefined) balances[person] -= splitAmount; });
+                }));
+                const debtors = []; const creditors = [];
+                Object.entries(balances).forEach(([name, amount]) => { if (amount < -1) debtors.push({ name, amount }); if (amount > 1) creditors.push({ name, amount }); });
+                debtors.sort((a, b) => a.amount - b.amount); creditors.sort((a, b) => b.amount - a.amount);
+                const transactions = []; let i = 0; let j = 0;
+                while (i < debtors.length && j < creditors.length) {
+                    const debtor = debtors[i]; const creditor = creditors[j];
+                    const amount = Math.min(Math.abs(debtor.amount), creditor.amount);
+                    transactions.push({ from: debtor.name, to: creditor.name, amount: amount });
+                    debtor.amount += amount; creditor.amount -= amount;
+                    if (Math.abs(debtor.amount) < 1) i++; if (creditor.amount < 1) j++;
+                }
+                return { balances, transactions };
+            }, [expenses, members]);
+
+            const toggleSharedMember = (m) => setNewExpenseItem(prev => { const shared = prev.sharedBy.includes(m) ? (prev.sharedBy.length > 1 ? prev.sharedBy.filter(name => name !== m) : prev.sharedBy) : [...prev.sharedBy, m]; return { ...prev, sharedBy: shared }; });
+
+            const handleAddDay = () => {
+                const newId = trip.days.length > 0 ? Math.max(...trip.days.map(d => d.id)) + 1 : 1;
+                pushUpdate({ trip: { ...trip, days: [...trip.days, { id: newId, date: getFutureDate(newId - 1), title: '新的一天', color: '#3b82f6', weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }, places: [] }] } });
+                setActiveDayId(newId);
+            };
+
+            const isDraggingDay = useRef(false);
+            const dragStartX = useRef(0);
+            const dragScrollLeft = useRef(0);
+            const dragHasMoved = useRef(false); 
+
+            const handlePlaceImageUpload = (dayId, placeId, e) => {
+                const file = e.target.files[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > 800) { h *= 800/w; w = 800; } } else { if (h > 800) { w *= 800/h; h = 800; } }
+                        canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        pushUpdate({ trip: { ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, places: d.places.map(p => p.id === placeId ? { ...p, image: canvas.toDataURL('image/jpeg', 0.7) } : p) } : d) } });
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            };
+
+            const updateMember = (id, field, value) => {
+                const oldMember = members.find(m => m.id === id); if (!oldMember) return;
+                const oldName = oldMember.name;
+                const updatedMembers = members.map(m => m.id === id ? { ...m, [field]: value } : m);
+                let updates = { members: updatedMembers };
+                if (field === 'name' && value !== oldName) {
+                    updates.expenses = expenses.map(d => ({ ...d, items: d.items.map(i => ({ ...i, payer: i.payer === oldName ? value : i.payer, sharedBy: i.sharedBy.map(n => n === oldName ? value : n) })) }));
+                    updates.shoppingItems = shoppingItems.map(i => ({...i, requester: i.requester === oldName ? value : i.requester}));
+                    updates.packingList = packingList.map(i => ({...i, owner: i.owner === oldName ? value : i.owner}));
+                }
+                pushUpdate(updates);
+            };
+
+            const handleDeleteMember = (id) => {
+                if (members.length <= 1) { showMsg("至少需要保留一位成員！"); return; }
+                if (confirm("確定要刪除此成員嗎？")) pushUpdate({ members: members.filter(m => m.id !== id) });
+            };
+
+            const handleAddMember = () => {
+                const colors = ['bg-yellow-500', 'bg-blue-400', 'bg-green-500', 'bg-red-400', 'bg-purple-500', 'bg-pink-400'];
+                pushUpdate({ members: [...members, { id: 'm' + Date.now(), name: `成員${members.length + 1}`, color: colors[members.length % colors.length], avatar: '👤' }] });
+            };
 
             return (
                 <div className="flex flex-col h-[100dvh] bg-slate-900 text-slate-100 font-sans relative">
-                    {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700 font-bold"><span>{toast}</span></div></div>}
-                    
-                    <header className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 z-20">
-                        <div className="flex items-center gap-3">
-                            <button onClick={onBack} className="p-1.5 bg-slate-800 rounded-full"><Icons.ArrowLeft size={20} /></button>
-                            <span className="font-bold">{trip.title} 🚀</span>
+                    {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700 shadow-2xl font-bold tracking-wide"><span>{toast}</span></div></div>}
+                    {previewImage && <div className="fixed inset-0 z-[110] bg-black/90 flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreviewImage(null)}><button className="absolute top-4 right-4 p-2 bg-slate-800 text-white rounded-full hover:bg-slate-700 transition-colors shadow-lg"><Icons.X size={24} /></button><img src={previewImage} className="max-w-full max-h-full object-contain" /></div>}
+                    <header className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 shrink-0 z-20 shadow-lg">
+                        <div className="flex items-center gap-3 flex-1">
+                            <button onClick={onBack} className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-300"><Icons.ArrowLeft size={20} /></button>
+                            <div className={`w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold hover:scale-105 transition-transform`}>
+                                <input value={trip.icon || '🚀'} onChange={e => pushUpdate({trip:{...trip, icon:e.target.value}})} className="w-full h-full bg-transparent text-center text-lg outline-none cursor-pointer" maxLength="2"/>
+                            </div>
+                            <div className="flex flex-col min-w-0 flex-1">
+                                <input value={trip.title} onChange={(e) => pushUpdate({trip:{...trip, title:e.target.value}})} className="text-sm font-bold bg-transparent outline-none w-full" />
+                                <input value={trip.dates} onChange={(e) => pushUpdate({trip:{...trip, dates:e.target.value}})} className="text-xs text-slate-500 bg-transparent outline-none w-full" />
+                            </div>
                         </div>
                         <OnlineUserBadge />
                     </header>
-
-                    <div className="flex border-b border-slate-800 bg-slate-900 px-4 gap-6 text-sm">
-                        <button onClick={() => setActiveTab('itinerary')} className={`py-3 border-b-2 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}>行程</button>
-                        <button onClick={() => setActiveTab('packing')} className={`py-3 border-b-2 ${activeTab === 'packing' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}>行李</button>
+                    <div className="flex border-b border-slate-800 bg-slate-900 px-4 gap-6 text-sm font-medium overflow-x-auto no-scrollbar">
+                        <button onClick={() => setActiveTab('itinerary')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Map size={18} />行程</button>
+                        <button onClick={() => setActiveTab('expenses')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'expenses' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Wallet size={18} />花費</button>
+                        <button onClick={() => setActiveTab('shopping')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'shopping' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.ShoppingBag size={18} />待買</button>
+                        <button onClick={() => setActiveTab('packing')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'packing' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Briefcase size={18} />行李</button>
                     </div>
-
                     <div className="flex flex-1 overflow-hidden">
                         {activeTab === 'itinerary' && (
                             <>
-                                <div className="w-full md:w-[550px] flex flex-col border-r border-slate-800 bg-slate-900 transition-all overflow-hidden">
+                                <div className="w-full md:w-[450px] flex flex-col border-r border-slate-800 bg-slate-900 shrink-0 relative z-10 shadow-2xl h-full transition-all">
                                     {panelMode === 'list' ? (
-                                        <div className="p-4 overflow-y-auto h-full">
-                                            <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar">
+                                        <>
+                                            <div 
+                                                ref={daysContainerRef} 
+                                                onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX - daysContainerRef.current.offsetLeft; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} 
+                                                onMouseLeave={() => isDraggingDay.current = false} 
+                                                onMouseUp={() => isDraggingDay.current = false} 
+                                                onMouseMove={(e) => { if(!isDraggingDay.current) return; e.preventDefault(); dragHasMoved.current = true; const x = e.pageX - daysContainerRef.current.offsetLeft; const walk = (x - dragStartX.current) * 1.5; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; }} 
+                                                className="bg-slate-900 border-b border-slate-800 px-3 py-4 flex flex-nowrap gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none"
+                                            >
                                                 {trip.days?.map((day, idx) => (
-                                                    <button key={day.id} onClick={() => setActiveDayId(day.id)} className={`px-4 py-2 rounded-xl border shrink-0 ${activeDayId === day.id ? 'bg-blue-600 border-blue-500' : 'bg-slate-800 border-slate-700'}`}>Day {idx+1}</button>
+                                                    <button key={day.id} onClick={(e) => { if(dragHasMoved.current) return; setActiveDayId(day.id); }} className={`flex flex-col items-start min-w-[100px] shrink-0 p-3 rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}>
+                                                        <div className="flex justify-between w-full mb-1.5"><span className={`text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>Day {idx + 1}</span><WeatherIcon type={day.weather?.type} size={16} /></div>
+                                                        <span className="text-xs font-medium mb-1 text-slate-500">{formatShortDate(day.date)}</span>
+                                                    </button>
                                                 ))}
+                                                <button onClick={(e) => { if(dragHasMoved.current) return; handleAddDay(); }} className="min-w-[80px] p-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center">
+                                                    <div className="bg-slate-800 rounded-full p-1.5 mb-1.5"><Icons.Plus size={18} /></div>
+                                                    <span className="text-xs font-bold">新增</span>
+                                                </button>
                                             </div>
-                                            <div className="space-y-4">
-                                                {activeDayData?.places.map((p, i) => (
-                                                    <div key={p.id} className="bg-slate-800 border border-slate-700 rounded-xl p-4">
-                                                        <div className="flex justify-between items-start">
-                                                            <div onClick={(e) => toggleNote(p.id, e)} className="flex-1 cursor-pointer">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-blue-400 font-mono text-xs">{p.time}</span>
-                                                                    <h3 className="font-bold">{p.name}</h3>
+                                            <div className="px-4 py-4 overflow-y-auto flex-1 pb-32">
+                                                <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700/50">
+                                                    <div className="flex flex-col">
+                                                        <h3 className="font-bold text-blue-400">{activeDayData?.title}</h3>
+                                                        <div className="text-[10px] text-slate-400 mt-1">{activeDayData?.places?.length || 0} 個景點</div>
+                                                    </div>
+                                                    <button onClick={() => setShowDeleteDayConfirm(true)} className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg border border-slate-700 transition-colors"><Icons.Trash2 size={16} /></button>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    {activeDayData?.places.map((p, i) => {
+                                                        const isNoteExpanded = expandedNotes[p.id];
+                                                        return (
+                                                            <div 
+                                                                key={p.id} 
+                                                                draggable={true} 
+                                                                onDragStart={e => handleDragStart(e, i, p.id)} 
+                                                                onDragOver={e => e.preventDefault()} 
+                                                                onDrop={e => handleDrop(e, i)} 
+                                                                onDragEnd={handleDragEnd} 
+                                                                className={`flex flex-col group/card transition-all duration-200 ${draggedPlaceIndex === i ? 'opacity-30 scale-[0.98]' : ''}`}
+                                                            >
+                                                                <div className="flex gap-3 items-stretch">
+                                                                    {/* Timeline Visual */}
+                                                                    <div className="flex flex-col items-center w-12 shrink-0">
+                                                                        <div className="text-[12px] font-bold text-blue-300 font-mono mb-1.5 pt-1">{p.time}</div>
+                                                                        
+                                                                        {/* 左側拖曳把手 1：數字圓圈 */}
+                                                                        <div 
+                                                                            onMouseEnter={() => setDragEnabledId(p.id)} 
+                                                                            onMouseLeave={() => setDragEnabledId(null)}
+                                                                            onTouchStart={() => setDragEnabledId(p.id)}
+                                                                            onTouchEnd={() => setDragEnabledId(null)}
+                                                                            className="drag-handle w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors" 
+                                                                            title="按住拖動排序"
+                                                                        >
+                                                                            {i+1}
+                                                                        </div>
+                                                                        {i < activeDayData.places.length - 1 && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}
+                                                                    </div>
+                                                                    
+                                                                    {/* Card Content */}
+                                                                    <div className="flex-1 pb-3">
+                                                                        <div className={`flex items-start gap-3 p-3 rounded-xl border border-slate-700 bg-slate-800/80 transition-all ${hoveredPlaceId === p.id ? 'border-blue-500 shadow-xl' : ''}`} onMouseEnter={() => setHoveredPlaceId(p.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
+                                                                            
+                                                                            {/* 圖片預覽區域 (不再作為拖曳把手) */}
+                                                                            <div 
+                                                                                className="w-[60px] h-[60px] bg-slate-700 rounded-lg shrink-0 flex items-center justify-center relative overflow-hidden cursor-pointer shadow-inner hover:ring-2 hover:ring-blue-500 transition-all" 
+                                                                                title="點擊預覽圖片 (可直接 Ctrl+V 貼上圖片)"
+                                                                                onClick={() => p.image && setPreviewImage(p.image)}
+                                                                            >
+                                                                                {p.image ? (
+                                                                                    <img src={p.image} draggable={false} className="w-full h-full object-cover rounded-lg hover:scale-105 transition-transform pointer-events-none" />
+                                                                                ) : (
+                                                                                    <div className="pointer-events-none">
+                                                                                        <CategoryIcon type={p.type} size={24} />
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+
+                                                                            <div className="flex-1 min-w-0 relative">
+                                                                                <div className="flex justify-between items-start">
+                                                                                    <div className="flex flex-col">
+                                                                                        <div className="flex items-start gap-1">
+                                                                                            {p.note && (
+                                                                                                <button onClick={(e) => toggleNote(p.id, e)} className="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0 outline-none">
+                                                                                                    {isNoteExpanded ? <Icons.ChevronUp size={16} /> : <Icons.ChevronDown size={16} />}
+                                                                                                </button>
+                                                                                            )}
+                                                                                            <h3 className={`font-bold text-slate-100 leading-snug ${isNoteExpanded ? '' : 'line-clamp-2'}`}>{p.name}</h3>
+                                                                                        </div>
+                                                                                        {/* 去除框線的備註內容 */}
+                                                                                        {p.note && isNoteExpanded && (
+                                                                                            <div className="mt-1.5 ml-5 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                                                                                {p.note}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    
+                                                                                    {/* 卡片右側的動作按鈕列 */}
+                                                                                    <div className="flex items-center gap-1 shrink-0 ml-2">
+                                                                                        {/* 右側拖曳把手 2：明確的 Grip 圖示 */}
+                                                                                        <div 
+                                                                                            onMouseEnter={() => setDragEnabledId(p.id)} 
+                                                                                            onMouseLeave={() => setDragEnabledId(null)}
+                                                                                            onTouchStart={() => setDragEnabledId(p.id)}
+                                                                                            onTouchEnd={() => setDragEnabledId(null)}
+                                                                                            className="drag-handle p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors" 
+                                                                                            title="按住拖動排序"
+                                                                                        >
+                                                                                            <Icons.GripVertical size={18} />
+                                                                                        </div>
+                                                                                        
+                                                                                        {/* 3 Dots Menu Button for Edit */}
+                                                                                        <button onClick={() => {
+                                                                                            setNewItem({ id: p.id, name: p.name, time: p.time, type: p.type, address: p.address || '', note: p.note || '', stayTime: p.stayTime || '1' });
+                                                                                            setPanelMode('edit');
+                                                                                        }} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors">
+                                                                                            <Icons.MoreVertical size={18} />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                                
+                                                                                <div className={`text-[11px] text-slate-400 mt-1.5 ${p.note ? 'ml-5' : ''}`}>停留 {p.stayTime || '1'} 小時</div>
+                                                                                
+                                                                                <div className={`mt-2 flex flex-wrap items-center gap-1.5 ${p.note ? 'ml-5' : ''}`}>
+                                                                                    <span className="px-1.5 py-0.5 rounded text-[10px] text-slate-300 bg-slate-700 font-bold uppercase tracking-wider">{getCategoryName(p.type)}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
-                                                                {expandedNotes[p.id] && <p className="mt-2 text-sm text-slate-400 whitespace-pre-wrap">{p.note}</p>}
+                                                                
+                                                                {/* Travel Segment */}
+                                                                {i < activeDayData.places.length - 1 && (
+                                                                    <div className="flex items-stretch gap-3">
+                                                                        <div className="flex flex-col items-center w-12 shrink-0"><div className="text-[11px] font-bold text-slate-400 font-mono mb-1">{getEndTime(p.time, parseFloat(p.stayTime || 1))}</div><div className="w-2.5 h-2.5 rounded-full bg-amber-500/50 border border-amber-500 z-10 shrink-0"></div><div className="border-l-2 border-dashed border-slate-600 flex-1 mt-1.5 min-h-[2rem] w-0"></div></div>
+                                                                        <div className="flex-1 pb-4 flex items-start -mt-3"><TravelSegmentUI p1={p} p2={activeDayData.places[i+1]} onUpdateMode={(m) => handleUpdateTravelMode(activeDayData.id, p.id, m)} onMouseEnter={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} onMouseLeave={() => setHoveredSegmentId(null)} /></div>
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                            <button onClick={() => {
-                                                                setNewItem({ ...p });
-                                                                setPanelMode('edit');
-                                                            }} className="p-1.5 text-slate-500 hover:text-white"><Icons.MoreVertical size={18} /></button>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <button onClick={() => {
+                                                    setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
+                                                    setTempMarker(null);
+                                                    setPanelMode('add');
+                                                }} className="w-full py-3.5 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 font-bold hover:border-blue-500 hover:text-blue-400 transition-all flex items-center justify-center gap-2 mt-4"><Icons.Plus size={18} /> 新增行程景點</button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col h-full bg-slate-900 animate-fade-in">
+                                            <div className="flex items-center bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 p-2">
+                                                <button onClick={() => { setPanelMode('list'); setTempMarker(null); }} className="p-2 text-slate-400 hover:text-white shrink-0"><Icons.ArrowLeft size={20} /></button>
+                                                <div className="flex flex-1 items-center justify-center font-bold text-slate-200 pr-8">
+                                                    {panelMode === 'add' ? '新增景點' : '編輯景點資料'}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* 只有新增模式才顯示上方 Tabs */}
+                                            {panelMode === 'add' && (
+                                                <div className="flex bg-slate-900 border-b border-slate-800 shrink-0">
+                                                    <button onClick={() => setAddModalTab('search')} className={`flex-1 py-3 flex flex-col items-center gap-1 ${addModalTab === 'search' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500'}`}><Icons.Search size={18} /><span className="text-[10px] font-bold">搜尋</span></button>
+                                                    <button onClick={() => setAddModalTab('collections')} className={`flex-1 py-3 flex flex-col items-center gap-1 ${addModalTab === 'collections' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500'}`}><Icons.MapPin size={18} /><span className="text-[10px] font-bold">收藏</span></button>
+                                                    <button onClick={() => setAddModalTab('custom')} className={`flex-1 py-3 flex flex-col items-center gap-1 ${addModalTab === 'custom' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500'}`}><Icons.Pen size={18} /><span className="text-[10px] font-bold">自訂</span></button>
+                                                </div>
+                                            )}
+
+                                            <div className="overflow-y-auto p-4 flex-1 pb-32">
+                                                {(panelMode === 'edit' || (panelMode === 'add' && addModalTab === 'custom')) && (
+                                                    <form onSubmit={panelMode === 'add' ? handleManualAddSubmit : handleEditSubmit} className="space-y-4">
+                                                        <div className="flex justify-between items-baseline mb-2">
+                                                            <h4 className="font-bold text-lg text-slate-100">{panelMode === 'add' ? '自建新景點' : '基本資料'}</h4>
+                                                            {panelMode === 'add' && <span className="text-xs font-medium text-red-400">*必填</span>}
                                                         </div>
-                                                        {i < activeDayData.places.length - 1 && (
-                                                            <div className="mt-4 flex justify-center">
-                                                                <TravelSegmentUI p1={p} p2={activeDayData.places[i+1]} onUpdateMode={(m) => {
-                                                                    const newDays = trip.days.map(d => d.id === activeDayId ? {...d, places: d.places.map(pl => pl.id === p.id ? {...pl, travelMode: m} : pl)} : d);
-                                                                    pushUpdate({trip: {...trip, days: newDays}});
-                                                                }} />
+                                                        
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-400 mb-1">景點名稱</label>
+                                                            <input required placeholder="*景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name:e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        </div>
+                                                        
+                                                        <div className="relative">
+                                                            <label className="block text-xs font-bold text-slate-400 mb-1">{panelMode === 'add' ? '地址或關鍵字 (選填)' : '搜尋更新地址 (選填)'}</label>
+                                                            <div className="flex gap-2">
+                                                                <input placeholder="輸入地址更新地圖位置" value={newItem.address} onChange={handleAddressInput} className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                                                                <button type="button" onClick={() => handleAddressSearch()} className="bg-blue-600 p-2.5 rounded-lg transition-colors hover:bg-blue-500"><Icons.Search size={18} /></button>
+                                                            </div>
+                                                            {addressSuggestions.length > 0 && (
+                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 rounded-xl border border-slate-600 z-[100] shadow-2xl overflow-hidden divide-y divide-slate-700">
+                                                                    {addressSuggestions.map((s, idx) => (
+                                                                        <div key={idx} onClick={() => handleSuggestionClick(s)} className="p-3 hover:bg-slate-700 cursor-pointer transition-colors">
+                                                                            <div className="text-sm font-bold text-slate-100">{s.display_name.split(',')[0]}</div>
+                                                                            <div className="text-[10px] text-slate-400 truncate">{s.display_name}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex gap-4 pt-2 border-t border-slate-700/50 mt-4">
+                                                            <div className="flex-1">
+                                                                <label className="block text-xs font-bold text-slate-400 mb-1">抵達時間</label>
+                                                                <input type="time" value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm" />
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <label className="block text-xs font-bold text-slate-400 mb-1">停留時間 (小時)</label>
+                                                                <input type="number" step="0.5" min="0" value={newItem.stayTime} onChange={e => setNewItem({...newItem, stayTime: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm" />
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-400 mb-1">景點類型</label>
+                                                            <select value={newItem.type} onChange={e => setNewItem({...newItem, type: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm">
+                                                                <option value="sight">景點</option>
+                                                                <option value="food">餐廳</option>
+                                                                <option value="shopping">購物</option>
+                                                                <option value="transport">交通</option>
+                                                                <option value="accommodation">住宿</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-xs font-bold text-slate-400 mb-1">備註</label>
+                                                            <textarea 
+                                                                value={newItem.note} 
+                                                                onChange={e => setNewItem({...newItem, note: e.target.value})} 
+                                                                rows="3"
+                                                                className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" 
+                                                                placeholder="輸入備註事項..." 
+                                                            />
+                                                        </div>
+
+                                                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-4 shadow-lg transition-all">
+                                                            {panelMode === 'add' ? '完成新增' : '儲存修改'}
+                                                        </button>
+
+                                                        {panelMode === 'edit' && (
+                                                            <div className="flex gap-4 pt-6 mt-4 border-t border-slate-800">
+                                                                <label className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-all text-center cursor-pointer border border-slate-600 flex justify-center items-center gap-2 text-sm shadow-sm" title="也可以直接 Ctrl+V 貼上圖片">
+                                                                    <Icons.Camera size={16} /> 更換圖片
+                                                                    <input type="file" accept="image/*" className="hidden" onChange={e => { handlePlaceImageUpload(activeDayId, newItem.id, e); showMsg('✅ 圖片已更新'); }} />
+                                                                </label>
+                                                                <button 
+                                                                    type="button" 
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        if(window.confirm("確定要刪除此景點嗎？")) {
+                                                                            const newDays = trip.days.map(d => String(d.id) === String(activeDayId) ? { ...d, places: d.places.filter(p => p.id !== newItem.id) } : d);
+                                                                            pushUpdate({ trip: { ...trip, days: newDays } });
+                                                                            setPanelMode('list');
+                                                                            setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
+                                                                            showMsg('🗑️ 已刪除景點');
+                                                                        }
+                                                                    }} 
+                                                                    className="px-4 py-2.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl font-bold transition-all border border-slate-600 hover:border-red-500/50 flex items-center justify-center gap-2 shadow-sm cursor-pointer relative z-10"
+                                                                >
+                                                                    <Icons.Trash2 size={16} /> 刪除
+                                                                </button>
                                                             </div>
                                                         )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <button onClick={() => { setNewItem({id: '', name:'', time:'12:00', type:'sight', note:'', stayTime:'1'}); setPanelMode('add'); }} className="w-full py-4 border-2 border-dashed border-slate-700 rounded-xl mt-6 text-slate-500 font-bold">+ 新增景點</button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col h-full p-4">
-                                            <div className="flex items-center mb-6">
-                                                <button onClick={() => setPanelMode('list')} className="p-2"><Icons.ArrowLeft size={20}/></button>
-                                                <h2 className="text-xl font-bold ml-2">{panelMode === 'add' ? '新增景點' : '編輯景點資料'}</h2>
-                                            </div>
-                                            <div className="space-y-4 flex-1 overflow-y-auto pr-2">
-                                                <input placeholder="景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 outline-none" />
-                                                <div className="flex gap-4">
-                                                    <input type="time" value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 outline-none" />
-                                                    <input type="number" step="0.5" placeholder="停留小時" value={newItem.stayTime} onChange={e => setNewItem({...newItem, stayTime: e.target.value})} className="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 outline-none" />
-                                                </div>
-                                                <textarea placeholder="備註內容" value={newItem.note} onChange={e => setNewItem({...newItem, note: e.target.value})} rows="5" className="w-full px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 outline-none resize-none" />
-                                                
-                                                <button onClick={() => {
-                                                    if (!newItem.name) return showMsg("請輸入名稱");
-                                                    let newDays;
-                                                    if (panelMode === 'add') {
-                                                        const p = { ...newItem, id: 'p' + Date.now(), lat: 22.5, lng: 114.1 };
-                                                        newDays = trip.days.map(d => d.id === activeDayId ? {...d, places: [...d.places, p]} : d);
-                                                    } else {
-                                                        newDays = trip.days.map(d => d.id === activeDayId ? {...d, places: d.places.map(pl => pl.id === newItem.id ? newItem : pl)} : d);
-                                                    }
-                                                    pushUpdate({trip: {...trip, days: newDays}});
-                                                    setPanelMode('list');
-                                                }} className="w-full py-4 bg-blue-600 rounded-xl font-bold">儲存景點</button>
-                                                
-                                                {panelMode === 'edit' && (
-                                                    <button onClick={() => {
-                                                        if (window.confirm("確定要刪除此景點嗎？")) {
-                                                            const newDays = trip.days.map(d => d.id === activeDayId ? {...d, places: d.places.filter(pl => pl.id !== newItem.id)} : d);
-                                                            pushUpdate({trip: {...trip, days: newDays}});
-                                                            setPanelMode('list');
-                                                            showMsg("🗑️ 已刪除");
-                                                        }
-                                                    }} className="w-full py-4 bg-slate-800 border border-red-500/50 text-red-400 rounded-xl font-bold flex items-center justify-center gap-2 mt-4">
-                                                        <Icons.Trash2 size={18} /> 刪除景點
-                                                    </button>
+                                                    </form>
                                                 )}
+                                                {panelMode === 'add' && addModalTab === 'search' && <div className="text-center py-10 text-slate-500"><Icons.Search size={40} className="mx-auto mb-3 opacity-20" /><p>請輸入關鍵字搜尋景點</p></div>}
+                                                {panelMode === 'add' && addModalTab === 'collections' && <div className="text-center py-10 text-slate-500"><Icons.MapPin size={40} className="mx-auto mb-3 opacity-20" /><p>您的收藏列表為空</p></div>}
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex-1 hidden md:block">
-                                    <RealMap places={activeDayData?.places || []} zoomControlKey={activeDayId} />
+                                <div className="flex-1 relative hidden md:block">
+                                    <RealMap places={activeDayData?.places || []} hoveredId={hoveredPlaceId} hoveredSegmentId={hoveredSegmentId} zoomControlKey={activeDayId} dayColor={activeDayData?.color} onRouteAltSelect={(pId, altIdx) => handleUpdateRouteIndex(activeDayData.id, pId, altIdx)} tempMarker={tempMarker} />
                                 </div>
                             </>
                         )}
-
+                        
+                        {/* Expenses Tab */}
+                        {activeTab === 'expenses' && (
+                            <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto">
+                                <div className="max-w-2xl mx-auto space-y-6">
+                                    <div className="bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
+                                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+                                        <div className="absolute top-4 left-4 z-10"><div className="relative inline-flex items-center bg-slate-900 border border-slate-700 rounded-xl shadow-lg px-1 py-1 pr-8 hover:border-blue-500 transition-colors cursor-pointer"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 mr-1.5 ${expenseFilter === 'all' ? 'bg-slate-600' : getMemberInfo(expenseFilter).color}`}>{expenseFilter === 'all' ? <Icons.Users size={16}/> : getMemberInfo(expenseFilter).avatar}</div><span className="text-xs sm:text-sm font-bold text-slate-300 whitespace-nowrap min-w-[60px]">{expenseFilter === 'all' ? '全體成員' : expenseFilter}</span><select value={expenseFilter} onChange={(e) => setExpenseFilter(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none z-10"><option value="all">👥 全體成員</option>{members.map(member => (<option key={member.id} value={member.name}>{member.avatar} {member.name}</option>))}</select></div></div>
+                                        <div className="absolute top-4 right-4 flex gap-2">
+                                            <div className="relative inline-block text-left"><div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-400 hover:bg-slate-700 px-3 py-2 rounded-lg transition-all border border-slate-700 hover:border-blue-500/50 cursor-pointer relative"><span>{displayCurrency}</span><select value={displayCurrency} onChange={(e) => setDisplayCurrency(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="JPY">JPY</option></select></div></div>
+                                            <button onClick={() => setShowSettlementPlan(true)} className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-400 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700"><Icons.Calculator size={16} /> <span className="hidden sm:inline">結算</span></button>
+                                            <button onClick={() => setShowMemberSettings(true)} className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-400 hover:bg-slate-700 px-3 py-2 rounded-lg border border-slate-700"><Icons.Settings size={16} /></button>
+                                        </div>
+                                        <div className="mt-8 mb-2 flex items-center justify-center gap-3"><h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">{expenseFilter === 'all' ? '總花費 (日圓)' : `${getMemberInfo(expenseFilter).name} 的總花費`}</h3></div>
+                                        <div className="flex flex-col items-center"><div className="text-5xl font-bold text-slate-100 mb-1 font-mono transition-all"><span className="text-2xl text-slate-600 mr-2">JPY</span>{formatJPY(filteredTotalStats.jpy)}</div>{displayCurrency !== 'JPY' && (<div className="text-lg text-slate-500 font-mono transition-all"><span className="text-sm mr-1">(≈ {displayCurrency} {formatNumber(filteredTotalStats.display)})</span></div>)}</div>
+                                        <button 
+                                            onClick={() => {
+                                                const defaultDate = activeDayData?.date ? activeDayData.date.split(' ')[0].replace(/\//g, '-') : '2026-04-03';
+                                                setNewExpenseItem(prev => ({...prev, date: defaultDate}));
+                                                setShowExpenseModal(true);
+                                            }} 
+                                            className="mt-6 bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-full font-medium shadow-lg transition-all flex items-center gap-2"
+                                        >
+                                            <Icons.Plus size={18} /> 新增花費
+                                        </button>
+                                    </div>
+                                    <div className="space-y-6 pb-48">{filteredExpenses.map((dayGroup, dayIdx) => (<div key={dayIdx}><div className="flex items-center gap-3 mb-3 pl-1"><div className="w-1 h-6 bg-blue-500 rounded-full"></div><h4 className="font-bold text-slate-400">{dayGroup.date}</h4></div><div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">{dayGroup.items.map((item, itemIdx) => { const splitCount = item.sharedBy ? item.sharedBy.length : 1; const perPersonJPY = Math.round(item.amountJPY / splitCount); const payerInfo = getMemberInfo(item.payer); return (<div key={item.id} className={`flex items-center p-4 gap-3 ${itemIdx !== dayGroup.items.length - 1 ? 'border-b border-slate-700' : ''}`}><div className="mr-4 shrink-0"><CategoryIcon type={item.category} /></div><div className="min-w-0 flex-1"><h5 className="font-bold text-slate-100 truncate">{item.title}</h5><div className="text-xs text-blue-400 font-medium mb-1 flex items-center gap-1"><span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] text-white ${payerInfo.color}`}>{payerInfo.avatar}</span> 由 {item.payer} 支付</div>{item.sharedBy && (<div className="text-[10px] text-slate-500 flex flex-wrap gap-1 items-center"><span>(</span>{item.sharedBy.map(m => (<span key={m} className="bg-slate-900 pl-1 pr-2 py-0.5 rounded flex items-center gap-1 border border-slate-700"><span>{getMemberInfo(m).avatar}</span>{m}</span>)) }<span>)</span><span className="ml-1">每人 JPY {formatJPY(perPersonJPY)}</span></div>)}</div><div className="text-right shrink-0"><div className="font-bold text-slate-100 font-mono">JPY {formatJPY(item.amountJPY)}</div>{item.image && (<div className="w-12 h-12 mt-2 shrink-0 rounded-lg overflow-hidden border border-slate-700 cursor-zoom-in shadow-inner" onClick={() => setPreviewImage(item.image)}><img src={item.image} className="w-full h-full object-cover" alt="receipt" /></div>)}<button onClick={() => setExpenseToDelete(item)} className="text-slate-600 hover:text-red-400 p-2 ml-2 transition-colors inline-block align-middle"><Icons.Trash2 size={16} /></button></div></div>); })}</div></div>))}</div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Shopping Tab */}
+                        {activeTab === 'shopping' && (
+                            <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto">
+                                <div className="max-w-2xl mx-auto space-y-6">
+                                    <div className="bg-slate-800 rounded-2xl shadow-2xl border border-slate-700 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden transition-all duration-300">
+                                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 to-emerald-600"></div>
+                                        <div className="absolute top-4 right-4 flex gap-2">
+                                            <div className="relative inline-block text-left"><div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-teal-400 hover:bg-slate-700 px-3 py-2 rounded-lg transition-all border border-slate-700 hover:border-teal-500/50 cursor-pointer relative"><span>{displayCurrency}</span><select value={displayCurrency} onChange={(e) => setDisplayCurrency(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="JPY">JPY</option></select></div></div>
+                                        </div>
+                                        <div className="flex items-center justify-center gap-3 mb-2"><h3 className="text-slate-500 font-medium text-sm uppercase tracking-wide">預估總金額</h3></div>
+                                        <div className="flex flex-col items-center"><div className="text-5xl font-bold text-slate-100 mb-1 font-mono transition-all"><span className="text-2xl text-slate-600 mr-2">JPY</span>{formatJPY(shoppingTotalStats.jpy)}</div></div>
+                                        <button onClick={() => setShowShoppingModal(true)} className="mt-6 bg-teal-600 hover:bg-teal-500 text-white px-6 py-2.5 rounded-full font-medium shadow-lg transition-all flex items-center gap-2"><Icons.Plus size={18} /> 新增待買項目</button>
+                                    </div>
+                                    <div className="space-y-4 pb-48">{shoppingItems.map(item => { const mInfo = getMemberInfo(item.requester); return (<div key={item.id} className="bg-slate-800 rounded-xl border border-slate-700 p-4 flex items-center gap-4"><div className="flex-1 min-w-0"><div className="flex justify-between items-start mb-1"><h4 className="font-bold text-slate-100 text-lg truncate">{item.name}</h4><div className="text-right"><div className="font-bold text-slate-200">JPY {formatJPY(item.price)}<span className="text-xs text-slate-500 font-normal ml-1">x {item.qty}</span></div></div></div><div className="flex justify-between items-end"><div className="flex flex-col gap-1"><div className="flex items-center gap-1.5"><div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] ${mInfo.color}`}>{mInfo.avatar}</div><span className="text-xs text-slate-400 font-medium">{item.requester}</span></div>{item.note && <div className="text-xs text-slate-500 bg-slate-900 px-2 py-0.5 rounded self-start border border-slate-800">{item.note}</div>}</div><div className="text-right flex items-center"><div className="text-sm font-bold text-teal-400">JPY {formatJPY(item.price * item.qty)}</div><button onClick={() => setShoppingToDelete(item.id)} className="text-slate-600 hover:text-red-400 p-2 rounded-full transition-colors ml-2"><Icons.Trash2 size={16} /></button></div></div></div></div>); })}</div>
+                                </div>
+                            </div>
+                        )}
+                        
+                        {/* Packing Tab */}
                         {activeTab === 'packing' && (
-                            <div className="w-full p-4 overflow-y-auto">
-                                <div className="max-w-xl mx-auto space-y-6 pb-20">
-                                    <select value={packingFilter} onChange={e => setPackingFilter(e.target.value)} className="w-full p-3 rounded-xl bg-slate-800 border border-slate-700">
-                                        <option value="all">👥 全體清單</option>
-                                        {members.map(m => <option key={m.id} value={m.name}>{m.avatar} {m.name}</option>)}
-                                    </select>
-                                    <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden divide-y divide-slate-700">
-                                        {packingList.filter(i => packingFilter === 'all' || i.owner === packingFilter || i.owner === 'all').map(item => (
-                                            <div key={item.id} className="p-4 flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <input type="checkbox" checked={item.checked} onChange={() => pushUpdate({packingList: packingList.map(i => i.id === item.id ? {...i, checked: !i.checked} : i)})} className="w-5 h-5 rounded" />
-                                                    <span className={item.checked ? 'line-through text-slate-500' : ''}>{item.text}</span>
-                                                    {item.owner === 'all' && <span className="text-[10px] bg-blue-900/50 text-blue-400 px-1.5 py-0.5 rounded">全體</span>}
-                                                </div>
-                                                <button onClick={() => pushUpdate({packingList: packingList.filter(i => i.id !== item.id)})} className="text-slate-600"><Icons.Trash2 size={18}/></button>
-                                            </div>
-                                        ))}
-                                        <button onClick={() => { setNewPackingItem({text: '', owner: packingFilter}); setShowPackingModal(true); }} className="w-full p-4 text-blue-400 font-bold">+ 新增行李項目</button>
+                            <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto relative">
+                                <div className="max-w-2xl mx-auto space-y-6">
+                                    <div className="flex justify-between items-center mb-4"><div className="relative inline-flex items-center bg-slate-800 border border-slate-700 rounded-xl shadow-lg px-1 py-1 pr-8 hover:border-blue-500 transition-colors cursor-pointer"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 mr-1.5 ${packingFilter === 'all' ? 'bg-slate-600' : getMemberInfo(packingFilter).color}`}>{packingFilter === 'all' ? <Icons.Users size={16}/> : getMemberInfo(packingFilter).avatar}</div><span className="text-xs sm:text-sm font-bold text-slate-300 whitespace-nowrap min-w-[60px]">{packingFilter === 'all' ? '全體成員' : packingFilter}</span><select value={packingFilter} onChange={(e) => setPackingFilter(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none z-10"><option value="all">👥 全體成員</option>{members.map(member => (<option key={member.id} value={member.name}>{member.avatar} {member.name}</option>))}</select></div></div>
+                                    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden pb-20">
+                                        {filteredPackingList.length > 0 ? filteredPackingList.map((item) => { const mInfo = getMemberInfo(item.owner); return (<div key={item.id} onClick={() => togglePacking(item.id)} className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-700 transition-colors border-b last:border-b-0 border-slate-700"><div className="flex items-center gap-3"><div className={`w-6 h-6 rounded border flex items-center justify-center transition-colors shrink-0 ${item.checked ? 'bg-blue-600 border-blue-600' : 'border-slate-600 bg-slate-900'}`}>{item.checked && <span className="text-white text-xs">✓</span>}</div>{packingFilter === 'all' && (<div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] text-white shrink-0 ${item.owner === 'all' ? 'bg-slate-600' : mInfo.color}`} title={item.owner === 'all' ? '全體成員' : item.owner}>{item.owner === 'all' ? <Icons.Users size={12}/> : mInfo.avatar}</div>)}<div className="flex flex-col"><span className={`text-slate-200 font-medium ${item.checked ? 'line-through text-slate-500' : ''}`}>{item.text}</span></div></div><button onClick={(e) => deletePacking(e, item.id)} className="text-slate-600 hover:text-red-400 p-2 rounded-full transition-colors"><Icons.Trash2 size={18} /></button></div>); }) : (<div className="p-8 text-center text-slate-500">此成員目前沒有行李項目</div>)}
+                                        <button onClick={() => { setNewPackingItem({ text: '', owner: packingFilter !== 'all' ? packingFilter : 'all' }); setShowPackingModal(true); }} className="w-full p-4 flex items-center justify-center gap-2 text-slate-500 hover:text-blue-400 hover:bg-slate-700/50 transition-colors border-t border-slate-700"><Icons.Plus size={18} /><span className="font-bold text-sm">新增項目</span></button>
                                     </div>
                                 </div>
                             </div>
                         )}
                     </div>
 
-                    {showPackingModal && (
-                        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-                            <div className="bg-slate-800 p-6 rounded-2xl w-full max-w-xs border border-slate-700">
-                                <h3 className="text-lg font-bold mb-4">新增行李</h3>
-                                <input autoFocus placeholder="物品名稱" value={newPackingItem.text} onChange={e => setNewPackingItem({...newPackingItem, text: e.target.value})} className="w-full p-3 rounded-xl bg-slate-900 mb-4 outline-none border border-slate-700" />
-                                <select value={newPackingItem.owner} onChange={e => setNewPackingItem({...newPackingItem, owner: e.target.value})} className="w-full p-3 rounded-xl bg-slate-900 mb-6 outline-none border border-slate-700">
-                                    <option value="all">👥 全體成員</option>
-                                    {members.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
-                                </select>
-                                <div className="flex gap-3">
-                                    <button onClick={() => setShowPackingModal(false)} className="flex-1 py-3 text-slate-400">取消</button>
-                                    <button onClick={() => {
-                                        if(!newPackingItem.text) return;
-                                        pushUpdate({packingList: [...packingList, {id: Date.now(), ...newPackingItem, checked: false}]});
-                                        setShowPackingModal(false);
-                                    }} className="flex-1 py-3 bg-blue-600 rounded-xl font-bold">新增</button>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Modals Data */}
+                    {showExpenseModal && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[90vh] border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0"><h3 className="font-bold text-lg text-slate-100">新增花費</h3><button onClick={() => setShowExpenseModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><form onSubmit={handleAddExpenseSubmit} className="p-6 space-y-4 overflow-y-auto"><div><label className="block text-sm font-bold text-slate-400 mb-1">名稱</label><input required value={newExpenseItem.title} onChange={e => setNewExpenseItem({...newExpenseItem, title: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">日期</label><input required type="date" value={newExpenseItem.date} onChange={e => setNewExpenseItem({...newExpenseItem, date: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">類別</label><select value={newExpenseItem.category} onChange={e => setNewExpenseItem({...newExpenseItem, category: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="food">餐飲</option><option value="shopping">購物</option><option value="transport">交通</option><option value="sight">景點</option><option value="accommodation">住宿</option><option value="other">其他</option></select></div></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">金額</label><input required type="number" value={newExpenseItem.amount} onChange={e => setNewExpenseItem({...newExpenseItem, amount: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newExpenseItem.currency} onChange={e => setNewExpenseItem({...newExpenseItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option></select></div></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">付款人</label><select value={newExpenseItem.payer} onChange={e => setNewExpenseItem({...newExpenseItem, payer: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => { const isChecked = newExpenseItem.sharedBy.includes(m.name); return (<button key={m.id} type="button" onClick={() => toggleSharedMember(m.name)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1 ${isChecked ? 'bg-blue-900/40 text-blue-400 border-blue-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>{isChecked ? '✓ ' : ''}{m.avatar} {m.name}</button>); })}</div></div><button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg">確認新增</button></form></div></div>
                     )}
+                    {showShoppingModal && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">新增待買項目</h3><button onClick={() => setShowShoppingModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><form onSubmit={handleAddShoppingSubmit} className="p-6 space-y-4"><div><label className="block text-sm font-bold text-slate-400 mb-1">品名</label><input required value={newShoppingItem.name} onChange={e => setNewShoppingItem({...newShoppingItem, name: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">數量</label><input type="number" min="1" value={newShoppingItem.qty} onChange={e => setNewShoppingItem({...newShoppingItem, qty: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">單價</label><input required type="number" min="0" value={newShoppingItem.price} onChange={e => setNewShoppingItem({...newShoppingItem, price: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">訂購人</label><select value={newShoppingItem.requester} onChange={e => setNewShoppingItem({...newShoppingItem, requester: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><button type="submit" className="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold mt-2 shadow-lg">確認新增</button></form></div></div>
+                    )}
+                    {showPackingModal && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">新增行李項目</h3><button onClick={() => setShowPackingModal(false)}><Icons.X size={20} className="text-slate-500 hover:text-white transition-colors" /></button></div><form onSubmit={handleAddPacking} className="p-6 space-y-4"><div><label className="block text-sm font-bold text-slate-400 mb-1">物品名稱</label><input required placeholder="例如: 護照" value={newPackingItem.text} onChange={e => setNewPackingItem({...newPackingItem, text: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100"/></div><div><label className="block text-sm font-bold text-slate-400 mb-1">所屬成員</label><select value={newPackingItem.owner} onChange={e => setNewPackingItem({...newPackingItem, owner: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"><option value="all">👥 全體成員</option>{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg transition-colors">新增</button></form></div></div>
+                    )}
+                    {showSettlementPlan && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Calculator size={20} className="text-blue-400"/>結算方案</h3><button onClick={() => setShowSettlementPlan(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto"><div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800/30"><h4 className="text-sm font-bold text-blue-400 mb-2">建議轉帳</h4><div className="space-y-2">{settlementResult.transactions.length > 0 ? settlementResult.transactions.map((t, idx) => (<div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex items-center justify-between"><div className="text-sm text-slate-300">{t.from} ➔ {t.to}</div><div className="text-blue-400 font-bold">{displayCurrency} {formatNumber(t.amount * currentExchangeRate)}</div></div>)) : <div className="text-center text-slate-500 text-sm py-2">目前帳目已平衡</div>}</div></div></div></div></div>
+                    )}
+                    {showMemberSettings && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Settings size={20} className="text-slate-400"/>成員資料</h3><button onClick={() => setShowMemberSettings(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">{members.map(m => (<div key={m.id} className="flex items-center gap-3 p-3 border border-slate-700 rounded-xl bg-slate-900/50"><input type="text" value={m.name} onChange={(e) => updateMember(m.id, 'name', e.target.value)} className="flex-1 px-3 py-1.5 rounded-lg text-slate-200 outline-none border border-slate-700 bg-slate-800 focus:ring-2 focus:ring-blue-500" /><button onClick={() => handleDeleteMember(m.id)} className="p-2 text-slate-600 hover:text-red-400 transition-colors"><Icons.Trash2 size={18} /></button></div>))}<button onClick={handleAddMember} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"><Icons.Plus size={16} /> 新增成員</button></div></div></div>
+                    )}
+                    {showDeleteDayConfirm && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此日？</h3><div className="flex gap-3 mt-6"><button onClick={() => setShowDeleteDayConfirm(false)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300">取消</button><button onClick={() => { pushUpdate({trip:{...trip, days: trip.days.filter(d => d.id !== activeDayId)}}); if(trip.days.length > 1) setActiveDayId(trip.days.find(d=>d.id!==activeDayId).id); setShowDeleteDayConfirm(false); }} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl">刪除</button></div></div></div>)}
+                    {placeToDelete && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此景點？</h3><div className="flex gap-3 mt-6"><button onClick={() => setPlaceToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300">取消</button><button onClick={confirmDeletePlace} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl">刪除</button></div></div></div>)}
+                    {expenseToDelete && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此筆消費嗎？</h3><div className="flex gap-3 mt-6"><button onClick={() => setExpenseToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300">取消</button><button onClick={confirmDeleteExpense} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl">刪除</button></div></div></div>)}
+                    {shoppingToDelete && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此待買項目嗎？</h3><div className="flex gap-3 mt-6"><button onClick={() => setShoppingToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300">取消</button><button onClick={confirmDeleteShopping} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl">刪除</button></div></div></div>)}
                 </div>
             );
         }
@@ -491,32 +1506,74 @@
             const [currentView, setCurrentView] = useState('dashboard');
             const [activeTripId, setActiveTripId] = useState(null);
             const [trips, setTrips] = useState([]);
+            const [toast, setToast] = useState(null);
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'shared-trip-v1';
             const { db, auth } = getFirebaseContext();
-            const SHARED_APP_ID = "main-travel-planner-v2";
+            const showMsg = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
             useEffect(() => {
-                window.FirebaseSDK.signInAnonymously(auth).catch(() => {});
+                const initAuth = async () => { try { await window.FirebaseSDK.signInAnonymously(auth); } catch (e) {} };
+                initAuth();
                 return window.FirebaseSDK.onAuthStateChanged(auth, setUser);
             }, [auth]);
 
             useEffect(() => {
                 if (!user) return;
-                const tripsCollection = window.FirebaseSDK.collection(db, 'artifacts', SHARED_APP_ID, 'public', 'data', 'trips');
+                const tripsCollection = window.FirebaseSDK.collection(db, 'artifacts', appId, 'public', 'data', 'trips');
                 return window.FirebaseSDK.onSnapshot(tripsCollection, (snapshot) => {
-                    const fetched = [];
-                    snapshot.forEach(doc => fetched.push({ id: doc.id, ...doc.data() }));
-                    setTrips(fetched);
+                    const fetchedTrips = [];
+                    snapshot.forEach(doc => { fetchedTrips.push({ id: doc.id, ...doc.data() }); });
+                    if (snapshot.empty) {
+                        const newTripId = 'trip_sz-macau';
+                        window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', newTripId), INITIAL_TRIP_DATA);
+                    }
+                    setTrips(fetchedTrips.sort((a, b) => b.id.localeCompare(a.id)));
+                }, (error) => {
+                    console.error("Firestore error:", error);
                 });
-            }, [user, db]);
+            }, [user, db, appId]);
 
-            if (!user) return <div className="h-screen flex items-center justify-center bg-slate-900 text-blue-400 font-bold">🚀 啟動中...</div>;
+            const handleExportTrip = (tripData) => {
+                const dataStr = JSON.stringify(tripData, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url; link.download = `${tripData.trip?.title || 'trip'}.json`;
+                link.click(); URL.revokeObjectURL(url);
+                showMsg("導出成功");
+            };
 
-            if (currentView === 'dashboard') return <Dashboard trips={trips} onSelectTrip={(id) => { setActiveTripId(id); setCurrentView('planner'); }} onCreateTrip={async () => {
+            const handleImportTrip = (e) => {
+                const file = e.target.files[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    try {
+                        const importedData = JSON.parse(event.target.result);
+                        if (!importedData.trip) return showMsg("格式錯誤");
+                        const newTripId = 'trip_imp_' + Date.now();
+                        importedData.id = newTripId;
+                        if (importedData.trip) importedData.trip.id = newTripId;
+                        await window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', newTripId), importedData);
+                        showMsg("匯入成功！");
+                    } catch (err) { showMsg("無效檔案"); }
+                    e.target.value = '';
+                };
+                reader.readAsText(file);
+            };
+
+            if (!user) return <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-blue-400 font-bold">同步連線中...</div>;
+
+            if (currentView === 'dashboard') return <Dashboard trips={trips} onCreateTrip={async () => {
                 const nid = 'trip_' + Date.now();
-                await window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', SHARED_APP_ID, 'public', 'data', 'trips', nid), INITIAL_TRIP_DATA);
-            }} />;
+                await window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', nid), { 
+                    trip: { id: nid, title: '新行程', dates: getFutureDate(0), icon: '🚀', days: [{id: 1, title: 'Day 1', date: getFutureDate(0), places: [], weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }}] }, 
+                    members: [{ id: 'm1', name: '我', color: 'bg-blue-500', avatar: '👤' }], 
+                    expenses: [], shoppingItems: [], packingList: [] 
+                });
+                setActiveTripId(nid); setCurrentView('planner');
+            }} onSelectTrip={(id) => { setActiveTripId(id); setCurrentView('planner'); }} onDeleteTrip={async (id) => { if (confirm("確定刪除行程？")) await window.FirebaseSDK.deleteDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', id)); }} onImportTrip={handleImportTrip} onExportTrip={handleExportTrip} toast={toast} />;
 
-            return <TripPlanner tripId={activeTripId} onBack={() => setCurrentView('dashboard')} db={db} user={user} />;
+            return <TripPlanner tripId={activeTripId} onBack={() => setCurrentView('dashboard')} db={db} appId={appId} user={user} />;
         }
 
         ReactDOM.createRoot(document.getElementById('root')).render(<MainApp />);
