@@ -163,7 +163,6 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         };
 
-        // --- 座標轉換：高德(GCJ-02) 轉 WGS-84 (國際標準) ---
         const gcj02towgs84 = (lng, lat) => {
             const PI = Math.PI;
             const a = 6378245.0;
@@ -195,7 +194,6 @@
             return [lng * 2 - mglng, lat * 2 - mglat];
         };
 
-        // --- 座標轉換：WGS-84 轉 高德(GCJ-02) ---
         const wgs84togcj02 = (lng, lat) => {
             if (lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271) return [lng, lat];
             const PI = Math.PI;
@@ -310,6 +308,7 @@
             ChevronDown: (p) => <Icon {...p} path={<polyline points="6 9 12 15 18 9" />} />,
             ChevronUp: (p) => <Icon {...p} path={<polyline points="18 15 12 9 6 15" />} />,
             MoreVertical: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="19" r="1.5"/></>} />,
+            Pen: (p) => <Icon {...p} path={<><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></>} />,
         };
 
         const CategoryIcon = ({ type, size = 20 }) => {
@@ -713,7 +712,8 @@
 
             const handleSuggestionClick = (s) => {
                 const name = s.name;
-                setNewItem(p => ({...p, address: s.address && s.address.length > 0 ? s.address : s.adname, name: p.name || name}));
+                const addr = s.address && s.address.length > 0 ? s.address : s.adname;
+                setNewItem(p => ({...p, address: addr, name: p.name || name}));
                 if (s.location) {
                     const [lngStr, latStr] = s.location.split(',');
                     const [wgsLng, wgsLat] = gcj02towgs84(parseFloat(lngStr), parseFloat(latStr));
@@ -800,6 +800,11 @@
             const handleDrop = (e, dropIdx) => { e.preventDefault(); if (draggedPlaceIndex === null || draggedPlaceIndex === dropIdx) return; const newPs = [...activeDayData.places]; const item = newPs.splice(draggedPlaceIndex, 1)[0]; newPs.splice(dropIdx, 0, item); const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: newPs } : d); pushUpdate({ trip: { ...trip, days: newDays } }); setDraggedPlaceIndex(null); setDragEnabledId(null); };
             const handleDragEnd = () => { setDraggedPlaceIndex(null); setDragEnabledId(null); };
 
+            const isDraggingDay = useRef(false);
+            const dragStartX = useRef(0);
+            const dragScrollLeft = useRef(0);
+            const dragHasMoved = useRef(false); 
+
             const [jpyToHkdRate] = React.useState(0.0496); const [jpyToTwdRate] = React.useState(0.215); const [jpyToMopRate] = React.useState(0.0511);
             const currentExchangeRate = useMemo(() => { switch(displayCurrency) { case 'HKD': return jpyToHkdRate; case 'TWD': return jpyToTwdRate; case 'MOP': return jpyToMopRate; default: return 1; } }, [displayCurrency, jpyToHkdRate, jpyToTwdRate, jpyToMopRate]);
             const getRateToJPY = (currency) => { switch(currency) { case 'HKD': return 1 / jpyToHkdRate; case 'TWD': return 1 / jpyToTwdRate; case 'MOP': return 1 / jpyToMopRate; default: return 1; } };
@@ -819,6 +824,37 @@
             const settlementResult = useMemo(() => { const balances = {}; members.forEach(m => balances[m.name] = 0); expenses.forEach(day => day.items.forEach(item => { const splitBy = item.sharedBy || []; if (splitBy.length === 0) return; const splitAmount = item.amountJPY / splitBy.length; if (balances[item.payer] !== undefined) balances[item.payer] += item.amountJPY; splitBy.forEach(person => { if (balances[person] !== undefined) balances[person] -= splitAmount; }); })); const debtors = []; const creditors = []; Object.entries(balances).forEach(([name, amount]) => { if (amount < -1) debtors.push({ name, amount }); if (amount > 1) creditors.push({ name, amount }); }); debtors.sort((a, b) => a.amount - b.amount); creditors.sort((a, b) => b.amount - a.amount); const transactions = []; let i = 0; let j = 0; while (i < debtors.length && j < creditors.length) { const debtor = debtors[i]; const creditor = creditors[j]; const amount = Math.min(Math.abs(debtor.amount), creditor.amount); transactions.push({ from: debtor.name, to: creditor.name, amount: amount }); debtor.amount += amount; creditor.amount -= amount; if (Math.abs(debtor.amount) < 1) i++; if (creditor.amount < 1) j++; } return { balances, transactions }; }, [expenses, members]);
             const toggleSharedMember = (m) => setNewExpenseItem(prev => { const shared = prev.sharedBy.includes(m) ? (prev.sharedBy.length > 1 ? prev.sharedBy.filter(name => name !== m) : prev.sharedBy) : [...prev.sharedBy, m]; return { ...prev, sharedBy: shared }; });
             const handleAddDay = () => { const newId = trip.days.length > 0 ? Math.max(...trip.days.map(d => d.id)) + 1 : 1; pushUpdate({ trip: { ...trip, days: [...trip.days, { id: newId, date: getFutureDate(newId - 1), title: '新的一天', color: '#3b82f6', weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }, places: [] }] } }); setActiveDayId(newId); };
+
+            const handlePlaceImageUpload = (dayId, placeId, e) => {
+                const file = e.target.files[0]; if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if (w > h) { if (w > 800) { h *= 800/w; w = 800; } } else { if (h > 800) { w *= 800/h; h = 800; } }
+                        canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        const targetPlace = trip.days.flatMap(d => d.places).find(p => p.id === placeId);
+                        const targetName = targetPlace?.name;
+                        pushUpdate({ 
+                            trip: { 
+                                ...trip, 
+                                days: trip.days.map(d => ({
+                                    ...d,
+                                    places: d.places.map(p => {
+                                        if (p.id === placeId || (targetName && p.name === targetName)) return { ...p, image: imageDataUrl };
+                                        return p;
+                                    })
+                                })) 
+                            } 
+                        });
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            };
 
             return (
                 <div className="flex flex-col h-[100dvh] bg-slate-900 text-slate-100 font-sans relative">
@@ -849,9 +885,38 @@
                                 <div className="w-full md:w-[450px] flex flex-col border-r border-slate-800 bg-slate-900 shrink-0 relative z-10 shadow-2xl h-full transition-all">
                                     {panelMode === 'list' ? (
                                         <>
-                                            <div ref={daysContainerRef} onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX - daysContainerRef.current.offsetLeft; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} onMouseLeave={() => isDraggingDay.current = false} onMouseUp={() => isDraggingDay.current = false} onMouseMove={(e) => { if(!isDraggingDay.current) return; e.preventDefault(); dragHasMoved.current = true; const x = e.pageX - daysContainerRef.current.offsetLeft; const walk = (x - dragStartX.current) * 1.5; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; }} className="bg-slate-900 border-b border-slate-800 px-3 py-4 flex flex-nowrap gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none">
-                                                {trip.days?.map((day, idx) => (<button key={day.id} onClick={(e) => { if(dragHasMoved.current) return; setActiveDayId(day.id); }} className={`flex flex-col items-start min-w-[100px] shrink-0 p-3 rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}><div className="flex justify-between w-full mb-1.5"><span className={`text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>Day {idx + 1}</span><WeatherIcon type={day.weather?.type} size={16} /></div><span className="text-xs font-medium mb-1 text-slate-500">{formatShortDate(day.date)}</span></button>))}
-                                                <button onClick={(e) => { if(dragHasMoved.current) return; handleAddDay(); }} className="min-w-[80px] p-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center"><div className="bg-slate-800 rounded-full p-1.5 mb-1.5"><Icons.Plus size={18} /></div><span className="text-xs font-bold">新增</span></button>
+                                            <div 
+                                                ref={daysContainerRef} 
+                                                onMouseDown={(e) => { 
+                                                    isDraggingDay.current = true; 
+                                                    dragStartX.current = e.pageX; 
+                                                    dragScrollLeft.current = daysContainerRef.current.scrollLeft; 
+                                                    dragHasMoved.current = false; 
+                                                }} 
+                                                onMouseLeave={() => { isDraggingDay.current = false; }} 
+                                                onMouseUp={() => { isDraggingDay.current = false; }} 
+                                                onMouseMove={(e) => { 
+                                                    if(!isDraggingDay.current) return; 
+                                                    const x = e.pageX;
+                                                    const walk = (x - dragStartX.current);
+                                                    if (Math.abs(walk) > 5) { // 位移超過5像素才判定為拖動
+                                                        dragHasMoved.current = true;
+                                                        daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk;
+                                                    }
+                                                }} 
+                                                className="bg-slate-900 border-b border-slate-800 px-3 py-4 flex flex-nowrap gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none"
+                                            >
+                                                {trip.days?.map((day, idx) => (
+                                                    <button 
+                                                        key={day.id} 
+                                                        onClick={() => { if(!dragHasMoved.current) setActiveDayId(day.id); }} 
+                                                        className={`flex flex-col items-start min-w-[100px] shrink-0 p-3 rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}
+                                                    >
+                                                        <div className="flex justify-between w-full mb-1.5 pointer-events-none"><span className={`text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>Day {idx + 1}</span><WeatherIcon type={day.weather?.type} size={16} /></div>
+                                                        <span className="text-xs font-medium mb-1 text-slate-500 pointer-events-none">{formatShortDate(day.date)}</span>
+                                                    </button>
+                                                ))}
+                                                <button onClick={() => { if(!dragHasMoved.current) handleAddDay(); }} className="min-w-[80px] p-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center"><div className="bg-slate-800 rounded-full p-1.5 mb-1.5 pointer-events-none"><Icons.Plus size={18} /></div><span className="text-xs font-bold pointer-events-none">新增</span></button>
                                             </div>
                                             <div className="px-4 py-4 overflow-y-auto flex-1 pb-32">
                                                 <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700/50">
@@ -884,7 +949,6 @@
                                                                                     <div className="flex items-center gap-1 shrink-0 ml-2">
                                                                                         <div onMouseEnter={() => setDragEnabledId(p.id)} onMouseLeave={() => setDragEnabledId(null)} onTouchStart={() => setDragEnabledId(p.id)} onTouchEnd={() => setDragEnabledId(null)} className="drag-handle p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors"><Icons.GripVertical size={18} /></div>
                                                                                         <button onClick={() => {
-                                                                                            // ===== 修復點：開啟編輯時，正確帶入 address 欄位 =====
                                                                                             setNewItem({ id: p.id, name: p.name, time: p.time, type: p.type, address: p.address || '', note: p.note || '', stayTime: p.stayTime || '1' });
                                                                                             setPanelMode('edit');
                                                                                         }} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"><Icons.MoreVertical size={18} /></button>
