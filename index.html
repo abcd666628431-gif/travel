@@ -164,7 +164,6 @@
         };
 
         // --- 座標轉換：高德(GCJ-02) 轉 WGS-84 (國際標準) ---
-        // 解決高德地圖座標放在國際開源地圖上會產生偏移的問題
         const gcj02towgs84 = (lng, lat) => {
             const PI = Math.PI;
             const a = 6378245.0;
@@ -197,6 +196,45 @@
             let mglat = lat + dlat;
             let mglng = lng + dlng;
             return [lng * 2 - mglng, lat * 2 - mglat];
+        };
+
+        // --- 座標轉換：WGS-84 轉 高德(GCJ-02) (用於在高德地圖畫布上精準呈現) ---
+        const wgs84togcj02 = (lng, lat) => {
+            // 中國範圍外不做偏移
+            if (lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271) {
+                return [lng, lat];
+            }
+            const PI = Math.PI;
+            const a = 6378245.0;
+            const ee = 0.00669342162296594323;
+
+            const transformLat = (x, y) => {
+                let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+                ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+                ret += (20.0 * Math.sin(y * PI) + 40.0 * Math.sin(y / 3.0 * PI)) * 2.0 / 3.0;
+                ret += (160.0 * Math.sin(y / 12.0 * PI) + 320 * Math.sin(y * PI / 30.0)) * 2.0 / 3.0;
+                return ret;
+            };
+
+            const transformLng = (x, y) => {
+                let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+                ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+                ret += (20.0 * Math.sin(x * PI) + 40.0 * Math.sin(x / 3.0 * PI)) * 2.0 / 3.0;
+                ret += (150.0 * Math.sin(x / 12.0 * PI) + 300.0 * Math.sin(x / 30.0 * PI)) * 2.0 / 3.0;
+                return ret;
+            };
+
+            let dlat = transformLat(lng - 105.0, lat - 35.0);
+            let dlng = transformLng(lng - 105.0, lat - 35.0);
+            let radlat = lat / 180.0 * PI;
+            let magic = Math.sin(radlat);
+            magic = 1 - ee * magic * magic;
+            let sqrtmagic = Math.sqrt(magic);
+            dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * PI);
+            dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * PI);
+            let mglat = lat + dlat;
+            let mglng = lng + dlng;
+            return [mglng, mglat];
         };
 
         const calculateTravelInfo = (p1, p2) => {
@@ -454,7 +492,14 @@
                 if (mapInstanceRef.current) return;
                 const map = L.map(mapRef.current, { zoomControl: false }).setView([22.5, 114.1], 13);
                 L.control.zoom({ position: 'bottomright' }).addTo(map);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(map);
+                
+                // ===== 替換為高德地圖圖磚 =====
+                L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+                    subdomains: ['1', '2', '3', '4'],
+                    attribution: '&copy; 高德地圖'
+                }).addTo(map);
+                // ============================
+
                 mapInstanceRef.current = map;
                 setTimeout(() => { if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize(); }, 200);
                 return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
@@ -472,9 +517,10 @@
                 if (tempMarker) {
                     const iconHtml = `<div class="flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.5)] text-white font-bold text-xl bg-red-500 animate-bounce" style="z-index: 2000;">📍</div>`;
                     const customIcon = L.divIcon({ className: 'leaflet-div-icon', html: iconHtml, iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
-                    const marker = L.marker([tempMarker.lat, tempMarker.lng], { icon: customIcon }).bindPopup(`<b>${tempMarker.name}</b>`).addTo(map);
+                    const [gLng, gLat] = wgs84togcj02(tempMarker.lng, tempMarker.lat);
+                    const marker = L.marker([gLat, gLng], { icon: customIcon }).bindPopup(`<b>${tempMarker.name}</b>`).addTo(map);
                     marker.openPopup();
-                    map.setView([tempMarker.lat, tempMarker.lng], 15, { animate: true });
+                    map.setView([gLat, gLng], 15, { animate: true });
                     tempMarkerRef.current = marker;
                 }
             }, [tempMarker]);
@@ -484,7 +530,10 @@
                 if (!map) return;
                 const validPlaces = places.filter(p => p.lat && p.lng);
                 if (validPlaces.length > 0) {
-                     const bounds = L.latLngBounds(validPlaces.map(p => [p.lat, p.lng]));
+                     const bounds = L.latLngBounds(validPlaces.map(p => {
+                         const [gLng, gLat] = wgs84togcj02(p.lng, p.lat);
+                         return [gLat, gLng];
+                     }));
                      if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
                 }
             }, [zoomControlKey]); 
@@ -525,7 +574,8 @@
                         const isHovered = hoveredId === place.id;
                         const iconHtml = `<div class="flex items-center justify-center w-8 h-8 rounded-full border-[3px] border-white shadow-[0_2px_10px_rgba(0,0,0,0.5)] text-white font-bold text-sm transition-all duration-200" style="background-color: ${markerColor}; ${isHovered ? 'transform: scale(1.3); z-index: 1000;' : ''}">${index + 1}</div>`;
                         const customIcon = L.divIcon({ className: 'leaflet-div-icon', html: iconHtml, iconSize: [32, 32], iconAnchor: [16, 32], popupAnchor: [0, -32] });
-                        const marker = L.marker([place.lat, place.lng], { icon: customIcon }).bindPopup(`<b>${place.name}</b>`).addTo(map);
+                        const [gLng, gLat] = wgs84togcj02(place.lng, place.lat);
+                        const marker = L.marker([gLat, gLng], { icon: customIcon }).bindPopup(`<b>${place.name}</b>`).addTo(map);
                         if (isHovered) marker.openPopup();
                         markersRef.current[place.id] = { marker, index, baseColor: markerColor, isHovered };
                     });
@@ -590,8 +640,13 @@
                                         const altStyle = { color: '#94a3b8', weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round', dashArray: '5, 10' };
                                         const clickStyle = { color: 'transparent', weight: 20, opacity: 0 }; 
                                         
-                                        const altMain = L.geoJSON(geo, { style: altStyle }).addTo(mapInstanceRef.current);
-                                        const altClick = L.geoJSON(geo, { style: clickStyle }).addTo(mapInstanceRef.current);
+                                        const geoGCJ = JSON.parse(JSON.stringify(geo));
+                                        if(geoGCJ.coordinates) {
+                                            geoGCJ.coordinates = geoGCJ.coordinates.map(c => wgs84togcj02(c[0], c[1]));
+                                        }
+                                        
+                                        const altMain = L.geoJSON(geoGCJ, { style: altStyle }).addTo(mapInstanceRef.current);
+                                        const altClick = L.geoJSON(geoGCJ, { style: clickStyle }).addTo(mapInstanceRef.current);
                                         
                                         altClick.on('click', () => {
                                             if (onRouteAltSelect) onRouteAltSelect(p1.id, idx);
@@ -609,12 +664,18 @@
 
                                 const mainGeo = geometries[validIndex];
                                 if (mainGeo === 'straight_line') {
-                                    const latlngs = [[p1.lat, p1.lng], [p2.lat, p2.lng]];
+                                    const [gLng1, gLat1] = wgs84togcj02(p1.lng, p1.lat);
+                                    const [gLng2, gLat2] = wgs84togcj02(p2.lng, p2.lat);
+                                    const latlngs = [[gLat1, gLng1], [gLat2, gLng2]];
                                     outline = L.polyline(latlngs, outlineStyle).addTo(mapInstanceRef.current);
                                     main = L.polyline(latlngs, mainStyle).addTo(mapInstanceRef.current);
                                 } else {
-                                    outline = L.geoJSON(mainGeo, { style: outlineStyle }).addTo(mapInstanceRef.current);
-                                    main = L.geoJSON(mainGeo, { style: mainStyle }).addTo(mapInstanceRef.current);
+                                    const geoGCJ = JSON.parse(JSON.stringify(mainGeo));
+                                    if(geoGCJ.coordinates) {
+                                        geoGCJ.coordinates = geoGCJ.coordinates.map(c => wgs84togcj02(c[0], c[1]));
+                                    }
+                                    outline = L.geoJSON(geoGCJ, { style: outlineStyle }).addTo(mapInstanceRef.current);
+                                    main = L.geoJSON(geoGCJ, { style: mainStyle }).addTo(mapInstanceRef.current);
                                 }
                                 
                                 if (main.bringToFront) main.bringToFront();
@@ -764,9 +825,6 @@
             const [shoppingItems, setShoppingItems] = useState([]);
             const [packingList, setPackingList] = useState([]);
             
-            // ==========================================
-            // 已幫你綁定申請好的高德地圖 Web 服務 API Key！
-            // ==========================================
             const AMAP_KEY = '3bf27a17038b433640ab774dafa1d0a6'; 
 
             const [activeTab, setActiveTab] = useState('itinerary'); 
@@ -870,14 +928,22 @@
                                     if (w > h) { if (w > 800) { h *= 800/w; w = 800; } } else { if (h > 800) { w *= 800/h; h = 800; } }
                                     canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
                                     
-                                    const newDays = current.trip.days.map(d => 
-                                        String(d.id) === String(current.activeDayId) ? { 
-                                            ...d, 
-                                            places: d.places.map(p => p.id === targetPlaceId ? { ...p, image: canvas.toDataURL('image/jpeg', 0.7) } : p) 
-                                        } : d
-                                    );
+                                    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                                    const targetPlace = current.trip.days.flatMap(d => d.places).find(p => p.id === targetPlaceId);
+                                    const targetName = targetPlace?.name;
+
+                                    const newDays = current.trip.days.map(d => ({
+                                        ...d,
+                                        places: d.places.map(p => {
+                                            // 【同名同步】同步所有相同名稱的景點圖片
+                                            if (p.id === targetPlaceId || (targetName && p.name === targetName)) {
+                                                return { ...p, image: imageDataUrl };
+                                            }
+                                            return p;
+                                        })
+                                    }));
                                     pushUpdate({ trip: { ...current.trip, days: newDays } });
-                                    showMsg('✅ 圖片已從剪貼簿貼上！');
+                                    showMsg('✅ 圖片已從剪貼簿貼上並同步同名卡片！');
                                 };
                                 img.src = event.target.result;
                             };
@@ -890,16 +956,11 @@
                 return () => document.removeEventListener('paste', handleGlobalPaste);
             }, [activeTab]);
 
-            // ===== 修改此處：替換為高德地圖搜尋 =====
             const handleAddressInput = (e) => {
                 const val = e.target.value; setNewItem(p => ({...p, address: val}));
                 if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
                 if (!val.trim()) { setAddressSuggestions([]); return; }
                 searchTimeoutRef.current = setTimeout(async () => {
-                    if (AMAP_KEY === '請替換成你的高德API_KEY') {
-                        showMsg("請先在程式碼中填寫高德 API Key！");
-                        return;
-                    }
                     try {
                         const res = await fetch(`https://restapi.amap.com/v3/place/text?keywords=${encodeURIComponent(val)}&offset=5&page=1&key=${AMAP_KEY}`);
                         const data = await res.json();
@@ -915,7 +976,6 @@
                 const address = typeof s.address === 'string' && s.address.length > 0 ? s.address : s.adname;
                 setNewItem(p => ({...p, address: name, name: p.name || name}));
                 
-                // 高德資料含有經緯度，進行座標校正
                 if (s.location && s.location.length > 0) {
                     const [lngStr, latStr] = s.location.split(',');
                     const [wgsLng, wgsLat] = gcj02towgs84(parseFloat(lngStr), parseFloat(latStr));
@@ -926,7 +986,6 @@
 
             const handleAddressSearch = async () => {
                 if (!newItem.address) return showMsg("請先輸入地址或關鍵字！");
-                if (AMAP_KEY === '請替換成你的高德API_KEY') return showMsg("請先在程式碼中填寫高德 API Key！");
                 setIsSearchingAddress(true);
                 try {
                     const res = await fetch(`https://restapi.amap.com/v3/place/text?keywords=${encodeURIComponent(newItem.address)}&offset=1&page=1&key=${AMAP_KEY}`);
@@ -947,14 +1006,28 @@
                 } catch(e) { showMsg("搜尋時發生錯誤。"); }
                 setIsSearchingAddress(false);
             };
-            // ========================================
 
             const handleManualAddSubmit = (e) => {
                 e.preventDefault();
                 const lat = tempMarker ? tempMarker.lat : 22.5 + Math.random()*0.1;
                 const lng = tempMarker ? tempMarker.lng : 114.1 + Math.random()*0.1;
-                const newP = { id: 'p' + Date.now(), ...newItem, lat, lng, travelMode: 'drive', routeIndex: 0 };
-                const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: [...d.places, newP] } : d);
+                const targetName = newItem.name;
+                const newP = { id: 'p' + Date.now(), ...newItem, lat, lng, travelMode: 'drive', routeIndex: 0, address: newItem.address };
+                
+                // 【同名同步】更新其他同名的舊景點的地址與座標
+                const newDays = trip.days.map(d => ({
+                    ...d,
+                    places: d.places.map(p => {
+                        if (p.name === targetName) {
+                            return { ...p, address: newItem.address || p.address, lat, lng };
+                        }
+                        return p;
+                    })
+                }));
+                
+                const dayIndex = newDays.findIndex(d => d.id === activeDayId);
+                if (dayIndex !== -1) newDays[dayIndex].places.push(newP);
+
                 pushUpdate({ trip: { ...trip, days: newDays } });
                 setPanelMode('list'); setTempMarker(null);
                 setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
@@ -962,22 +1035,34 @@
 
             const handleEditSubmit = (e) => {
                 e.preventDefault();
+                const targetName = newItem.name;
+
                 const newDays = trip.days.map(d => {
-                    if (d.id === activeDayId) {
-                        return {
-                            ...d,
-                            places: d.places.map(p => p.id === newItem.id ? { 
-                                ...p, 
-                                name: newItem.name,
-                                note: newItem.note,
-                                type: newItem.type,
-                                time: newItem.time,
-                                stayTime: newItem.stayTime || '1',
-                                ...(tempMarker ? { lat: tempMarker.lat, lng: tempMarker.lng } : {})
-                            } : p)
-                        };
-                    }
-                    return d;
+                    return {
+                        ...d,
+                        places: d.places.map(p => {
+                            if (p.id === newItem.id) {
+                                return { 
+                                    ...p, 
+                                    name: newItem.name,
+                                    note: newItem.note,
+                                    type: newItem.type,
+                                    time: newItem.time,
+                                    stayTime: newItem.stayTime || '1',
+                                    address: newItem.address || p.address,
+                                    ...(tempMarker ? { lat: tempMarker.lat, lng: tempMarker.lng } : {})
+                                };
+                            } else if (p.name === targetName) {
+                                // 【同名同步】
+                                return {
+                                    ...p,
+                                    address: newItem.address || p.address,
+                                    ...(tempMarker ? { lat: tempMarker.lat, lng: tempMarker.lng } : {})
+                                };
+                            }
+                            return p;
+                        })
+                    };
                 });
                 pushUpdate({ trip: { ...trip, days: newDays } });
                 setPanelMode('list'); 
@@ -1146,7 +1231,26 @@
                         let w = img.width, h = img.height;
                         if (w > h) { if (w > 800) { h *= 800/w; w = 800; } } else { if (h > 800) { w *= 800/h; h = 800; } }
                         canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                        pushUpdate({ trip: { ...trip, days: trip.days.map(d => d.id === dayId ? { ...d, places: d.places.map(p => p.id === placeId ? { ...p, image: canvas.toDataURL('image/jpeg', 0.7) } : p) } : d) } });
+                        
+                        const imageDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        const targetPlace = trip.days.flatMap(d => d.places).find(p => p.id === placeId);
+                        const targetName = targetPlace?.name;
+
+                        pushUpdate({ 
+                            trip: { 
+                                ...trip, 
+                                days: trip.days.map(d => ({
+                                    ...d,
+                                    places: d.places.map(p => {
+                                        // 【同名同步】
+                                        if (p.id === placeId || (targetName && p.name === targetName)) {
+                                            return { ...p, image: imageDataUrl };
+                                        }
+                                        return p;
+                                    })
+                                })) 
+                            } 
+                        });
                     };
                     img.src = event.target.result;
                 };
