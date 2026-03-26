@@ -1516,26 +1516,103 @@
             const [tripToDelete, setTripToDelete] = useState(null);
             const appId = typeof __app_id !== 'undefined' ? __app_id : 'shared-trip-v1';
             const { db, auth } = getFirebaseContext();
+            
             const showMsg = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
             
-            useEffect(() => { const initAuth = async () => { try { await window.FirebaseSDK.signInAnonymously(auth); } catch (e) {} }; initAuth(); return window.FirebaseSDK.onAuthStateChanged(auth, setUser); }, [auth]);
+            useEffect(() => { 
+                const initAuth = async () => { 
+                    try { await window.FirebaseSDK.signInAnonymously(auth); } catch (e) {} 
+                }; 
+                initAuth(); 
+                return window.FirebaseSDK.onAuthStateChanged(auth, setUser); 
+            }, [auth]);
             
-            useEffect(() => { if (!user) return; const tripsCollection = window.FirebaseSDK.collection(db, 'artifacts', appId, 'public', 'data', 'trips'); return window.FirebaseSDK.onSnapshot(tripsCollection, (snapshot) => { const fetchedTrips = []; snapshot.forEach(doc => { fetchedTrips.push({ id: doc.id, ...doc.data() }); }); setTrips(fetchedTrips.sort((a, b) => b.id.localeCompare(a.id))); }, (error) => { console.error("Firestore error:", error); }); }, [user, db, appId]);
+            useEffect(() => { 
+                if (!user) return; 
+                const tripsCollection = window.FirebaseSDK.collection(db, 'artifacts', appId, 'public', 'data', 'trips'); 
+                return window.FirebaseSDK.onSnapshot(tripsCollection, (snapshot) => { 
+                    const fetchedTrips = []; 
+                    snapshot.forEach(doc => { fetchedTrips.push({ id: doc.id, ...doc.data() }); }); 
+                    setTrips(fetchedTrips.sort((a, b) => b.id.localeCompare(a.id))); 
+                }, (error) => { console.error("Firestore error:", error); }); 
+            }, [user, db, appId]);
 
-            const handleExportTrip = (tripData) => { const dataStr = JSON.stringify(tripData, null, 2); const blob = new Blob([dataStr], { type: "application/json" }); const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `${tripData.trip?.title || 'trip'}.json`; link.click(); URL.revokeObjectURL(url); showMsg("導出成功"); };
-            const handleImportTrip = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = async (event) => { try { const importedData = JSON.parse(event.target.result); if (!importedData.trip) return showMsg("格式錯誤"); const newTripId = 'trip_imp_' + Date.now(); importedData.id = newTripId; if (importedData.trip) importedData.trip.id = newTripId; await window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', newTripId), importedData); showMsg("匯入成功！"); } catch (err) { showMsg("無效檔案"); } e.target.value = ''; }; reader.readAsText(file); };
-            const confirmDeleteTrip = async () => { if (tripToDelete) { await window.FirebaseSDK.deleteDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', tripToDelete)); setTripToDelete(null); showMsg("已刪除行程"); } };
+            const handleExportTrip = (tripData) => { 
+                const dataStr = JSON.stringify(tripData, null, 2); 
+                const blob = new Blob([dataStr], { type: "application/json" }); 
+                const url = URL.createObjectURL(blob); 
+                const link = document.createElement("a"); 
+                link.href = url; 
+                link.download = `${tripData.trip?.title || 'trip'}.json`; 
+                link.click(); 
+                URL.revokeObjectURL(url); 
+                showMsg("導出成功"); 
+            };
+
+            const handleImportTrip = (e) => { 
+                const file = e.target.files[0]; 
+                if (!file) return; 
+                const reader = new FileReader(); 
+                reader.onload = async (event) => { 
+                    try { 
+                        const importedData = JSON.parse(event.target.result); 
+                        if (!importedData.trip) return showMsg("格式錯誤"); 
+                        const newTripId = 'trip_imp_' + Date.now(); 
+                        importedData.id = newTripId; 
+                        if (importedData.trip) importedData.trip.id = newTripId; 
+                        await window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', newTripId), importedData); 
+                        showMsg("匯入成功！"); 
+                    } catch (err) { showMsg("無效檔案"); } 
+                    e.target.value = ''; 
+                }; 
+                reader.readAsText(file); 
+            };
+
+            const confirmDeleteTrip = async () => { 
+                if (tripToDelete) { 
+                    await window.FirebaseSDK.deleteDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', tripToDelete)); 
+                    setTripToDelete(null); 
+                    showMsg("已刪除行程"); 
+                } 
+            };
             
             if (!user) return <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-blue-400 font-bold">同步連線中...</div>;
             
             return (
                 <>
                     {currentView === 'dashboard' ? (
-                        <Dashboard trips={trips} onCreateTrip={async () => { const nid = 'trip_' + Date.now(); await window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', nid), { trip: { id: nid, title: '新行程', dates: getFutureDate(0), icon: '🚀', days: [{id: 1, title: 'Day 1', date: getFutureDate(0), places: [], weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }}] }, members: [{ id: 'm1', name: '我', color: 'bg-blue-500', avatar: '👤' }], expenses: [], shoppingItems: [], packingList: [] }); setActiveTripId(nid); setCurrentView('planner'); }} onSelectTrip={(id) => { setActiveTripId(id); setCurrentView('planner'); }} onDeleteTrip={(id) => setTripToDelete(id)} onImportTrip={handleImportTrip} onExportTrip={handleExportTrip} toast={toast} />
+                        <Dashboard 
+                            trips={trips} 
+                            onCreateTrip={async () => { 
+                                const nid = 'trip_' + Date.now(); 
+                                await window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', nid), { 
+                                    trip: { id: nid, title: '新行程', dates: getFutureDate(0), icon: '🚀', days: [{id: 1, title: 'Day 1', date: getFutureDate(0), places: [], weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }}] }, 
+                                    members: [{ id: 'm1', name: '我', color: 'bg-blue-500', avatar: '👤' }], 
+                                    expenses: [], shoppingItems: [], packingList: [] 
+                                }); 
+                                setActiveTripId(nid); setCurrentView('planner'); 
+                            }} 
+                            onSelectTrip={(id) => { setActiveTripId(id); setCurrentView('planner'); }} 
+                            onDeleteTrip={(id) => setTripToDelete(id)} 
+                            onImportTrip={handleImportTrip} 
+                            onExportTrip={handleExportTrip} 
+                            toast={toast} 
+                        />
                     ) : (
                         <TripPlanner tripId={activeTripId} onBack={() => setCurrentView('dashboard')} db={db} appId={appId} user={user} />
                     )}
-                    {tripToDelete && (<div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此行程嗎？</h3><p className="text-slate-400 text-sm mt-2">刪除後將無法復原。</p><div className="flex gap-3 mt-6"><button onClick={() => setTripToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button><button onClick={confirmDeleteTrip} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl transition-colors shadow-lg">刪除</button></div></div></div>)}
+                    {tripToDelete && (
+                        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
+                                <h3 className="font-bold text-lg text-slate-100">確定刪除此行程嗎？</h3>
+                                <p className="text-slate-400 text-sm mt-2">刪除後將無法復原。</p>
+                                <div className="flex gap-3 mt-6">
+                                    <button onClick={() => setTripToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button>
+                                    <button onClick={confirmDeleteTrip} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl transition-colors shadow-lg">刪除</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </>
             );
         }
