@@ -330,12 +330,13 @@
             return (
                 <div className="flex items-center gap-1.5 bg-green-50/10 text-green-400 px-3 py-1 rounded-full text-xs font-bold border border-green-500/20 shrink-0">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span>{onlineUsers} 人在線</span>
+                    <span className="hidden sm:inline">{onlineUsers} 人在線</span>
+                    <span className="sm:hidden">{onlineUsers}</span>
                 </div>
             );
         };
 
-        const TravelSegmentUI = ({ p1, p2, onUpdateMode, onMouseEnter, onMouseLeave }) => {
+        const TravelSegmentUI = ({ p1, p2, onUpdateMode, onMouseEnter, onMouseLeave, onTouchStart }) => {
             const mode = p1.travelMode || 'drive'; 
             const travelInfo = calculateTravelInfo(p1, p2);
             const handleModeChange = (newMode) => {
@@ -349,9 +350,11 @@
             };
             return (
                 <div 
-                    className={`flex items-center gap-2 py-1.5 px-3 bg-slate-800/90 border border-slate-600 shadow-lg rounded-xl animate-fade-in group cursor-pointer hover:border-blue-500 hover:shadow-blue-900/30`}
+                    className="flex items-center gap-2 py-1.5 px-3 bg-slate-800/90 border border-slate-600 shadow-lg rounded-xl animate-fade-in group cursor-pointer hover:border-blue-500 hover:shadow-blue-900/30 w-max"
                     onMouseEnter={onMouseEnter}
                     onMouseLeave={onMouseLeave}
+                    onTouchStart={onTouchStart}
+                    onTouchEnd={onMouseLeave}
                 >
                     <div className="flex bg-slate-900 border border-slate-700 rounded-md p-0.5 h-7 items-center overflow-hidden">
                         <button onClick={(e) => { e.stopPropagation(); handleModeChange('drive'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'drive' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="開車導航">🚗</button>
@@ -410,7 +413,11 @@
                          const [gLng, gLat] = wgs84togcj02(p.lng, p.lat);
                          return [gLat, gLng];
                      }));
-                     if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+                     if (bounds.isValid()) {
+                         const isMobile = window.innerWidth < 768;
+                         const padding = isMobile ? [20, 20] : [50, 50];
+                         map.fitBounds(bounds, { padding: padding, maxZoom: 16 });
+                     }
                 }
             }, [zoomControlKey]); 
 
@@ -546,7 +553,10 @@
                 return () => { isMounted = false; };
             }, [places, dayColor]); 
 
+            // Handle Map FlyTo on Hover Place
             useEffect(() => {
+                const map = mapInstanceRef.current;
+                if (!map) return;
                 Object.entries(markersRef.current).forEach(([placeId, data]) => {
                     const { marker, index, baseColor } = data;
                     if (!marker) return;
@@ -556,7 +566,11 @@
                     marker.setIcon(customIcon);
                     if (isHovered && !data.isHovered) { 
                         marker.openPopup(); 
-                        marker.setZIndexOffset(1000); 
+                        marker.setZIndexOffset(1000);
+                        // Fly to marker center
+                        const currentZoom = map.getZoom();
+                        const targetZoom = currentZoom < 14 ? 14 : currentZoom;
+                        map.flyTo(marker.getLatLng(), targetZoom, { duration: 0.4 });
                     } else if (!isHovered && data.isHovered) { 
                         marker.closePopup(); 
                         marker.setZIndexOffset(0); 
@@ -565,6 +579,7 @@
                 });
             }, [hoveredId]);
 
+            // Handle Map FlyTo on Hover Segment
             useEffect(() => {
                 const map = mapInstanceRef.current;
                 if (!map) return;
@@ -576,10 +591,18 @@
                     if (isHovered) { 
                         main.setStyle({ color: '#f59e0b', weight: 10 }); 
                         if (main.bringToFront) main.bringToFront(); 
-                        
                         if (flow) {
                             flow.setStyle({ opacity: 0.9 });
                             if (flow.bringToFront) flow.bringToFront();
+                        }
+                        // Fit to segment bounds
+                        if (main.getBounds && typeof main.getBounds === 'function') {
+                            const bounds = main.getBounds();
+                            if (bounds.isValid()) {
+                                const isMobile = window.innerWidth < 768;
+                                const padding = isMobile ? [20, 20] : [60, 60];
+                                map.flyToBounds(bounds, { padding: padding, maxZoom: 15, duration: 0.4 });
+                            }
                         }
                     } else { 
                         main.setStyle({ color: baseColor, weight: 8 }); 
@@ -589,7 +612,8 @@
                     }
                 });
             }, [hoveredSegmentId]);
-            return <div ref={mapRef} className="w-full h-full z-0 min-h-[300px]" />;
+
+            return <div ref={mapRef} className="w-full h-full z-0 relative" />;
         });
 
         const Dashboard = ({ trips, onCreateTrip, onSelectTrip, onDeleteTrip, onImportTrip, onExportTrip, toast }) => {
@@ -601,8 +625,8 @@
                         <div className="my-10"><h1 className="text-3xl font-bold mb-4 text-slate-100">我的行程</h1></div>
                         <div className="my-8 flex justify-end gap-3 flex-wrap">
                             <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={onImportTrip} />
-                            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all cursor-pointer border border-slate-600"><Icons.Upload size={20} /> 匯入行程</button>
-                            <button onClick={onCreateTrip} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-900/30 transition-all cursor-pointer"><Icons.Plus size={20} /> 建立新行程</button>
+                            <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all cursor-pointer border border-slate-600"><Icons.Upload size={20} /> 匯入</button>
+                            <button onClick={onCreateTrip} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-900/30 transition-all cursor-pointer"><Icons.Plus size={20} /> 建立行程</button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
                             {trips.length === 0 ? (<div className="col-span-full text-center py-20 text-slate-500"><p>目前還沒有行程，開始建立你的第一個旅程吧！</p></div>) : (
@@ -633,7 +657,7 @@
             const [activeTab, setActiveTab] = useState('itinerary'); 
             const [activeDayId, setActiveDayId] = useState(1);
             const [panelMode, setPanelMode] = useState('list'); 
-            const [newItem, setNewItem] = useState({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
+            const [newItem, setNewItem] = useState({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null });
             const [tempMarker, setTempMarker] = useState(null);
             const [addressSuggestions, setAddressSuggestions] = useState([]);
             const [isSearchingAddress, setIsSearchingAddress] = useState(false);
@@ -699,8 +723,60 @@
             const activeDayData = useMemo(() => trip.days?.find(d => d.id === activeDayId) || trip.days?.[0], [trip, activeDayId]);
             const getMemberInfo = useCallback((name) => members.find(m => m.name === name) || { color: 'bg-gray-400', avatar: '👤', name: '未知' }, [members]);
 
-            const stateRef = useRef({ trip, activeDayId, hoveredPlaceId, panelMode, newItem });
-            useEffect(() => { stateRef.current = { trip, activeDayId, hoveredPlaceId, panelMode, newItem }; }, [trip, activeDayId, hoveredPlaceId, panelMode, newItem]);
+            const stateRef = useRef({ trip, activeDayId, hoveredPlaceId, panelMode, newItem, activeTab });
+            useEffect(() => { stateRef.current = { trip, activeDayId, hoveredPlaceId, panelMode, newItem, activeTab }; }, [trip, activeDayId, hoveredPlaceId, panelMode, newItem, activeTab]);
+
+            // --- Ctrl+V Paste Image Fix ---
+            useEffect(() => {
+                const handleGlobalPaste = (e) => {
+                    const current = stateRef.current;
+                    if (current.activeTab !== 'itinerary') return;
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    let imageFile = null;
+                    for (let i = 0; i < items.length; i++) {
+                        if (items[i].type.indexOf('image') !== -1) {
+                            imageFile = items[i].getAsFile();
+                            break;
+                        }
+                    }
+                    if (imageFile) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                let w = img.width, h = img.height;
+                                if (w > h) { if (w > 800) { h *= 800/w; w = 800; } } else { if (h > 800) { w *= 800/h; h = 800; } }
+                                canvas.width = w; canvas.height = h;
+                                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+
+                                if (current.panelMode === 'add' || current.panelMode === 'edit') {
+                                    setNewItem(prev => ({ ...prev, image: imageDataUrl }));
+                                    showMsg('✅ 圖片已貼上預覽 (請記得儲存)');
+                                } else if (current.hoveredPlaceId) {
+                                    const targetPlace = current.trip.days.flatMap(d => d.places).find(p => p.id === current.hoveredPlaceId);
+                                    const targetName = targetPlace?.name?.trim();
+                                    const newDays = current.trip.days.map(d => ({
+                                        ...d,
+                                        places: d.places.map(p => {
+                                            if (p.id === current.hoveredPlaceId || (targetName && p.name?.trim() === targetName)) return { ...p, image: imageDataUrl };
+                                            return p;
+                                        })
+                                    }));
+                                    pushUpdate({ trip: { ...current.trip, days: newDays } });
+                                    showMsg('✅ 圖片已同步儲存');
+                                }
+                            };
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(imageFile);
+                    }
+                };
+                document.addEventListener('paste', handleGlobalPaste);
+                return () => document.removeEventListener('paste', handleGlobalPaste);
+            }, []);
 
             // --- 行程操作 ---
             const handleAddressInput = (e) => {
@@ -750,17 +826,18 @@
                 const targetName = newItem.name;
                 const targetNameTrimmed = targetName.trim();
                 const existingPlaceWithImage = trip.days.flatMap(d => d.places).find(p => p.name?.trim() === targetNameTrimmed && p.image);
-                const imageToSync = existingPlaceWithImage ? existingPlaceWithImage.image : null;
-                const newP = { id: 'p' + Date.now(), ...newItem, lat, lng, travelMode: 'drive', routeIndex: 0, ...(imageToSync ? { image: imageToSync } : {}) };
+                const imageToSave = newItem.image || (existingPlaceWithImage ? existingPlaceWithImage.image : null);
+                
+                const newP = { id: 'p' + Date.now(), ...newItem, lat, lng, travelMode: 'drive', routeIndex: 0, ...(imageToSave ? { image: imageToSave } : {}) };
                 const newDays = trip.days.map(d => ({
                     ...d,
-                    places: d.places.map(p => (p.name?.trim() === targetNameTrimmed ? { ...p, address: newItem.address || p.address, lat, lng, ...(imageToSync && !p.image ? { image: imageToSync } : {}) } : p))
+                    places: d.places.map(p => (p.name?.trim() === targetNameTrimmed ? { ...p, address: newItem.address || p.address, lat, lng, ...(imageToSave && !p.image ? { image: imageToSave } : {}) } : p))
                 }));
                 const dayIndex = newDays.findIndex(d => d.id === activeDayId);
                 if (dayIndex !== -1) newDays[dayIndex].places.push(newP);
                 pushUpdate({ trip: { ...trip, days: newDays } });
                 setPanelMode('list'); setTempMarker(null);
-                setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
+                setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null });
             };
 
             const handleEditSubmit = (e) => {
@@ -771,21 +848,23 @@
                 const lng = tempMarker ? tempMarker.lng : null;
                 const currentPlace = trip.days.flatMap(d => d.places).find(p => p.id === newItem.id);
                 const existingPlaceWithImage = trip.days.flatMap(d => d.places).find(p => p.id !== newItem.id && p.name?.trim() === targetNameTrimmed && p.image);
-                const imageToSync = currentPlace?.image || (existingPlaceWithImage ? existingPlaceWithImage.image : null);
+                
+                const imageToSave = newItem.image !== undefined ? newItem.image : (currentPlace?.image || (existingPlaceWithImage ? existingPlaceWithImage.image : null));
+
                 const newDays = trip.days.map(d => ({
                     ...d,
                     places: d.places.map(p => {
                         if (p.id === newItem.id) {
-                            return { ...p, name: newItem.name, note: newItem.note, type: newItem.type, time: newItem.time, stayTime: newItem.stayTime || '1', address: newItem.address || p.address, ...(lat ? { lat, lng } : {}), ...(imageToSync ? { image: imageToSync } : {}) };
+                            return { ...p, name: newItem.name, note: newItem.note, type: newItem.type, time: newItem.time, stayTime: newItem.stayTime || '1', address: newItem.address || p.address, ...(lat ? { lat, lng } : {}), ...(imageToSave ? { image: imageToSave } : { image: null }) };
                         } else if (p.name?.trim() === targetNameTrimmed) {
-                            return { ...p, address: newItem.address || p.address, ...(lat ? { lat, lng } : {}), ...(imageToSync && !p.image ? { image: imageToSync } : {}) };
+                            return { ...p, address: newItem.address || p.address, ...(lat ? { lat, lng } : {}), ...(imageToSave && !p.image ? { image: imageToSave } : {}) };
                         }
                         return p;
                     })
                 }));
                 pushUpdate({ trip: { ...trip, days: newDays } });
                 setPanelMode('list'); setTempMarker(null);
-                setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' });
+                setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null });
             };
 
             const handleUpdateTravelMode = (dayId, placeId, newMode) => {
@@ -950,7 +1029,7 @@
             const filteredPackingList = useMemo(() => { if (!packingList) return []; if (packingFilter === 'all') return packingList; return packingList.filter(item => item.owner === packingFilter || item.owner === 'all'); }, [packingList, packingFilter]);
             const handleAddPacking = (e) => { e.preventDefault(); if (!newPackingItem.text) return; let newItems = []; if (newPackingItem.owner === 'all') { newItems = members.map((m, idx) => ({ id: 'pk' + Date.now() + '_' + idx, text: newPackingItem.text, checked: false, owner: m.name })); } else { newItems = [{ id: 'pk' + Date.now(), text: newPackingItem.text, checked: false, owner: newPackingItem.owner }]; } pushUpdate({ packingList: [...packingList, ...newItems] }); setNewPackingItem({ text: '', owner: packingFilter !== 'all' ? packingFilter : 'all' }); setShowPackingModal(false); };
             const togglePacking = (id) => pushUpdate({ packingList: packingList.map(i => i.id === id ? { ...i, checked: !i.checked } : i) });
-            const deletePacking = (e, id) => { e.stopPropagation(); pushUpdate({ packingList: packingList.filter(i => i.id !== id) }); };
+            const deletePacking = (e, id) => { if(e) e.stopPropagation(); pushUpdate({ packingList: packingList.filter(i => i.id !== id) }); };
             const handleSavePackingEdit = () => { if (!editingPacking || !editingPacking.text.trim()) return; pushUpdate({ packingList: packingList.map(i => i.id === editingPacking.id ? { ...i, text: editingPacking.text.trim() } : i) }); setEditingPacking(null); };
             const handleCopyPackingAction = (itemToCopy, targetOwner) => {
                 let newItems = [];
@@ -971,7 +1050,6 @@
                     const itemDisplayAmount = convertCurr(originalAmount, originalCurr, displayCurrency);
                     const splitAmount = itemDisplayAmount / splitBy.length; 
                     
-                    // 若付款人不在現有成員中(幽靈帳單)，則不計入應收款，但仍計入其他人的應付款，保證數字正確
                     if (balancesDisplay[item.payer] !== undefined) {
                         balancesDisplay[item.payer] += itemDisplayAmount; 
                     }
@@ -1028,7 +1106,6 @@
 
             const toggleSharedMember = (m) => setNewExpenseItem(prev => { const shared = prev.sharedBy.includes(m) ? (prev.sharedBy.length > 1 ? prev.sharedBy.filter(name => name !== m) : prev.sharedBy) : [...prev.sharedBy, m]; return { ...prev, sharedBy: shared }; });
             
-            // --- 解決孤兒資料：修改成員時連動更新所有相關資料 ---
             const updateMember = (id, field, value) => { 
                 if (field === 'name') {
                     const oldName = members.find(m => m.id === id)?.name;
@@ -1088,77 +1165,96 @@
                 <div className="flex flex-col h-[100dvh] bg-slate-900 text-slate-100 font-sans relative">
                     {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700 shadow-2xl font-bold tracking-wide"><span>{toast}</span></div></div>}
                     {previewImage && <div className="fixed inset-0 z-[110] bg-black/90 flex items-center justify-center p-4 animate-fade-in" onClick={() => setPreviewImage(null)}><button className="absolute top-4 right-4 p-2 bg-slate-800 text-white rounded-full hover:bg-slate-700 transition-colors shadow-lg"><Icons.X size={24} /></button><img src={previewImage} className="max-w-full max-h-full object-contain" /></div>}
-                    <header className="h-14 border-b border-slate-800 flex items-center justify-between px-4 bg-slate-900 shrink-0 z-20 shadow-lg">
+                    <header className="h-14 border-b border-slate-800 flex items-center justify-between px-3 md:px-4 bg-slate-900 shrink-0 z-20 shadow-lg">
                         <div className="flex items-center gap-3 flex-1">
-                            <button onClick={onBack} className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-300"><Icons.ArrowLeft size={20} /></button>
-                            <div className={`w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold hover:scale-105 transition-transform`}><input value={trip.icon || '🚀'} onChange={e => pushUpdate({trip:{...trip, icon:e.target.value}})} className="w-full h-full bg-transparent text-center text-lg outline-none cursor-pointer" maxLength="2"/></div>
+                            <button onClick={onBack} className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-300 shrink-0"><Icons.ArrowLeft size={20} /></button>
+                            <div className={`w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold hover:scale-105 transition-transform shrink-0`}><input value={trip.icon || '🚀'} onChange={e => pushUpdate({trip:{...trip, icon:e.target.value}})} className="w-full h-full bg-transparent text-center text-lg outline-none cursor-pointer" maxLength="2"/></div>
                             <div className="flex flex-col min-w-0 flex-1"><input value={trip.title} onChange={(e) => pushUpdate({trip:{...trip, title:e.target.value}})} className="text-sm font-bold bg-transparent outline-none w-full" /><input value={trip.dates} onChange={(e) => pushUpdate({trip:{...trip, dates:e.target.value}})} className="text-xs text-slate-500 bg-transparent outline-none w-full" /></div>
                         </div>
                         <OnlineUserBadge />
                     </header>
-                    <div className="flex border-b border-slate-800 bg-slate-900 px-4 gap-6 text-sm font-medium overflow-x-auto no-scrollbar">
+                    <div className="flex border-b border-slate-800 bg-slate-900 px-2 md:px-4 gap-4 md:gap-6 text-sm font-medium overflow-x-auto no-scrollbar">
                         <button onClick={() => setActiveTab('itinerary')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Map size={18} />行程</button>
                         <button onClick={() => setActiveTab('expenses')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'expenses' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Wallet size={18} />花費</button>
                         <button onClick={() => setActiveTab('shopping')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'shopping' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.ShoppingBag size={18} />待買</button>
                         <button onClick={() => setActiveTab('packing')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'packing' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Briefcase size={18} />行李</button>
                         <button onClick={() => setActiveTab('categories')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'categories' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.FileText size={18} />分類</button>
                     </div>
-                    <div className="flex flex-1 overflow-hidden">
+                    
+                    <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative bg-slate-950">
                         {activeTab === 'itinerary' && (
                             <>
-                                <div className="w-full md:w-[450px] flex flex-col border-r border-slate-800 bg-slate-900 shrink-0 relative z-10 shadow-2xl h-full transition-all">
+                                <div className={`w-full ${panelMode === 'list' ? 'h-[40vh]' : 'h-[25vh]'} md:h-full md:flex-1 relative order-1 md:order-2 shrink-0 z-0 transition-all duration-300 border-b md:border-b-0 md:border-l border-slate-800 shadow-md md:shadow-none`}>
+                                    <RealMap places={activeDayData?.places || []} hoveredId={hoveredPlaceId} hoveredSegmentId={hoveredSegmentId} zoomControlKey={activeDayId} dayColor={activeDayData?.color} onRouteAltSelect={(pId, altIdx) => handleUpdateRouteIndex(activeDayData.id, pId, altIdx)} tempMarker={tempMarker} />
+                                </div>
+                                <div className="w-full flex-1 md:w-[420px] lg:w-[480px] flex flex-col bg-slate-900 relative order-2 md:order-1 z-10 transition-all overflow-hidden shrink-0 rounded-t-3xl md:rounded-none shadow-[0_-10px_20px_rgba(0,0,0,0.3)] md:shadow-none -mt-4 md:mt-0 pt-2 md:pt-0">
                                     {panelMode === 'list' ? (
                                         <>
-                                            <div ref={daysContainerRef} onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} onMouseLeave={() => { isDraggingDay.current = false; }} onMouseUp={() => { isDraggingDay.current = false; }} onMouseMove={(e) => { if(!isDraggingDay.current) return; const x = e.pageX; const walk = (x - dragStartX.current); if (Math.abs(walk) > 5) { dragHasMoved.current = true; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; } }} className="bg-slate-900 border-b border-slate-800 px-3 py-4 flex flex-nowrap gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none">
+                                            <div className="w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto my-1.5 md:hidden"></div>
+                                            <div ref={daysContainerRef} onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} onMouseLeave={() => { isDraggingDay.current = false; }} onMouseUp={() => { isDraggingDay.current = false; }} onMouseMove={(e) => { if(!isDraggingDay.current) return; const x = e.pageX; const walk = (x - dragStartX.current); if (Math.abs(walk) > 5) { dragHasMoved.current = true; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; } }} className="bg-slate-900 border-b border-slate-800 px-3 pb-3 md:py-4 flex flex-nowrap gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none shrink-0">
                                                 {trip.days?.map((day, idx) => (
                                                     <button key={day.id} onClick={() => { if(!dragHasMoved.current) setActiveDayId(day.id); }} className={`flex flex-col items-start min-w-[100px] shrink-0 p-3 rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}><div className="flex justify-between w-full mb-1.5 pointer-events-none"><span className={`text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>Day {idx + 1}</span><WeatherIcon type={day.weather?.type} size={16} /></div><span className="text-xs font-medium mb-1 text-slate-500 pointer-events-none">{formatShortDate(day.date)}</span></button>
                                                 ))}
                                                 <button onClick={() => { if(!dragHasMoved.current) handleAddDay(); }} className="min-w-[80px] p-3 rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center"><div className="bg-slate-800 rounded-full p-1.5 mb-1.5 pointer-events-none"><Icons.Plus size={18} /></div><span className="text-xs font-bold pointer-events-none">新增</span></button>
                                             </div>
-                                            <div className="px-4 py-4 overflow-y-auto flex-1 pb-32">
+                                            <div className="px-3 md:px-4 py-4 overflow-y-auto flex-1 pb-32">
                                                 <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700/50"><div className="flex flex-col"><h3 className="font-bold text-blue-400">{activeDayData?.title}</h3><div className="text-[10px] text-slate-400 mt-1">{activeDayData?.places?.length || 0} 個景點</div></div><button onClick={() => setShowDeleteDayConfirm(true)} className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg border border-slate-700 transition-colors"><Icons.Trash2 size={16} /></button></div>
                                                 <div className="flex flex-col">
                                                     {activeDayData?.places.map((p, i) => {
                                                         const isNoteExpanded = expandedNotes[p.id];
                                                         return (
                                                             <div key={p.id} id={`place-card-${p.id}`} draggable={true} onDragStart={e => handleDragStart(e, i, p.id)} onDragOver={e => e.preventDefault()} onDrop={e => handleDrop(e, i)} onDragEnd={handleDragEnd} className={`flex flex-col group/card transition-all duration-200 ${draggedPlaceIndex === i ? 'opacity-30 scale-[0.98]' : ''}`}>
-                                                                <div className="flex gap-3 items-stretch">
-                                                                    <div className="flex flex-col items-center w-12 shrink-0"><div className="text-[12px] font-bold text-blue-300 font-mono mb-1.5 pt-1">{p.time}</div><div onMouseEnter={() => setDragEnabledId(p.id)} onMouseLeave={() => setDragEnabledId(null)} onTouchStart={() => setDragEnabledId(p.id)} onTouchEnd={() => setDragEnabledId(null)} className="drag-handle w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors">{i+1}</div>{i < activeDayData.places.length - 1 && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}</div>
+                                                                <div className="flex gap-2.5 items-stretch">
+                                                                    <div className="flex flex-col items-center w-10 shrink-0"><div className="text-[11px] font-bold text-blue-300 font-mono mb-1.5 pt-1">{p.time}</div><div onMouseEnter={() => setDragEnabledId(p.id)} onMouseLeave={() => setDragEnabledId(null)} onTouchStart={() => setDragEnabledId(p.id)} onTouchEnd={() => setDragEnabledId(null)} className="drag-handle w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors">{i+1}</div>{i < activeDayData.places.length - 1 && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}</div>
                                                                     <div className="flex-1 pb-3">
                                                                         <div className={`flex items-stretch overflow-hidden rounded-xl border border-slate-700 bg-slate-800/90 transition-all ${hoveredPlaceId === p.id ? 'border-blue-500 shadow-xl' : ''}`} onMouseEnter={() => setHoveredPlaceId(p.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
-                                                                            <div className="w-[120px] bg-slate-700/50 shrink-0 relative cursor-pointer overflow-hidden group/img flex items-center justify-center" onClick={() => p.image && setPreviewImage(p.image)}>{p.image ? (<img src={p.image} draggable={false} className="absolute inset-0 w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-300 pointer-events-none" />) : (<div className="pointer-events-none opacity-50 relative z-10"><CategoryIconWithLabel type={p.type} size={28} /></div>)}{p.image && <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors z-10 pointer-events-none"></div>}</div>
-                                                                            <div className="flex-1 min-w-0 relative p-2 pl-1.5"><div className="flex justify-between items-start"><div className="flex flex-col"><div className="flex items-start gap-1">{p.note && (<button onClick={(e) => toggleNote(p.id, e)} className="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0 outline-none">{isNoteExpanded ? <Icons.ChevronUp size={16} /> : <Icons.ChevronDown size={16} />}</button>)}<h3 className={`font-bold text-slate-100 leading-snug ${isNoteExpanded ? '' : 'line-clamp-2'}`}>{p.name}</h3></div>{p.note && isNoteExpanded && (<div className="mt-1.5 ml-5 text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{p.note}</div>)}</div><div className="flex items-center gap-1 shrink-0 ml-2"><div onMouseEnter={() => setDragEnabledId(p.id)} onMouseLeave={() => setDragEnabledId(null)} onTouchStart={() => setDragEnabledId(p.id)} onTouchEnd={() => setDragEnabledId(null)} className="drag-handle p-1.5 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors"><Icons.GripVertical size={18} /></div><button onClick={() => { setNewItem({ id: p.id, name: p.name, time: p.time, type: p.type, address: p.address || '', note: p.note || '', stayTime: p.stayTime || '1' }); setPanelMode('edit'); }} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"><Icons.MoreVertical size={18} /></button></div></div><div className={`text-[11px] text-slate-400 mt-1.5 ${p.note ? 'ml-5' : ''}`}>停留 {p.stayTime || '1'} 小時</div><div className={`mt-2 flex flex-wrap items-center gap-1.5 ${p.note ? 'ml-5' : ''}`}><span className="px-1.5 py-0.5 rounded text-[10px] text-slate-300 bg-slate-700 font-bold uppercase tracking-wider">{getCategoryName(p.type)}</span></div></div>
+                                                                            <div className="w-[85px] sm:w-[120px] bg-slate-700/50 shrink-0 relative cursor-pointer overflow-hidden group/img flex items-center justify-center" onClick={() => p.image && setPreviewImage(p.image)}>{p.image ? (<img src={p.image} draggable={false} className="absolute inset-0 w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-300 pointer-events-none" />) : (<div className="pointer-events-none opacity-50 relative z-10"><CategoryIconWithLabel type={p.type} size={24} /></div>)}{p.image && <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors z-10 pointer-events-none"></div>}</div>
+                                                                            <div className="flex-1 min-w-0 relative p-2"><div className="flex justify-between items-start"><div className="flex flex-col"><div className="flex items-start gap-0.5">{p.note && (<button onClick={(e) => toggleNote(p.id, e)} className="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0 outline-none">{isNoteExpanded ? <Icons.ChevronUp size={16} /> : <Icons.ChevronDown size={16} />}</button>)}<h3 className={`font-bold text-slate-100 text-sm md:text-base leading-snug ${isNoteExpanded ? '' : 'line-clamp-2'}`}>{p.name}</h3></div>{p.note && isNoteExpanded && (<div className="mt-1.5 ml-4 text-xs md:text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{p.note}</div>)}</div><div className="flex items-center gap-0.5 shrink-0 ml-1"><div onMouseEnter={() => setDragEnabledId(p.id)} onMouseLeave={() => setDragEnabledId(null)} onTouchStart={() => setDragEnabledId(p.id)} onTouchEnd={() => setDragEnabledId(null)} className="drag-handle p-1 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors"><Icons.GripVertical size={16} /></div><button onClick={() => { setNewItem({ id: p.id, name: p.name, time: p.time, type: p.type, address: p.address || '', note: p.note || '', stayTime: p.stayTime || '1', image: p.image || null }); setPanelMode('edit'); }} className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"><Icons.MoreVertical size={16} /></button></div></div><div className={`text-[10px] md:text-[11px] text-slate-400 mt-1 ${p.note ? 'ml-4' : ''}`}>停留 {p.stayTime || '1'} 小時</div><div className={`mt-1.5 flex flex-wrap items-center gap-1.5 ${p.note ? 'ml-4' : ''}`}><span className="px-1.5 py-0.5 rounded text-[9px] md:text-[10px] text-slate-300 bg-slate-700 font-bold uppercase tracking-wider">{getCategoryName(p.type)}</span></div></div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                                 {i < activeDayData.places.length - 1 && (
-                                                                    <div className="flex items-stretch gap-3"><div className="flex flex-col items-center w-12 shrink-0"><div className="text-[11px] font-bold text-slate-400 font-mono mb-1">{getEndTime(p.time, parseFloat(p.stayTime || 1))}</div><div className="w-2.5 h-2.5 rounded-full bg-amber-500/50 border border-amber-500 z-10 shrink-0"></div><div className="border-l-2 border-dashed border-slate-600 flex-1 mt-1.5 min-h-[2rem] w-0"></div></div><div className="flex-1 pb-4 flex items-start -mt-3 pl-6"><TravelSegmentUI p1={p} p2={activeDayData.places[i+1]} onUpdateMode={(m) => handleUpdateTravelMode(activeDayData.id, p.id, m)} onMouseEnter={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} onMouseLeave={() => setHoveredSegmentId(null)} /></div></div>
+                                                                    <div className="flex items-stretch gap-2.5"><div className="flex flex-col items-center w-10 shrink-0"><div className="text-[10px] md:text-[11px] font-bold text-slate-400 font-mono mb-1">{getEndTime(p.time, parseFloat(p.stayTime || 1))}</div><div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-amber-500/50 border border-amber-500 z-10 shrink-0"></div><div className="border-l-2 border-dashed border-slate-600 flex-1 mt-1.5 min-h-[2rem] w-0"></div></div><div className="flex-1 pb-4 flex items-start -mt-2 pl-4 md:pl-6"><TravelSegmentUI p1={p} p2={activeDayData.places[i+1]} onUpdateMode={(m) => handleUpdateTravelMode(activeDayData.id, p.id, m)} onMouseEnter={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} onMouseLeave={() => setHoveredSegmentId(null)} onTouchStart={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} /></div></div>
                                                                 )}
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
-                                                <button onClick={() => { setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' }); setTempMarker(null); setPanelMode('add'); }} className="w-full py-3.5 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 font-bold hover:border-blue-500 hover:text-blue-400 transition-all flex items-center justify-center gap-2 mt-4"><Icons.Plus size={18} /> 新增行程景點</button>
+                                                <button onClick={() => { setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null }); setTempMarker(null); setPanelMode('add'); }} className="w-full py-3.5 border-2 border-dashed border-slate-700 rounded-xl text-slate-400 font-bold hover:border-blue-500 hover:text-blue-400 transition-all flex items-center justify-center gap-2 mt-4"><Icons.Plus size={18} /> 新增行程景點</button>
                                             </div>
                                         </>
                                     ) : (
                                         <div className="flex flex-col h-full bg-slate-900 animate-fade-in">
+                                            <div className="w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto my-1.5 md:hidden"></div>
                                             <div className="flex items-center bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 p-2"><button onClick={() => { setPanelMode('list'); setTempMarker(null); }} className="p-2 text-slate-400 hover:text-white shrink-0"><Icons.ArrowLeft size={20} /></button><div className="flex flex-1 items-center justify-center font-bold text-slate-200 pr-8">{panelMode === 'add' ? '新增景點' : '編輯景點資料'}</div></div>
+                                            {panelMode === 'add' && (<div className="flex bg-slate-900 border-b border-slate-800 shrink-0"><button onClick={() => setAddModalTab('search')} className={`flex-1 py-3 flex flex-col items-center gap-1 ${addModalTab === 'search' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500'}`}><Icons.Search size={18} /><span className="text-[10px] font-bold">搜尋</span></button><button onClick={() => setAddModalTab('collections')} className={`flex-1 py-3 flex flex-col items-center gap-1 ${addModalTab === 'collections' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500'}`}><Icons.MapPin size={18} /><span className="text-[10px] font-bold">收藏</span></button><button onClick={() => setAddModalTab('custom')} className={`flex-1 py-3 flex flex-col items-center gap-1 ${addModalTab === 'custom' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500'}`}><Icons.Pen size={18} /><span className="text-[10px] font-bold">自訂</span></button></div>)}
                                             <div className="overflow-y-auto p-4 flex-1 pb-32">
-                                                <form onSubmit={panelMode === 'add' ? handleManualAddSubmit : handleEditSubmit} className="space-y-4">
-                                                    <div><label className="block text-xs font-bold text-slate-400 mb-1">景點名稱</label><input required placeholder="*景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name:e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div>
-                                                    <div className="relative"><label className="block text-xs font-bold text-slate-400 mb-1">地址或關鍵字</label><div className="flex gap-2"><input placeholder="輸入地址更新地圖位置" value={newItem.address} onChange={handleAddressInput} className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /><button type="button" onClick={() => handleAddressSearch()} className="bg-blue-600 p-2.5 rounded-lg transition-colors hover:bg-blue-500"><Icons.Search size={18} /></button></div>{addressSuggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 rounded-xl border border-slate-600 z-[100] shadow-2xl overflow-hidden divide-y divide-slate-700">{addressSuggestions.map((s, idx) => (<div key={idx} onClick={() => handleSuggestionClick(s)} className="p-3 hover:bg-slate-700 cursor-pointer transition-colors"><div className="text-sm font-bold text-slate-100">{s.name}</div><div className="text-[10px] text-slate-400 truncate">{typeof s.address === 'string' && s.address.length > 0 ? s.address : s.adname}</div></div>))}</div>)}</div>
-                                                    <div className="flex gap-4"><div className="flex-1"><label className="block text-xs font-bold text-slate-400 mb-1">抵達時間</label><input type="time" value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm" /></div><div className="flex-1"><label className="block text-xs font-bold text-slate-400 mb-1">停留時間</label><input type="number" step="0.5" value={newItem.stayTime} onChange={e => setNewItem({...newItem, stayTime: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm" /></div></div>
-                                                    <div><label className="block text-xs font-bold text-slate-400 mb-1">類型</label><select value={newItem.type} onChange={e => setNewItem({...newItem, type: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg text-sm"><option value="sight">景點</option><option value="food">餐廳</option><option value="shopping">購物</option><option value="transport">交通</option><option value="accommodation">住宿</option></select></div>
-                                                    <div><label className="block text-xs font-bold text-slate-400 mb-1">備註</label><textarea value={newItem.note} onChange={e => setNewItem({...newItem, note: e.target.value})} rows="3" className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..." /></div>
-                                                    <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-4 shadow-lg transition-all">{panelMode === 'add' ? '完成新增' : '儲存修改'}</button>
-                                                    {panelMode === 'edit' && (<div className="flex gap-4 pt-6 mt-4 border-t border-slate-800"><label className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-all text-center cursor-pointer border border-slate-600 flex justify-center items-center gap-2 text-sm shadow-sm"><Icons.Camera size={16} /> 更換圖片<input type="file" accept="image/*" className="hidden" onChange={e => { handlePlaceImageUpload(activeDayId, newItem.id, e); showMsg('✅ 圖片已更新'); }} /></label><button type="button" onClick={(e) => { e.preventDefault(); if(window.confirm("確定要刪除此景點嗎？")) { const newDays = trip.days.map(d => String(d.id) === String(activeDayId) ? { ...d, places: d.places.filter(p => p.id !== newItem.id) } : d); pushUpdate({ trip: { ...trip, days: newDays } }); setPanelMode('list'); setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1' }); showMsg('🗑️ 已刪除景點'); } }} className="px-4 py-2.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl font-bold transition-all border border-slate-600 flex items-center justify-center gap-2 shadow-sm cursor-pointer relative z-10"><Icons.Trash2 size={16} /> 刪除</button></div>)}
-                                                </form>
+                                                {(panelMode === 'edit' || (panelMode === 'add' && addModalTab === 'custom')) && (
+                                                    <form onSubmit={panelMode === 'add' ? handleManualAddSubmit : handleEditSubmit} className="space-y-4">
+                                                        <div className="flex justify-between items-baseline mb-2"><h4 className="font-bold text-lg text-slate-100">{panelMode === 'add' ? '自建新景點' : '基本資料'}</h4>{panelMode === 'add' && <span className="text-xs font-medium text-red-400">*必填</span>}</div>
+                                                        <div><label className="block text-xs font-bold text-slate-400 mb-1">景點名稱</label><input required placeholder="*景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name:e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                                                        <div className="relative"><label className="block text-xs font-bold text-slate-400 mb-1">{panelMode === 'add' ? '地址或關鍵字 (選填)' : '搜尋更新地址 (選填)'}</label><div className="flex gap-2"><input placeholder="輸入地址更新地圖位置" value={newItem.address} onChange={handleAddressInput} className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /><button type="button" onClick={() => handleAddressSearch()} className="bg-blue-600 p-2.5 rounded-lg transition-colors hover:bg-blue-500"><Icons.Search size={18} /></button></div>
+                                                            {addressSuggestions.length > 0 && (<div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 rounded-xl border border-slate-600 z-[100] shadow-2xl overflow-hidden divide-y divide-slate-700">{addressSuggestions.map((s, idx) => (<div key={idx} onClick={() => handleSuggestionClick(s)} className="p-3 hover:bg-slate-700 cursor-pointer transition-colors"><div className="text-sm font-bold text-slate-100">{s.name}</div><div className="text-[10px] text-slate-400 truncate">{typeof s.address === 'string' && s.address.length > 0 ? s.address : s.adname}</div></div>))}</div>)}
+                                                        </div>
+                                                        <div className="flex gap-4 pt-2 border-t border-slate-700/50 mt-4"><div className="flex-1"><label className="block text-xs font-bold text-slate-400 mb-1">抵達時間</label><input type="time" value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm" /></div><div className="flex-1"><label className="block text-xs font-bold text-slate-400 mb-1">停留時間 (小時)</label><input type="number" step="0.5" min="0" value={newItem.stayTime} onChange={e => setNewItem({...newItem, stayTime: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm" /></div></div>
+                                                        <div><label className="block text-xs font-bold text-slate-400 mb-1">景點類型</label><select value={newItem.type} onChange={e => setNewItem({...newItem, type: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm"><option value="sight">景點</option><option value="food">餐廳</option><option value="shopping">購物</option><option value="transport">交通</option><option value="accommodation">住宿</option></select></div>
+                                                        <div><label className="block text-xs font-bold text-slate-400 mb-1">備註</label><textarea value={newItem.note} onChange={e => setNewItem({...newItem, note: e.target.value})} rows="3" className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..." /></div>
+                                                        {newItem.image && (
+                                                            <div className="relative w-full h-40 bg-slate-800 rounded-xl overflow-hidden mt-4 border border-slate-600 shadow-md group shrink-0">
+                                                                <img src={newItem.image} className="w-full h-full object-cover" alt="Preview" />
+                                                                <button type="button" onClick={() => setNewItem({...newItem, image: null})} className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors z-10"><Icons.X size={16}/></button>
+                                                            </div>
+                                                        )}
+                                                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-4 shadow-lg transition-all">{panelMode === 'add' ? '完成新增' : '儲存修改'}</button>
+                                                        {panelMode === 'edit' && (<div className="flex gap-4 pt-6 mt-4 border-t border-slate-800"><label className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-all text-center cursor-pointer border border-slate-600 flex justify-center items-center gap-2 text-sm shadow-sm" title="也可以直接在畫面 Ctrl+V 貼上圖片"><Icons.Camera size={16} /> 上傳圖片<input type="file" accept="image/*" className="hidden" onChange={e => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (event) => { const img = new Image(); img.onload = () => { const canvas = document.createElement('canvas'); let w = img.width, h = img.height; if (w > h) { if (w > 800) { h *= 800/w; w = 800; } } else { if (h > 800) { w *= 800/h; h = 800; } } canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h); setNewItem(prev => ({...prev, image: canvas.toDataURL('image/jpeg', 0.7)})); showMsg('✅ 圖片已預覽 (請記得儲存)'); }; img.src = event.target.result; }; reader.readAsDataURL(file); }} /></label><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); if(window.confirm("確定要刪除此景點嗎？")) { const newDays = trip.days.map(d => String(d.id) === String(activeDayId) ? { ...d, places: d.places.filter(p => p.id !== newItem.id) } : d); pushUpdate({ trip: { ...trip, days: newDays } }); setPanelMode('list'); setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null }); showMsg('🗑️ 已刪除景點'); } }} className="px-4 py-2.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl font-bold transition-all border border-slate-600 hover:border-red-500/50 flex items-center justify-center gap-2 shadow-sm cursor-pointer relative z-10"><Icons.Trash2 size={16} /> 刪除</button></div>)}
+                                                    </form>
+                                                )}
+                                                {panelMode === 'add' && addModalTab === 'search' && <div className="text-center py-10 text-slate-500"><Icons.Search size={40} className="mx-auto mb-3 opacity-20" /><p>請輸入關鍵字搜尋景點</p></div>}
+                                                {panelMode === 'add' && addModalTab === 'collections' && <div className="text-center py-10 text-slate-500"><Icons.MapPin size={40} className="mx-auto mb-3 opacity-20" /><p>您的收藏列表為空</p></div>}
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex-1 relative hidden md:block"><RealMap places={activeDayData?.places || []} hoveredId={hoveredPlaceId} hoveredSegmentId={hoveredSegmentId} zoomControlKey={activeDayId} dayColor={activeDayData?.color} onRouteAltSelect={(pId, altIdx) => handleUpdateRouteIndex(activeDayData.id, pId, altIdx)} tempMarker={tempMarker} /></div>
                             </>
                         )}
                         {activeTab === 'expenses' && (
@@ -1208,9 +1304,8 @@
                                                                 </div>
                                                                     <div className="text-right shrink-0 relative"><div className="font-bold text-red-300 text-sm font-mono leading-none">{displayCurrency} {formatNumber(convertedDisplayAmt, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono mt-1 leading-none">({originalCurr} {formatNumber(originalAmount, originalCurr === 'JPY' ? 0 : 1)})</div>}
                                                                         <div className="flex items-center gap-1 mt-2 justify-end">
-                                                                            <button onClick={(e) => { e.stopPropagation(); setActiveExpenseMenu(activeExpenseMenu === item.id ? null : item.id); }} className="text-slate-500 hover:text-white p-1.5 rounded-md bg-slate-900 border border-slate-700 transition-colors"><Icons.MoreVertical size={12} /></button>
+                                                                            <button onClick={(e) => { e.stopPropagation(); setActiveExpenseMenu(activeExpenseMenu?.id === item.id ? null : item); }} className="text-slate-500 hover:text-white p-1.5 rounded-md bg-slate-900 border border-slate-700 transition-colors"><Icons.MoreVertical size={12} /></button>
                                                                         </div>
-                                                                        {activeExpenseMenu === item.id && (<><div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveExpenseMenu(null); }}></div><div className="absolute right-0 top-full mt-1 w-24 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-50 overflow-hidden py-1"><button onClick={(e) => { e.stopPropagation(); handleEditExpenseClick(item, item.date); setActiveExpenseMenu(null); }} className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 hover:text-blue-400 transition-colors flex items-center gap-2"><Icons.Pen size={12}/> 修改</button><button onClick={(e) => { e.stopPropagation(); setExpenseToDelete(item); setActiveExpenseMenu(null); }} className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-slate-700 hover:text-red-300 transition-colors flex items-center gap-2"><Icons.Trash2 size={12}/> 刪除</button></div></>)}
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -1251,9 +1346,8 @@
                                                                             {collectAmount > 0.01 && (<div className="mt-1.5 inline-block text-[10px] font-bold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-500/20">需收回 {formatNumber(collectAmount, displayCurrency === 'JPY' ? 0 : 1)}</div>)}
                                                                             <div className="flex items-center gap-1 mt-2 justify-end">
                                                                                 {item.image && (<button onClick={() => setPreviewImage(item.image)} className="text-slate-500 hover:text-blue-400 p-1.5 rounded-md bg-slate-900 border border-slate-700 transition-colors"><Icons.Image size={12} /></button>)}
-                                                                                <button onClick={(e) => { e.stopPropagation(); setActiveExpenseMenu(activeExpenseMenu === item.id ? null : item.id); }} className="text-slate-500 hover:text-white p-1.5 rounded-md bg-slate-900 border border-slate-700 transition-colors"><Icons.MoreVertical size={12} /></button>
+                                                                                <button onClick={(e) => { e.stopPropagation(); setActiveExpenseMenu(activeExpenseMenu?.id === item.id ? null : item); }} className="text-slate-500 hover:text-white p-1.5 rounded-md bg-slate-900 border border-slate-700 transition-colors"><Icons.MoreVertical size={12} /></button>
                                                                             </div>
-                                                                            {activeExpenseMenu === item.id && (<><div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveExpenseMenu(null); }}></div><div className="absolute right-0 top-full mt-1 w-24 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-50 overflow-hidden py-1"><button onClick={(e) => { e.stopPropagation(); handleEditExpenseClick(item, item.date); setActiveExpenseMenu(null); }} className="w-full text-left px-3 py-2 text-xs text-slate-200 hover:bg-slate-700 hover:text-blue-400 transition-colors flex items-center gap-2"><Icons.Pen size={12}/> 修改</button><button onClick={(e) => { e.stopPropagation(); setExpenseToDelete(item); setActiveExpenseMenu(null); }} className="w-full text-left px-3 py-2 text-xs text-red-400 hover:bg-slate-700 hover:text-red-300 transition-colors flex items-center gap-2"><Icons.Trash2 size={12}/> 刪除</button></div></>)}
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -1327,7 +1421,7 @@
                                                     <div className="flex items-center gap-3 px-2"><div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg ${m.color}`}>{m.avatar}</div><div className="flex flex-col"><h3 className="font-bold text-slate-200 tracking-wide text-lg">{m.name}</h3><span className="text-[11px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 w-max mt-1">共 {items.length} 項</span></div></div>
                                                     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg h-[60vh] overflow-y-auto no-scrollbar">
                                                         {items.length > 0 ? items.map((item) => (
-                                                            <div key={item.id} className="flex items-start justify-between p-3 border-b last:border-b-0 border-slate-700 relative hover:bg-slate-700/50 transition-colors group"><div className="flex items-start gap-3 mt-0.5 flex-1 min-w-0"><div onClick={() => togglePacking(item.id)} className={`w-5 h-5 mt-0.5 rounded border flex items-center justify-center transition-colors shrink-0 cursor-pointer ${item.checked ? 'bg-blue-600 border-blue-600' : 'border-slate-600 bg-slate-900'}`}>{item.checked && <span className="text-white text-[10px]">✓</span>}</div>{editingPacking?.id === item.id ? (<div className="flex-1 flex gap-1 mr-1"><input autoFocus value={editingPacking.text} onChange={(e) => setEditingPacking({...editingPacking, text: e.target.value})} onKeyDown={(e) => e.key === 'Enter' && handleSavePackingEdit()} className="w-full px-2 py-1 bg-slate-900 border border-blue-500 rounded text-sm text-white outline-none" /><button onClick={handleSavePackingEdit} className="text-green-400 p-1"><Icons.Check size={16}/></button></div>) : (<span onClick={() => togglePacking(item.id)} className={`text-slate-200 text-sm font-medium break-all whitespace-normal pr-2 cursor-pointer ${item.checked ? 'line-through text-slate-500' : ''}`}>{item.text}</span>)}</div><div className="relative shrink-0"><button onClick={(e) => { e.stopPropagation(); setActivePackingMenu(activePackingMenu === item.id ? null : item.id); }} className="text-slate-500 hover:text-white p-1.5 rounded-full hover:bg-slate-600 transition-colors"><Icons.MoreVertical size={16} /></button>{activePackingMenu === item.id && (<><div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActivePackingMenu(null); }}></div><div className="absolute right-0 top-full mt-1 w-32 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl z-50 overflow-hidden py-1"><button onClick={(e) => { e.stopPropagation(); setShowCopyPackingModal(item); setActivePackingMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 flex items-center gap-2"><Icons.Users size={14}/> 複製</button><button onClick={(e) => { e.stopPropagation(); setEditingPacking({id: item.id, text: item.text}); setActivePackingMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 flex items-center gap-2"><Icons.Pen size={14}/> 修改</button><button onClick={(e) => { e.stopPropagation(); deletePacking(e, item.id); setActivePackingMenu(null); }} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-slate-700 flex items-center gap-2"><Icons.Trash2 size={14}/> 刪除</button></div></>)}</div></div>
+                                                            <div key={item.id} className="flex items-start justify-between p-3 border-b last:border-b-0 border-slate-700 relative hover:bg-slate-700/50 transition-colors group"><div className="flex items-start gap-3 mt-0.5 flex-1 min-w-0"><div onClick={() => togglePacking(item.id)} className={`w-5 h-5 mt-0.5 rounded border flex items-center justify-center transition-colors shrink-0 cursor-pointer ${item.checked ? 'bg-blue-600 border-blue-600' : 'border-slate-600 bg-slate-900'}`}>{item.checked && <span className="text-white text-[10px]">✓</span>}</div>{editingPacking?.id === item.id ? (<div className="flex-1 flex gap-1 mr-1"><input autoFocus value={editingPacking.text} onChange={(e) => setEditingPacking({...editingPacking, text: e.target.value})} onKeyDown={(e) => e.key === 'Enter' && handleSavePackingEdit()} className="w-full px-2 py-1 bg-slate-900 border border-blue-500 rounded text-sm text-white outline-none" /><button onClick={handleSavePackingEdit} className="text-green-400 p-1"><Icons.Check size={16}/></button></div>) : (<span onClick={() => togglePacking(item.id)} className={`text-slate-200 text-sm font-medium break-all whitespace-normal pr-2 cursor-pointer ${item.checked ? 'line-through text-slate-500' : ''}`}>{item.text}</span>)}</div><div className="relative shrink-0"><button onClick={(e) => { e.stopPropagation(); setActivePackingMenu(activePackingMenu?.id === item.id ? null : item); }} className="text-slate-500 hover:text-white p-1.5 rounded-full hover:bg-slate-600 transition-colors"><Icons.MoreVertical size={16} /></button></div></div>
                                                         )) : (<div className="p-6 text-center text-slate-500 text-sm mt-10">尚無項目</div>)}
                                                     </div>
                                                 </div>
@@ -1339,18 +1433,74 @@
                         )}
                         {activeTab === 'categories' && (
                             <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto">
-                                <div className="max-w-4xl mx-auto space-y-8 pb-32">
+                                <div className="max-w-7xl mx-auto space-y-8 pb-32">
                                     <div className="flex items-center gap-3 mb-6"><h2 className="text-2xl font-bold text-slate-100">景點分類總覽</h2><span className="bg-blue-600 text-white text-xs px-2.5 py-1 rounded-full font-bold">共 {trip.days?.reduce((acc, day) => acc + (day.places?.length || 0), 0)} 個行程</span></div>
                                     {categoryConfigs.map(cat => {
                                         const places = groupedPlaces[cat.type]; if (!places || places.length === 0) return null;
                                         return (
-                                            <div key={cat.type} className="space-y-4 animate-fade-in"><div className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${cat.border} ${cat.bg}`}><CategoryIconWithLabel type={cat.type} size={18} /><h3 className={`font-bold ${cat.color} tracking-wide`}>{cat.title} ({places.length})</h3></div><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pl-2">{places.map(p => (<div key={`${p.id}-${p.dayIdx}`} onClick={() => handleJumpToPlace(p)} className="bg-slate-800 rounded-xl border border-slate-700 flex items-stretch overflow-hidden hover:border-blue-500 transition-colors shadow-lg cursor-pointer group"><div className="w-[120px] bg-slate-700/50 shrink-0 relative flex items-center justify-center overflow-hidden" onClick={(e) => { e.stopPropagation(); p.image && setPreviewImage(p.image); }}>{p.image ? <img src={p.image} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="pointer-events-none opacity-50 relative z-10"><CategoryIconWithLabel type={p.type} size={28} /></div>}{p.image && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-10 pointer-events-none"></div>}</div><div className="flex flex-col flex-1 min-w-0 justify-center p-2 pl-1.5 pointer-events-none relative"><h4 className="font-bold text-slate-100 truncate group-hover:text-blue-400 transition-colors" title={p.name}>{p.name}</h4><div className="flex items-center gap-2 mt-1.5"><span className="text-xs font-bold text-blue-400 bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-800/50">Day {p.dayIdx}</span><span className="text-xs text-slate-400 font-mono">{p.time}</span></div></div></div>))}</div></div>
+                                            <div key={cat.type} className="space-y-4 animate-fade-in">
+                                                <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${cat.border} ${cat.bg}`}>
+                                                    <CategoryIconWithLabel type={cat.type} size={18} />
+                                                    <h3 className={`font-bold ${cat.color} tracking-wide`}>{cat.title} ({places.length})</h3>
+                                                </div>
+                                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 px-1">
+                                                    {places.map(p => (
+                                                        <div key={`${p.id}-${p.dayIdx}`} onClick={() => handleJumpToPlace(p)} className="bg-slate-800 rounded-xl border border-slate-700 flex flex-col overflow-hidden hover:border-blue-500 transition-colors shadow-lg cursor-pointer group relative">
+                                                            <div className="w-full aspect-[4/3] bg-slate-700/50 relative flex items-center justify-center overflow-hidden" onClick={(e) => { e.stopPropagation(); p.image && setPreviewImage(p.image); }}>
+                                                                {p.image ? <img src={p.image} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="pointer-events-none opacity-50"><CategoryIconWithLabel type={p.type} size={28} /></div>}
+                                                                {p.image && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-10 pointer-events-none"></div>}
+                                                            </div>
+                                                            <div className="flex flex-col flex-1 justify-center p-3 relative text-center items-center">
+                                                                <h4 className="font-bold text-slate-100 text-sm line-clamp-1 group-hover:text-blue-400 transition-colors w-full" title={p.name}>{p.name}</h4>
+                                                                <div className="flex items-center gap-1.5 mt-2 justify-center">
+                                                                    <span className="text-[10px] font-bold text-blue-400 bg-blue-900/30 px-1.5 py-0.5 rounded border border-blue-800/50">Day {p.dayIdx}</span>
+                                                                    <span className="text-[10px] text-slate-400 font-mono">{p.time}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         );
                                     })}
                                 </div>
                             </div>
                         )}
                     </div>
+                    
+                    {/* Root level Modals for Menus to prevent CSS clipping */}
+                    {activeExpenseMenu && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setActiveExpenseMenu(null)}>
+                            <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl w-64 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                                    <h3 className="font-bold text-slate-200 truncate pr-4 text-base">{activeExpenseMenu.title}</h3>
+                                    <button onClick={() => setActiveExpenseMenu(null)} className="text-slate-500 hover:text-white shrink-0"><Icons.X size={18}/></button>
+                                </div>
+                                <div className="flex flex-col py-2">
+                                    <button onClick={() => { handleEditExpenseClick(activeExpenseMenu, activeExpenseMenu.date); setActiveExpenseMenu(null); }} className="w-full text-left px-5 py-3.5 text-slate-200 hover:bg-slate-700 flex items-center gap-3 font-medium transition-colors"><Icons.Pen size={18}/> 修改花費</button>
+                                    <div className="h-px bg-slate-700 my-1 mx-4"></div>
+                                    <button onClick={() => { setExpenseToDelete(activeExpenseMenu); setActiveExpenseMenu(null); }} className="w-full text-left px-5 py-3.5 text-red-400 hover:bg-slate-700 hover:text-red-300 flex items-center gap-3 font-medium transition-colors"><Icons.Trash2 size={18}/> 刪除紀錄</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {activePackingMenu && (
+                        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={() => setActivePackingMenu(null)}>
+                            <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl w-64 overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50">
+                                    <h3 className="font-bold text-slate-200 truncate pr-4 text-base">{activePackingMenu.text}</h3>
+                                    <button onClick={() => setActivePackingMenu(null)} className="text-slate-500 hover:text-white shrink-0"><Icons.X size={18}/></button>
+                                </div>
+                                <div className="flex flex-col py-2">
+                                    <button onClick={() => { setShowCopyPackingModal(activePackingMenu); setActivePackingMenu(null); }} className="w-full text-left px-5 py-3.5 text-slate-200 hover:bg-slate-700 flex items-center gap-3 font-medium transition-colors"><Icons.Users size={18}/> 複製給其他成員</button>
+                                    <button onClick={() => { setEditingPacking({id: activePackingMenu.id, text: activePackingMenu.text}); setActivePackingMenu(null); }} className="w-full text-left px-5 py-3.5 text-slate-200 hover:bg-slate-700 flex items-center gap-3 font-medium transition-colors"><Icons.Pen size={18}/> 修改名稱</button>
+                                    <div className="h-px bg-slate-700 my-1 mx-4"></div>
+                                    <button onClick={() => { deletePacking(null, activePackingMenu.id); setActivePackingMenu(null); }} className="w-full text-left px-5 py-3.5 text-red-400 hover:bg-slate-700 hover:text-red-300 flex items-center gap-3 font-medium transition-colors"><Icons.Trash2 size={18}/> 刪除項目</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {showExpenseModal && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[90vh] border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0"><h3 className="font-bold text-lg text-slate-100">{newExpenseItem.id ? '修改花費' : '新增花費'}</h3><button onClick={() => setShowExpenseModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><form onSubmit={handleAddExpenseSubmit} className="p-6 space-y-4 overflow-y-auto"><div><label className="block text-sm font-bold text-slate-400 mb-1">名稱</label><input required value={newExpenseItem.title} onChange={e => setNewExpenseItem({...newExpenseItem, title: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">日期</label><input required type="date" value={newExpenseItem.date} onChange={e => setNewExpenseItem({...newExpenseItem, date: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">類別</label><select value={newExpenseItem.category} onChange={e => setNewExpenseItem({...newExpenseItem, category: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="food">餐飲</option><option value="shopping">購物</option><option value="transport">交通</option><option value="sight">景點</option><option value="accommodation">住宿</option><option value="other">其他</option></select></div></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">金額</label><input required type="number" step="0.01" value={newExpenseItem.amount} onChange={e => setNewExpenseItem({...newExpenseItem, amount: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newExpenseItem.currency} onChange={e => setNewExpenseItem({...newExpenseItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option></select></div></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">付款人</label><select value={newExpenseItem.payer} onChange={e => setNewExpenseItem({...newExpenseItem, payer: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => { const isChecked = newExpenseItem.sharedBy.includes(m.name); return (<button key={m.id} type="button" onClick={() => toggleSharedMember(m.name)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1 ${isChecked ? 'bg-blue-900/40 text-blue-400 border-blue-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>{isChecked ? '✓ ' : ''}{m.avatar} {m.name}</button>); })}</div></div><button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg">{newExpenseItem.id ? '儲存修改' : '確認新增'}</button></form></div></div>)}
                     {showShoppingModal && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">新增待買項目</h3><button onClick={() => setShowShoppingModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><form onSubmit={handleAddShoppingSubmit} className="p-6 space-y-4"><div><label className="block text-sm font-bold text-slate-400 mb-1">品名</label><input required value={newShoppingItem.name} onChange={e => setNewShoppingItem({...newShoppingItem, name: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex gap-4"><div className="w-20"><label className="block text-sm font-bold text-slate-400 mb-1">數量</label><input type="number" min="1" value={newShoppingItem.qty} onChange={e => setNewShoppingItem({...newShoppingItem, qty: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">單價</label><input required type="number" step="0.01" min="0" value={newShoppingItem.price} onChange={e => setNewShoppingItem({...newShoppingItem, price: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newShoppingItem.currency} onChange={e => setNewShoppingItem({...newShoppingItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option></select></div></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">訂購人</label><select value={newShoppingItem.requester} onChange={e => setNewShoppingItem({...newShoppingItem, requester: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><button type="submit" className="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold mt-2 shadow-lg">確認新增</button></form></div></div>)}
