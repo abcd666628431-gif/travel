@@ -23,12 +23,12 @@
 
     <script type="module">
         import { initializeApp } from "https://gs.jurieo.com/gemini/gstatic/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://gs.jurieo.com/gemini/gstatic/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://gs.jurieo.com/gemini/gstatic/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc } from "https://gs.jurieo.com/gemini/gstatic/firebasejs/11.6.1/firebase-firestore.js";
 
         window.FirebaseSDK = { 
             initializeApp, 
-            getAuth, signInAnonymously, onAuthStateChanged, 
+            getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, 
             getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, 
             doc, setDoc, onSnapshot, updateDoc, collection, deleteDoc 
         };
@@ -127,10 +127,6 @@
             ShoppingBag: (p) => <Icon {...p} path={<><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></>} />,
             Briefcase: (p) => <Icon {...p} path={<><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></>} />,
             Search: (p) => <Icon {...p} path={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>} />,
-            Lock: (p) => <Icon {...p} path={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></>} />,
-            Unlock: (p) => <Icon {...p} path={<><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></>} />,
-            Move: (p) => <Icon {...p} path={<><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></>} />,
-            Refresh: (p) => <Icon {...p} path={<><path d="M21.5 2v6h-6"/><path d="M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.8-4.3"/><path d="M22 12.5a10 10 0 0 1-18.8 4.2"/></>} />,
         };
 
         const firebaseConfig = {
@@ -617,7 +613,20 @@
                                         <div key={tripData.id} onClick={() => onSelectTrip(tripData.id)} className="relative bg-slate-800 rounded-2xl overflow-hidden shadow-xl border border-slate-700 hover:border-blue-500 hover:shadow-blue-900/20 transition-all cursor-pointer group flex flex-col h-[280px]">
                                             <div className="h-40 overflow-hidden relative"><img src={`https://assets.funliday.com/trip-default-cover/${mockImgNum}.png`} alt="cover" loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onError={(e) => { e.target.onerror = null; e.target.src = 'https://assets.funliday.com/trip-default-cover/33.png'; }} /><div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 to-transparent"></div></div>
                                             <div className="p-5 flex-1 flex flex-col justify-end bg-slate-800 relative z-10 -mt-4 rounded-t-xl"><h3 className="font-bold text-lg text-slate-100 truncate">{tripData.trip?.title || '未命名行程'}</h3><p className="text-sm text-slate-400 mt-1">{tripData.trip?.dates || '未設定日期'}</p></div>
-                                            <div className="absolute top-3 right-3 flex items-start gap-2"><div className="flex -space-x-2">{(tripData.members || []).slice(0, 3).map((m, i) => (<div key={i} className={`w-8 h-8 rounded-full border-2 border-slate-800 flex items-center justify-center text-xs text-white shadow-md ${m.color || 'bg-slate-600'}`} title={m.name}>{m.avatar || '👤'}</div>))}{(tripData.members || []).length > 3 && (<div className="w-8 h-8 rounded-full border-2 border-slate-800 flex items-center justify-center text-xs text-white bg-slate-700 shadow-md">+{(tripData.members || []).length - 3}</div>)}</div><div className="flex flex-col gap-2"><button onClick={(e) => { e.stopPropagation(); onExportTrip(tripData); }} className="w-8 h-8 bg-slate-900/60 hover:bg-blue-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" title="匯出行程"><Icons.Download size={14} /></button><button onClick={(e) => { e.stopPropagation(); onDeleteTrip(tripData.id); }} className="w-8 h-8 bg-slate-900/60 hover:bg-red-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" title="刪除行程"><Icons.Trash2 size={14} /></button></div></div>
+                                            <div className="absolute top-3 right-3 flex items-start gap-2">
+                                                <div className="flex -space-x-2">
+                                                    {(tripData.members || []).slice(0, 3).map((m, i) => (
+                                                        <div key={i} className={`w-8 h-8 rounded-full border-2 border-slate-800 flex items-center justify-center text-xs text-white shadow-md overflow-hidden ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : (m.color || 'bg-slate-600')}`} title={m.name}>
+                                                            {m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : (m.avatar || '👤')}
+                                                        </div>
+                                                    ))}
+                                                    {(tripData.members || []).length > 3 && (<div className="w-8 h-8 rounded-full border-2 border-slate-800 flex items-center justify-center text-xs text-white bg-slate-700 shadow-md">+{(tripData.members || []).length - 3}</div>)}
+                                                </div>
+                                                <div className="flex flex-col gap-2">
+                                                    <button onClick={(e) => { e.stopPropagation(); onExportTrip(tripData); }} className="w-8 h-8 bg-slate-900/60 hover:bg-blue-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" title="匯出行程"><Icons.Download size={14} /></button>
+                                                    <button onClick={(e) => { e.stopPropagation(); onDeleteTrip(tripData.id); }} className="w-8 h-8 bg-slate-900/60 hover:bg-red-500/80 backdrop-blur-sm rounded-full flex items-center justify-center text-white transition-colors" title="刪除行程"><Icons.Trash2 size={14} /></button>
+                                                </div>
+                                            </div>
                                         </div>
                                     );
                                 })
@@ -649,6 +658,11 @@
             const [previewImage, setPreviewImage] = useState(null);
             const [draggedPlaceIndex, setDraggedPlaceIndex] = useState(null);
             
+            const [draggedPackingId, setDraggedPackingId] = useState(null);
+            const [dragEnabledPackingId, setDragEnabledPackingId] = useState(null);
+            const [draggedExpenseId, setDraggedExpenseId] = useState(null);
+            const [dragEnabledExpenseId, setDragEnabledExpenseId] = useState(null);
+
             const [displayCurrency, setDisplayCurrency] = useState('HKD');
             const [newExpenseItem, setNewExpenseItem] = useState({ id: undefined, date: '2026-04-03', title: '', category: 'food', payer: '', amount: '', currency: 'HKD', sharedBy: [], image: null });
             const [newShoppingItem, setNewShoppingItem] = useState({ name: '', qty: 1, price: 0, currency: 'HKD', requester: '', note: '', image: null });
@@ -679,6 +693,7 @@
             const dragStartX = useRef(0);
             const dragScrollLeft = useRef(0);
             const dragHasMoved = useRef(false);
+            const draggedPlaceIndexRef = useRef(null);
 
             useEffect(() => {
                 if (!user || !tripId) return;
@@ -768,6 +783,17 @@
                 return () => document.removeEventListener('paste', handleGlobalPaste);
             }, []);
 
+            // --- Initialize Mobile Drag and Drop Polyfill ---
+            useEffect(() => {
+                if (window.MobileDragDrop) {
+                    window.MobileDragDrop.polyfill({
+                        holdToDrag: 150,
+                        dragImageCenterOnTouch: true
+                    });
+                    window.addEventListener('touchmove', function() {}, {passive: false});
+                }
+            }, []);
+
             // --- 行程操作 ---
             const handleAddressInput = (e) => {
                 const val = e.target.value; setNewItem(p => ({...p, address: val}));
@@ -818,7 +844,7 @@
                 const existingPlaceWithImage = trip.days.flatMap(d => d.places).find(p => p.name?.trim() === targetNameTrimmed && p.image);
                 const imageToSave = newItem.image || (existingPlaceWithImage ? existingPlaceWithImage.image : null);
                 
-                const newP = { id: 'p' + Date.now(), ...newItem, lat, lng, travelMode: 'drive', routeIndex: 0, ...(imageToSave ? { image: imageToSave } : {}) };
+                const newP = { id: 'p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), ...newItem, lat, lng, travelMode: 'drive', routeIndex: 0, ...(imageToSave ? { image: imageToSave } : {}) };
                 const newDays = trip.days.map(d => ({
                     ...d,
                     places: d.places.map(p => (p.name?.trim() === targetNameTrimmed ? { ...p, address: newItem.address || p.address, lat, lng, ...(imageToSave && !p.image ? { image: imageToSave } : {}) } : p))
@@ -875,9 +901,94 @@
 
             const toggleNote = (placeId, e) => { e.stopPropagation(); setExpandedNotes(prev => ({ ...prev, [placeId]: !prev[placeId] })); };
 
-            const handleDragStart = (e, idx, pId) => { if (dragEnabledId !== pId) { e.preventDefault(); return; } setDraggedPlaceIndex(idx); e.dataTransfer.effectAllowed = 'move'; if (e.dataTransfer.setData) e.dataTransfer.setData('text/plain', ''); };
-            const handleDrop = (e, dropIdx) => { e.preventDefault(); if (draggedPlaceIndex === null || draggedPlaceIndex === dropIdx) return; const newPs = [...activeDayData.places]; const item = newPs.splice(draggedPlaceIndex, 1)[0]; newPs.splice(dropIdx, 0, item); const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: newPs } : d); pushUpdate({ trip: { ...trip, days: newDays } }); setDraggedPlaceIndex(null); setDragEnabledId(null); };
-            const handleDragEnd = () => { setDraggedPlaceIndex(null); setDragEnabledId(null); };
+            // --- 拖曳防複製 (Fix Duplicate Bug) ---
+            const handleDragStart = (e, idx, pId) => { 
+                if (dragEnabledId !== pId) { e.preventDefault(); return; } 
+                draggedPlaceIndexRef.current = idx;
+                setDraggedPlaceIndex(idx); 
+                e.dataTransfer.effectAllowed = 'move'; 
+                if (e.dataTransfer.setData) e.dataTransfer.setData('text/plain', ''); 
+            };
+            const handleDrop = (e, dropIdx) => { 
+                e.preventDefault(); 
+                e.stopPropagation(); // Prevent duplicate firing
+                const draggedIdx = draggedPlaceIndexRef.current;
+                if (draggedIdx === null || draggedIdx === dropIdx) return; 
+                const newPs = [...activeDayData.places]; 
+                const item = newPs.splice(draggedIdx, 1)[0]; 
+                newPs.splice(dropIdx, 0, item); 
+                const newDays = trip.days.map(d => d.id === activeDayId ? { ...d, places: newPs } : d); 
+                pushUpdate({ trip: { ...trip, days: newDays } }); 
+                draggedPlaceIndexRef.current = null;
+                setDraggedPlaceIndex(null); 
+                setDragEnabledId(null); 
+            };
+            const handleDragEnd = () => { 
+                draggedPlaceIndexRef.current = null;
+                setDraggedPlaceIndex(null); 
+                setDragEnabledId(null); 
+            };
+
+            // --- 行李拖曳功能 ---
+            const handlePackingDragStart = (e, pId) => { 
+                if (dragEnabledPackingId !== pId) { e.preventDefault(); return; } 
+                setDraggedPackingId(pId); 
+                e.dataTransfer.effectAllowed = 'move'; 
+                if (e.dataTransfer.setData) e.dataTransfer.setData('text/plain', ''); 
+            };
+            const handlePackingDrop = (e, targetId) => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                if (!draggedPackingId || draggedPackingId === targetId) return; 
+                const newList = [...packingList]; 
+                const draggedIdx = newList.findIndex(i => i.id === draggedPackingId); 
+                const targetIdx = newList.findIndex(i => i.id === targetId); 
+                if (draggedIdx !== -1 && targetIdx !== -1) { 
+                    const [item] = newList.splice(draggedIdx, 1); 
+                    newList.splice(targetIdx, 0, item); 
+                    pushUpdate({ packingList: newList }); 
+                } 
+                setDraggedPackingId(null); 
+                setDragEnabledPackingId(null); 
+            };
+            const handlePackingDragEnd = () => { 
+                setDraggedPackingId(null); 
+                setDragEnabledPackingId(null); 
+            };
+
+            // --- 花費拖曳功能 ---
+            const handleExpenseDragStart = (e, pId) => { 
+                if (dragEnabledExpenseId !== pId) { e.preventDefault(); return; } 
+                setDraggedExpenseId(pId); 
+                e.dataTransfer.effectAllowed = 'move'; 
+                if (e.dataTransfer.setData) e.dataTransfer.setData('text/plain', ''); 
+            };
+            const handleExpenseDrop = (e, targetId) => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                if (!draggedExpenseId || draggedExpenseId === targetId) return; 
+                let newExpenses = JSON.parse(JSON.stringify(expenses)); 
+                let draggedItem = null; 
+                for (let dIdx = 0; dIdx < newExpenses.length; dIdx++) {
+                    const iIdx = newExpenses[dIdx].items.findIndex(i => i.id === draggedExpenseId);
+                    if (iIdx !== -1) { draggedItem = newExpenses[dIdx].items.splice(iIdx, 1)[0]; break; }
+                }
+                if (!draggedItem) return;
+                let inserted = false;
+                for (let dIdx = 0; dIdx < newExpenses.length; dIdx++) {
+                    const iIdx = newExpenses[dIdx].items.findIndex(i => i.id === targetId);
+                    if (iIdx !== -1) { newExpenses[dIdx].items.splice(iIdx, 0, draggedItem); inserted = true; break; }
+                }
+                if (!inserted && newExpenses.length > 0) newExpenses[0].items.push(draggedItem);
+                newExpenses = newExpenses.filter(day => day.items.length > 0);
+                pushUpdate({ expenses: newExpenses }); 
+                setDraggedExpenseId(null); 
+                setDragEnabledExpenseId(null); 
+            };
+            const handleExpenseDragEnd = () => { 
+                setDraggedExpenseId(null); 
+                setDragEnabledExpenseId(null); 
+            };
 
             // --- 即時匯率 API 與幣別轉換 ---
             const [rates, setRates] = useState({ HKD: 1, JPY: 19.35, TWD: 4.15, MOP: 1.03, CNY: 0.92 });
@@ -959,7 +1070,7 @@
             const handleAddExpenseSubmit = (e) => { 
                 e.preventDefault(); 
                 const expenseData = { 
-                    id: newExpenseItem.id || 'e_' + Date.now(), 
+                    id: newExpenseItem.id || 'e_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), 
                     payer: newExpenseItem.payer, 
                     title: newExpenseItem.title, 
                     category: newExpenseItem.category, 
@@ -1000,7 +1111,7 @@
                 e.preventDefault(); 
                 pushUpdate({ 
                     shoppingItems: [...shoppingItems, { 
-                        id: 's_' + Date.now(), 
+                        id: 's_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), 
                         name: newShoppingItem.name, 
                         qty: Number(newShoppingItem.qty), 
                         price: Number(newShoppingItem.price),
@@ -1017,14 +1128,14 @@
             
             // --- 行李管理 ---
             const filteredPackingList = useMemo(() => { if (!packingList) return []; if (packingFilter === 'all') return packingList; return packingList.filter(item => item.owner === packingFilter || item.owner === 'all'); }, [packingList, packingFilter]);
-            const handleAddPacking = (e) => { e.preventDefault(); if (!newPackingItem.text) return; let newItems = []; if (newPackingItem.owner === 'all') { newItems = members.map((m, idx) => ({ id: 'pk' + Date.now() + '_' + idx, text: newPackingItem.text, checked: false, owner: m.name })); } else { newItems = [{ id: 'pk' + Date.now(), text: newPackingItem.text, checked: false, owner: newPackingItem.owner }]; } pushUpdate({ packingList: [...packingList, ...newItems] }); setNewPackingItem({ text: '', owner: packingFilter !== 'all' ? packingFilter : 'all' }); setShowPackingModal(false); };
+            const handleAddPacking = (e) => { e.preventDefault(); if (!newPackingItem.text) return; let newItems = []; if (newPackingItem.owner === 'all') { newItems = members.map((m, idx) => ({ id: 'pk_' + Date.now() + '_' + idx, text: newPackingItem.text, checked: false, owner: m.name })); } else { newItems = [{ id: 'pk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), text: newPackingItem.text, checked: false, owner: newPackingItem.owner }]; } pushUpdate({ packingList: [...packingList, ...newItems] }); setNewPackingItem({ text: '', owner: packingFilter !== 'all' ? packingFilter : 'all' }); setShowPackingModal(false); };
             const togglePacking = (id) => pushUpdate({ packingList: packingList.map(i => i.id === id ? { ...i, checked: !i.checked } : i) });
             const deletePacking = (e, id) => { if(e) e.stopPropagation(); pushUpdate({ packingList: packingList.filter(i => i.id !== id) }); };
             const handleSavePackingEdit = () => { if (!editingPacking || !editingPacking.text.trim()) return; pushUpdate({ packingList: packingList.map(i => i.id === editingPacking.id ? { ...i, text: editingPacking.text.trim() } : i) }); setEditingPacking(null); };
             const handleCopyPackingAction = (itemToCopy, targetOwner) => {
                 let newItems = [];
-                if (targetOwner === 'all') { const targetMembers = members.filter(m => m.name !== itemToCopy.owner); newItems = targetMembers.map((m, idx) => ({ id: 'pk' + Date.now() + '_' + idx, text: itemToCopy.text, checked: false, owner: m.name })); } 
-                else { newItems = [{ id: 'pk' + Date.now(), text: itemToCopy.text, checked: false, owner: targetOwner }]; }
+                if (targetOwner === 'all') { const targetMembers = members.filter(m => m.name !== itemToCopy.owner); newItems = targetMembers.map((m, idx) => ({ id: 'pk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), text: itemToCopy.text, checked: false, owner: m.name })); } 
+                else { newItems = [{ id: 'pk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), text: itemToCopy.text, checked: false, owner: targetOwner }]; }
                 if (newItems.length > 0) { pushUpdate({ packingList: [...packingList, ...newItems] }); showMsg('✅ 已成功複製行李項目！'); }
                 setShowCopyPackingModal(null);
             };
@@ -1071,11 +1182,39 @@
                 return { balances: balancesDisplay, transactions }; 
             }, [expenses, members, displayCurrency, convertCurr]);
             
-            const handleAddDay = () => { const newId = trip.days.length > 0 ? Math.max(...trip.days.map(d => d.id)) + 1 : 1; pushUpdate({ trip: { ...trip, days: [...trip.days, { id: newId, date: getFutureDate(newId - 1), title: '新的一天', color: '#3b82f6', weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }, places: [] }] } }); setActiveDayId(newId); };
+            const handleAddDay = () => { 
+                const newId = 'day_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); 
+                const nextIndex = trip.days ? trip.days.length : 0;
+                pushUpdate({ trip: { ...trip, days: [...(trip.days||[]), { id: newId, date: getFutureDate(nextIndex), title: `新的一天`, color: '#3b82f6', weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }, places: [] }] } }); 
+                setActiveDayId(newId); 
+            };
 
             const handleJumpToPlace = (place) => {
                 setActiveDayId(place.dayId); setActiveTab('itinerary'); setPanelMode('list'); 
                 setTimeout(() => { const el = document.getElementById(`place-card-${place.id}`); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); setHoveredPlaceId(place.id); setTimeout(() => setHoveredPlaceId(null), 2000); } }, 150);
+            };
+
+            // --- 頭像上傳處理 ---
+            const handleMemberAvatarUpload = (memberId, e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const size = Math.min(img.width, img.height);
+                        canvas.width = 150; canvas.height = 150;
+                        const ctx = canvas.getContext('2d');
+                        const x = (img.width - size) / 2;
+                        const y = (img.height - size) / 2;
+                        ctx.drawImage(img, x, y, size, size, 0, 0, 150, 150);
+                        updateMember(memberId, 'avatar', canvas.toDataURL('image/jpeg', 0.6));
+                        showMsg('✅ 頭像更新成功');
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
             };
 
             const handlePlaceImageUpload = (dayId, placeId, e) => {
@@ -1139,7 +1278,7 @@
             const handleDeleteMember = (id) => { if(members.length <= 1) return showMsg('至少需保留一位成員'); pushUpdate({ members: members.filter(m => m.id !== id) }); };
             
             const handleAddMember = () => {
-                const newId = 'm' + Date.now();
+                const newId = 'm_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
                 const colors = ['bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500'];
                 pushUpdate({ members: [...members, { id: newId, name: `新成員${members.length + 1}`, color: colors[Math.floor(Math.random() * colors.length)], avatar: '👤' }] });
             };
@@ -1162,7 +1301,13 @@
                             <div className={`w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold hover:scale-105 transition-transform shrink-0`}><input value={trip.icon || '🚀'} onChange={e => pushUpdate({trip:{...trip, icon:e.target.value}})} className="w-full h-full bg-transparent text-center text-lg outline-none cursor-pointer" maxLength="2"/></div>
                             <div className="flex flex-col min-w-0 flex-1"><input value={trip.title} onChange={(e) => pushUpdate({trip:{...trip, title:e.target.value}})} className="text-sm font-bold bg-transparent outline-none w-full" /><input value={trip.dates} onChange={(e) => pushUpdate({trip:{...trip, dates:e.target.value}})} className="text-xs text-slate-500 bg-transparent outline-none w-full" /></div>
                         </div>
-                        <OnlineUserBadge />
+                        <div className="flex items-center gap-2 md:gap-3 shrink-0 ml-2">
+                            <button onClick={() => setShowMemberSettings(true)} className="p-1.5 md:px-3 md:py-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700" title="成員管理">
+                                <Icons.Users size={16} />
+                                <span className="hidden md:inline text-xs font-bold">成員</span>
+                            </button>
+                            <OnlineUserBadge />
+                        </div>
                     </header>
                     <div className="flex border-b border-slate-800 bg-slate-900 px-2 md:px-4 gap-4 md:gap-6 text-sm font-medium overflow-x-auto no-scrollbar">
                         <button onClick={() => setActiveTab('itinerary')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Map size={18} />行程</button>
@@ -1184,13 +1329,19 @@
                                             <div className="w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto my-1.5 md:hidden"></div>
                                             <div ref={daysContainerRef} onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} onMouseLeave={() => { isDraggingDay.current = false; }} onMouseUp={() => { isDraggingDay.current = false; }} onMouseMove={(e) => { if(!isDraggingDay.current) return; const x = e.pageX; const walk = (x - dragStartX.current); if (Math.abs(walk) > 5) { dragHasMoved.current = true; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; } }} className="bg-slate-900 border-b border-slate-800 px-3 pb-3 md:py-4 flex flex-nowrap gap-2 md:gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none shrink-0">
                                                 {trip.days?.map((day, idx) => (
-                                                    <button key={day.id} onClick={() => { if(!dragHasMoved.current) setActiveDayId(day.id); }} className={`flex flex-col items-start min-w-[60px] md:min-w-[100px] shrink-0 p-1.5 md:p-3 rounded-lg md:rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 md:ring-2 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}><div className="flex justify-between items-center w-full mb-0.5 md:mb-1.5 pointer-events-none"><span className={`text-[10px] md:text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>Day {idx + 1}</span><div className="scale-75 md:scale-100 origin-right ml-1"><WeatherIcon type={day.weather?.type} size={16} /></div></div><span className="text-[8px] md:text-xs font-medium text-slate-500 pointer-events-none mt-0.5 md:mt-0">{formatShortDate(day.date)}</span></button>
+                                                    <button key={day.id} onClick={() => { if(!dragHasMoved.current) setActiveDayId(day.id); }} className={`relative flex flex-col items-start min-w-[60px] md:min-w-[100px] shrink-0 p-1.5 md:p-3 rounded-lg md:rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 md:ring-2 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}>
+                                                        {activeDayId === day.id && trip.days?.length > 1 && (
+                                                            <div onClick={(e) => { e.stopPropagation(); setShowDeleteDayConfirm(true); }} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-400 text-white rounded-full flex items-center justify-center shadow-md z-10 pointer-events-auto transition-colors" title="刪除此天">
+                                                                <Icons.X size={12} />
+                                                            </div>
+                                                        )}
+                                                        <div className="flex justify-between items-center w-full mb-0.5 md:mb-1.5 pointer-events-none"><span className={`text-[10px] md:text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>D{idx + 1}</span><div className="scale-75 md:scale-100 origin-right ml-1"><WeatherIcon type={day.weather?.type} size={16} /></div></div><span className="text-[8px] md:text-xs font-medium text-slate-500 pointer-events-none mt-0.5 md:mt-0">{formatShortDate(day.date)}</span>
+                                                    </button>
                                                 ))}
                                                 <button onClick={() => { if(!dragHasMoved.current) handleAddDay(); }} className="min-w-[50px] md:min-w-[80px] p-1.5 md:p-3 rounded-lg md:rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center"><div className="bg-slate-800 rounded-full p-1 md:p-1.5 mb-1 md:mb-1.5 pointer-events-none scale-75 md:scale-100"><Icons.Plus size={18} /></div><span className="text-[9px] md:text-xs font-bold pointer-events-none">新增</span></button>
                                             </div>
                                             <div className="px-3 md:px-4 py-4 overflow-y-auto flex-1 pb-32">
-                                                <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700/50"><div className="flex flex-col"><h3 className="font-bold text-blue-400">{activeDayData?.title}</h3><div className="text-[10px] text-slate-400 mt-1">{activeDayData?.places?.length || 0} 個景點</div></div><button onClick={() => setShowDeleteDayConfirm(true)} className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg border border-slate-700 transition-colors"><Icons.Trash2 size={16} /></button></div>
-                                                <div className="flex flex-col">
+                                                <div className="flex flex-col mt-2">
                                                     {activeDayData?.places.map((p, i) => {
                                                         const isNoteExpanded = expandedNotes[p.id];
                                                         return (
@@ -1255,7 +1406,7 @@
                                     
                                     <div className="flex flex-wrap justify-between gap-4 items-center bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
                                         <div className="flex items-center gap-4">
-                                            <div className="relative inline-flex items-center bg-slate-800 border border-slate-700 rounded-xl shadow-lg px-1 py-1 pr-8 hover:border-blue-500 transition-colors cursor-pointer"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 mr-1.5 ${expenseFilter === 'all' ? 'bg-slate-600' : getMemberInfo(expenseFilter).color}`}>{expenseFilter === 'all' ? <Icons.Users size={16}/> : getMemberInfo(expenseFilter).avatar}</div><span className="text-xs sm:text-sm font-bold text-slate-300 whitespace-nowrap min-w-[60px]">{expenseFilter === 'all' ? '全體成員' : expenseFilter}</span><select value={expenseFilter} onChange={(e) => setExpenseFilter(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none z-10"><option value="all">👥 全體成員</option>{members.map(member => (<option key={member.id} value={member.name}>{member.avatar} {member.name}</option>))}</select></div>
+                                            <div className="relative inline-flex items-center bg-slate-800 border border-slate-700 rounded-xl shadow-lg px-1 py-1 pr-8 hover:border-blue-500 transition-colors cursor-pointer"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 mr-1.5 overflow-hidden ${expenseFilter === 'all' ? 'bg-slate-600' : (getMemberInfo(expenseFilter).avatar?.startsWith('data:image') ? 'bg-slate-800' : getMemberInfo(expenseFilter).color)}`}>{expenseFilter === 'all' ? <Icons.Users size={16}/> : (getMemberInfo(expenseFilter).avatar?.startsWith('data:image') ? <img src={getMemberInfo(expenseFilter).avatar} className="w-full h-full object-cover" /> : getMemberInfo(expenseFilter).avatar)}</div><span className="text-xs sm:text-sm font-bold text-slate-300 whitespace-nowrap min-w-[60px]">{expenseFilter === 'all' ? '全體成員' : expenseFilter}</span><select value={expenseFilter} onChange={(e) => setExpenseFilter(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none z-10"><option value="all">👥 全體成員</option>{members.map(member => (<option key={member.id} value={member.name}>{member.avatar?.startsWith('data:image') ? '👤' : member.avatar} {member.name}</option>))}</select></div>
                                             <div className="flex items-center gap-2">
                                                 <div className="relative inline-block text-left"><div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-400 hover:bg-slate-700 px-3 py-2 rounded-lg transition-all border border-slate-700 cursor-pointer relative" title={ratesLoaded ? "已套用即時匯率" : "匯率載入中"}>{ratesLoaded && <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_5px_#22c55e]"></span>}<span>{displayCurrency}</span><select value={displayCurrency} onChange={(e) => setDisplayCurrency(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option><option value="JPY">JPY</option></select></div></div>
                                                 {displayCurrency !== 'HKD' && ratesLoaded && (<div className="text-[11px] text-slate-400 font-mono tracking-wide bg-slate-900/50 px-2 py-1 rounded-md border border-slate-700/50 hidden sm:block">1 HKD = {Number(rates[displayCurrency]).toFixed(2)} {displayCurrency}</div>)}
@@ -1289,11 +1440,13 @@
                                                         const originalCurr = item.currency || 'JPY';
                                                         const convertedDisplayAmt = convertCurr(originalAmount, originalCurr, displayCurrency);
                                                         return (
-                                                            <div key={item.id} className="p-3 border-b last:border-b-0 border-slate-700 relative hover:bg-slate-700/50 transition-colors group">
-                                                                <div className="flex justify-between items-start gap-2"><div className="min-w-0 flex-1"><div className="flex items-center gap-2 mb-1"><CategoryIconWithLabel type={item.category} size={12} /><div className="font-bold text-slate-200 text-sm truncate">{item.title}</div></div><div className="text-[10px] text-slate-500">{formatShortDate(item.date)}</div>
-                                                                    {item.sharedBy && item.sharedBy.length > 0 && (<div className="text-[10px] text-slate-400 mt-1 flex flex-wrap gap-1">分攤: {item.sharedBy.join(', ')}</div>)}
-                                                                </div>
-                                                                    <div className="text-right shrink-0 relative"><div className="font-bold text-red-300 text-sm font-mono leading-none">{displayCurrency} {formatNumber(convertedDisplayAmt, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono mt-1 leading-none">({originalCurr} {formatNumber(originalAmount, originalCurr === 'JPY' ? 0 : 1)})</div>}
+                                                            <div key={item.id} draggable={true} onDragStart={(e) => handleExpenseDragStart(e, item.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleExpenseDrop(e, item.id)} onDragEnd={handleExpenseDragEnd} className={`flex items-start gap-2 p-3 border-b last:border-b-0 border-slate-700 relative hover:bg-slate-700/50 transition-colors group ${draggedExpenseId === item.id ? 'opacity-30 scale-[0.98]' : ''}`}>
+                                                                <div onMouseEnter={() => setDragEnabledExpenseId(item.id)} onMouseLeave={() => setDragEnabledExpenseId(null)} onTouchStart={() => setDragEnabledExpenseId(item.id)} onTouchEnd={() => setDragEnabledExpenseId(null)} className="drag-handle text-slate-400 bg-slate-800 p-1 rounded border border-slate-700 hover:text-white cursor-grab active:cursor-grabbing shrink-0 flex items-center justify-center mt-0.5 shadow-sm"><Icons.GripVertical size={16} /></div>
+                                                                <div className="flex justify-between items-start gap-2 flex-1 min-w-0">
+                                                                    <div className="min-w-0 flex-1"><div className="flex items-center gap-2 mb-1"><CategoryIconWithLabel type={item.category} size={12} /><div className="font-bold text-slate-200 text-sm truncate">{item.title}</div></div><div className="text-[10px] text-slate-500">{formatShortDate(item.date)}</div>
+                                                                        {item.sharedBy && item.sharedBy.length > 0 && (<div className="text-[10px] text-slate-400 mt-1 flex flex-wrap gap-1">分攤: {item.sharedBy.join(', ')}</div>)}
+                                                                    </div>
+                                                                    <div className="text-right shrink-0 relative"><div className="font-bold text-red-300 text-sm font-mono leading-none">支付 {displayCurrency} {formatNumber(convertedDisplayAmt, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono mt-1 leading-none">支付用 ({originalCurr} {formatNumber(originalAmount, originalCurr === 'JPY' ? 0 : 1)})</div>}
                                                                         <div className="flex items-center gap-1 mt-2 justify-end">
                                                                             <button onClick={(e) => { e.stopPropagation(); setActiveExpenseMenu(activeExpenseMenu?.id === item.id ? null : item); }} className="text-slate-500 hover:text-white p-1.5 rounded-md bg-slate-900 border border-slate-700 transition-colors"><Icons.MoreVertical size={12} /></button>
                                                                         </div>
@@ -1312,7 +1465,7 @@
                                             const myBalance = settlementResult.balances[m.name] || 0;
                                             return (
                                                 <div key={m.id} className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 snap-start space-y-4 animate-fade-in bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
-                                                    <div className="flex items-center gap-3 px-2"><div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg ${m.color}`}>{m.avatar}</div><div className="flex flex-col"><h3 className="font-bold text-slate-200 tracking-wide text-lg">{m.name}</h3><span className="text-[11px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 w-max mt-1">付款 {mExpenses.length} 筆</span></div></div>
+                                                    <div className="flex items-center justify-between px-2"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg overflow-hidden ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}</div><div className="flex flex-col"><h3 className="font-bold text-slate-200 tracking-wide text-lg">{m.name}</h3><span className="text-[11px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 w-max mt-1">付款 {mExpenses.length} 筆</span></div></div><button onClick={() => { const defaultDate = activeDayData?.date ? activeDayData.date.split(' ')[0].replace(/\//g, '-') : '2026-04-03'; setNewExpenseItem({id: undefined, date: defaultDate, title: '', category: 'food', payer: m.name, amount: '', currency: displayCurrency, sharedBy: members.map(mem => mem.name), image: null}); setShowExpenseModal(true); }} className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-blue-600 rounded-lg transition-colors border border-slate-700" title="為此成員新增花費"><Icons.Plus size={16} /></button></div>
                                                     <div className="bg-slate-900/50 rounded-xl border border-slate-700 p-3 flex flex-col shadow-inner gap-2">
                                                         <div className="flex justify-between items-center"><span className="text-xs text-slate-400">已墊付</span><div className="font-bold text-blue-400 font-mono text-sm">{displayCurrency} {formatNumber(mTotalDisplay, displayCurrency === 'JPY' ? 0 : 1)}</div></div>
                                                         <div className="border-t border-slate-700/50"></div>
@@ -1329,11 +1482,13 @@
                                                             const payerInShared = item.sharedBy && item.sharedBy.includes(item.payer);
                                                             const collectAmount = convertedDisplayAmt - (payerInShared ? (convertedDisplayAmt / splitCount) : 0);
                                                             return (
-                                                                <div key={item.id} className="p-3 border-b last:border-b-0 border-slate-700 relative hover:bg-slate-700/50 transition-colors group">
-                                                                    <div className="flex justify-between items-start gap-2"><div className="min-w-0 flex-1"><div className="flex items-center gap-2 mb-1"><CategoryIconWithLabel type={item.category} size={12} /><div className="font-bold text-slate-200 text-sm truncate">{item.title}</div></div><div className="text-[10px] text-slate-500">{formatShortDate(item.date)}</div>
-                                                                        {item.sharedBy && item.sharedBy.length > 0 && (<div className="text-[10px] text-slate-400 mt-1 flex flex-wrap gap-1">分攤: {item.sharedBy.map(name => getMemberInfo(name).avatar).join(' ')}</div>)}
-                                                                    </div>
-                                                                        <div className="text-right shrink-0 relative"><div className="font-bold text-slate-100 text-sm font-mono leading-none">{displayCurrency} {formatNumber(convertedDisplayAmt, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono mt-1 leading-none">({originalCurr} {formatNumber(originalAmount, originalCurr === 'JPY' ? 0 : 1)})</div>}
+                                                                <div key={item.id} draggable={true} onDragStart={(e) => handleExpenseDragStart(e, item.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleExpenseDrop(e, item.id)} onDragEnd={handleExpenseDragEnd} className={`flex items-start gap-2 p-3 border-b last:border-b-0 border-slate-700 relative hover:bg-slate-700/50 transition-colors group ${draggedExpenseId === item.id ? 'opacity-30 scale-[0.98]' : ''}`}>
+                                                                    <div onMouseEnter={() => setDragEnabledExpenseId(item.id)} onMouseLeave={() => setDragEnabledExpenseId(null)} onTouchStart={() => setDragEnabledExpenseId(item.id)} onTouchEnd={() => setDragEnabledExpenseId(null)} className="drag-handle text-slate-400 bg-slate-800 p-1 rounded border border-slate-700 hover:text-white cursor-grab active:cursor-grabbing shrink-0 flex items-center justify-center mt-0.5 shadow-sm"><Icons.GripVertical size={16} /></div>
+                                                                    <div className="flex justify-between items-start gap-2 flex-1 min-w-0">
+                                                                        <div className="min-w-0 flex-1"><div className="flex items-center gap-2 mb-1"><CategoryIconWithLabel type={item.category} size={12} /><div className="font-bold text-slate-200 text-sm truncate">{item.title}</div></div><div className="text-[10px] text-slate-500">{formatShortDate(item.date)}</div>
+                                                                            {item.sharedBy && item.sharedBy.length > 0 && (<div className="text-[10px] text-slate-400 mt-1 flex flex-wrap gap-1 items-center">分攤: {item.sharedBy.map(name => { const info = getMemberInfo(name); return (<div key={name} className="flex items-center gap-0.5 bg-slate-800/50 px-1 rounded">{info.avatar?.startsWith('data:image') ? <img src={info.avatar} className="w-3 h-3 rounded-full object-cover" /> : <span>{info.avatar}</span>}<span>{name}</span></div>); })}</div>)}
+                                                                        </div>
+                                                                        <div className="text-right shrink-0 relative"><div className="font-bold text-slate-100 text-sm font-mono leading-none">支付 {displayCurrency} {formatNumber(convertedDisplayAmt, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono mt-1 leading-none">支付用 ({originalCurr} {formatNumber(originalAmount, originalCurr === 'JPY' ? 0 : 1)})</div>}
                                                                             {collectAmount > 0.01 && (<div className="mt-1.5 inline-block text-[10px] font-bold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-500/20">需收回 {formatNumber(collectAmount, displayCurrency === 'JPY' ? 0 : 1)}</div>)}
                                                                             <div className="flex items-center gap-1 mt-2 justify-end">
                                                                                 {item.image && (<button onClick={() => setPreviewImage(item.image)} className="text-slate-500 hover:text-blue-400 p-1.5 rounded-md bg-slate-900 border border-slate-700 transition-colors"><Icons.Image size={12} /></button>)}
@@ -1375,7 +1530,7 @@
                                             const originalCurr = item.currency || 'MOP';
                                             const convertedTotal = convertCurr(originalTotal, originalCurr, displayCurrency);
                                             return (
-                                                <div key={item.id} className="bg-slate-800 rounded-xl border border-slate-700 p-4 flex items-center gap-4"><div className="flex-1 min-w-0"><div className="flex justify-between items-start mb-1"><h4 className="font-bold text-slate-100 text-lg truncate">{item.name}</h4><div className="text-right flex flex-col items-end"><div className="font-bold text-teal-400 font-mono text-lg">{displayCurrency} {formatNumber(convertedTotal, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono leading-none mt-1.5">({originalCurr} {formatNumber(originalTotal, originalCurr === 'JPY' ? 0 : 1)})</div>}</div></div><div className="flex justify-between items-end"><div className="flex flex-col gap-1"><div className="flex items-center gap-1.5"><div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] ${mInfo.color}`}>{mInfo.avatar}</div><span className="text-xs text-slate-400 font-medium">{item.requester} (x{item.qty})</span></div>{item.note && <div className="text-xs text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{item.note}</div>}</div><button onClick={() => setShoppingToDelete(item.id)} className="text-slate-600 hover:text-red-400 p-2"><Icons.Trash2 size={16} /></button></div></div></div>
+                                                <div key={item.id} className="bg-slate-800 rounded-xl border border-slate-700 p-4 flex items-center gap-4"><div className="flex-1 min-w-0"><div className="flex justify-between items-start mb-1"><h4 className="font-bold text-slate-100 text-lg truncate">{item.name}</h4><div className="text-right flex flex-col items-end"><div className="font-bold text-teal-400 font-mono text-lg">{displayCurrency} {formatNumber(convertedTotal, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono leading-none mt-1.5">({originalCurr} {formatNumber(originalTotal, originalCurr === 'JPY' ? 0 : 1)})</div>}</div></div><div className="flex justify-between items-end"><div className="flex flex-col gap-1"><div className="flex items-center gap-1.5"><div className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] overflow-hidden shrink-0 ${mInfo.avatar?.startsWith('data:image') ? 'bg-slate-800' : mInfo.color}`}>{mInfo.avatar?.startsWith('data:image') ? <img src={mInfo.avatar} className="w-full h-full object-cover" /> : mInfo.avatar}</div><span className="text-xs text-slate-400 font-medium">{item.requester} (x{item.qty})</span></div>{item.note && <div className="text-xs text-slate-500 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">{item.note}</div>}</div><button onClick={() => setShoppingToDelete(item.id)} className="text-slate-600 hover:text-red-400 p-2"><Icons.Trash2 size={16} /></button></div></div></div>
                                             );
                                         })}
                                         {shoppingItems.length === 0 && <div className="text-center py-20 text-slate-500">目前沒有待買項目喔</div>}
@@ -1387,7 +1542,7 @@
                             <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto relative">
                                 <div className="max-w-[1400px] mx-auto space-y-6 pb-32">
                                     <div className="flex justify-between items-center mb-2"><h2 className="text-2xl font-bold text-slate-100">行李清單</h2><button onClick={() => { setNewPackingItem({ text: '', owner: packingFilter !== 'all' ? packingFilter : 'all' }); setShowPackingModal(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2"><Icons.Plus size={18} /> 新增</button></div>
-                                    <div className="flex justify-start"><div className="relative inline-flex items-center bg-slate-800 border border-slate-700 rounded-xl shadow-lg px-1 py-1 pr-8 hover:border-blue-500 transition-colors cursor-pointer"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 mr-1.5 ${packingFilter === 'all' ? 'bg-slate-600' : getMemberInfo(packingFilter).color}`}>{packingFilter === 'all' ? <Icons.Users size={16}/> : getMemberInfo(packingFilter).avatar}</div><span className="text-xs sm:text-sm font-bold text-slate-300 whitespace-nowrap min-w-[60px]">{packingFilter === 'all' ? '全體成員' : packingFilter}</span><select value={packingFilter} onChange={(e) => setPackingFilter(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none z-10"><option value="all">👥 全體成員</option>{members.map(member => (<option key={member.id} value={member.name}>{member.avatar} {member.name}</option>))}</select></div></div>
+                                    <div className="flex justify-start"><div className="relative inline-flex items-center bg-slate-800 border border-slate-700 rounded-xl shadow-lg px-1 py-1 pr-8 hover:border-blue-500 transition-colors cursor-pointer"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 mr-1.5 overflow-hidden ${packingFilter === 'all' ? 'bg-slate-600' : (getMemberInfo(packingFilter).avatar?.startsWith('data:image') ? 'bg-slate-800' : getMemberInfo(packingFilter).color)}`}>{packingFilter === 'all' ? <Icons.Users size={16}/> : (getMemberInfo(packingFilter).avatar?.startsWith('data:image') ? <img src={getMemberInfo(packingFilter).avatar} className="w-full h-full object-cover" /> : getMemberInfo(packingFilter).avatar)}</div><span className="text-xs sm:text-sm font-bold text-slate-300 whitespace-nowrap min-w-[60px]">{packingFilter === 'all' ? '全體成員' : packingFilter}</span><select value={packingFilter} onChange={(e) => setPackingFilter(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none z-10"><option value="all">👥 全體成員</option>{members.map(member => (<option key={member.id} value={member.name}>{member.avatar?.startsWith('data:image') ? '👤' : member.avatar} {member.name}</option>))}</select></div></div>
                                     <div className="flex flex-nowrap gap-4 overflow-x-auto pb-8 snap-x snap-mandatory no-scrollbar items-start">
                                         {orphanedPacking.length > 0 && packingFilter === 'all' && (
                                             <div key="orphaned-packing" className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 snap-start space-y-4 animate-fade-in bg-red-900/20 p-4 rounded-2xl border border-red-700/50">
@@ -1409,10 +1564,17 @@
                                             const items = packingList.filter(i => i.owner === m.name);
                                             return (
                                                 <div key={m.id} className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 snap-start space-y-4 animate-fade-in bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
-                                                    <div className="flex items-center gap-3 px-2"><div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg ${m.color}`}>{m.avatar}</div><div className="flex flex-col"><h3 className="font-bold text-slate-200 tracking-wide text-lg">{m.name}</h3><span className="text-[11px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 w-max mt-1">共 {items.length} 項</span></div></div>
+                                                    <div className="flex items-center justify-between px-2"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg overflow-hidden ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}</div><div className="flex flex-col"><h3 className="font-bold text-slate-200 tracking-wide text-lg">{m.name}</h3><span className="text-[11px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 w-max mt-1">共 {items.length} 項</span></div></div><button onClick={() => { setNewPackingItem({ text: '', owner: m.name }); setShowPackingModal(true); }} className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-blue-600 rounded-lg transition-colors border border-slate-700" title="為此成員新增項目"><Icons.Plus size={16} /></button></div>
                                                     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg h-[60vh] overflow-y-auto no-scrollbar">
                                                         {items.length > 0 ? items.map((item) => (
-                                                            <div key={item.id} className="flex items-start justify-between p-3 border-b last:border-b-0 border-slate-700 relative hover:bg-slate-700/50 transition-colors group"><div className="flex items-start gap-3 mt-0.5 flex-1 min-w-0"><div onClick={() => togglePacking(item.id)} className={`w-5 h-5 mt-0.5 rounded border flex items-center justify-center transition-colors shrink-0 cursor-pointer ${item.checked ? 'bg-blue-600 border-blue-600' : 'border-slate-600 bg-slate-900'}`}>{item.checked && <span className="text-white text-[10px]">✓</span>}</div>{editingPacking?.id === item.id ? (<div className="flex-1 flex gap-1 mr-1"><input autoFocus value={editingPacking.text} onChange={(e) => setEditingPacking({...editingPacking, text: e.target.value})} onKeyDown={(e) => e.key === 'Enter' && handleSavePackingEdit()} className="w-full px-2 py-1 bg-slate-900 border border-blue-500 rounded text-sm text-white outline-none" /><button onClick={handleSavePackingEdit} className="text-green-400 p-1"><Icons.Check size={16}/></button></div>) : (<span onClick={() => togglePacking(item.id)} className={`text-slate-200 text-sm font-medium break-all whitespace-normal pr-2 cursor-pointer ${item.checked ? 'line-through text-slate-500' : ''}`}>{item.text}</span>)}</div><div className="relative shrink-0"><button onClick={(e) => { e.stopPropagation(); setActivePackingMenu(activePackingMenu?.id === item.id ? null : item); }} className="text-slate-500 hover:text-white p-1.5 rounded-full hover:bg-slate-600 transition-colors"><Icons.MoreVertical size={16} /></button></div></div>
+                                                            <div key={item.id} draggable={true} onDragStart={(e) => handlePackingDragStart(e, item.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handlePackingDrop(e, item.id)} onDragEnd={handlePackingDragEnd} className={`flex items-start justify-between p-3 border-b last:border-b-0 border-slate-700 relative hover:bg-slate-700/50 transition-colors group ${draggedPackingId === item.id ? 'opacity-30 scale-[0.98]' : ''}`}>
+                                                                <div className="flex items-start gap-2.5 mt-0.5 flex-1 min-w-0">
+                                                                    <div onMouseEnter={() => setDragEnabledPackingId(item.id)} onMouseLeave={() => setDragEnabledPackingId(null)} onTouchStart={() => setDragEnabledPackingId(item.id)} onTouchEnd={() => setDragEnabledPackingId(null)} className="drag-handle text-slate-400 bg-slate-800 p-1 rounded border border-slate-700 hover:text-white cursor-grab active:cursor-grabbing shrink-0 flex items-center justify-center mt-0.5 shadow-sm"><Icons.GripVertical size={16} /></div>
+                                                                    <div onClick={() => togglePacking(item.id)} className={`w-5 h-5 mt-0.5 rounded border flex items-center justify-center transition-colors shrink-0 cursor-pointer ${item.checked ? 'bg-blue-600 border-blue-600' : 'border-slate-600 bg-slate-900'}`}>{item.checked && <span className="text-white text-[10px]">✓</span>}</div>
+                                                                    {editingPacking?.id === item.id ? (<div className="flex-1 flex gap-1 mr-1"><input autoFocus value={editingPacking.text} onChange={(e) => setEditingPacking({...editingPacking, text: e.target.value})} onKeyDown={(e) => e.key === 'Enter' && handleSavePackingEdit()} className="w-full px-2 py-1 bg-slate-900 border border-blue-500 rounded text-sm text-white outline-none" /><button onClick={handleSavePackingEdit} className="text-green-400 p-1"><Icons.Check size={16}/></button></div>) : (<span onClick={() => togglePacking(item.id)} className={`text-slate-200 text-sm font-medium break-all whitespace-normal pr-2 cursor-pointer ${item.checked ? 'line-through text-slate-500' : ''}`}>{item.text}</span>)}
+                                                                </div>
+                                                                <div className="relative shrink-0"><button onClick={(e) => { e.stopPropagation(); setActivePackingMenu(activePackingMenu?.id === item.id ? null : item); }} className="text-slate-500 hover:text-white p-1.5 rounded-full hover:bg-slate-600 transition-colors"><Icons.MoreVertical size={16} /></button></div>
+                                                            </div>
                                                         )) : (<div className="p-6 text-center text-slate-500 text-sm mt-10">尚無項目</div>)}
                                                     </div>
                                                 </div>
@@ -1493,12 +1655,12 @@
                         </div>
                     )}
 
-                    {showExpenseModal && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[90vh] border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0"><h3 className="font-bold text-lg text-slate-100">{newExpenseItem.id ? '修改花費' : '新增花費'}</h3><button onClick={() => setShowExpenseModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><form onSubmit={handleAddExpenseSubmit} className="p-6 space-y-4 overflow-y-auto"><div><label className="block text-sm font-bold text-slate-400 mb-1">名稱</label><input required value={newExpenseItem.title} onChange={e => setNewExpenseItem({...newExpenseItem, title: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">日期</label><input required type="date" value={newExpenseItem.date} onChange={e => setNewExpenseItem({...newExpenseItem, date: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">類別</label><select value={newExpenseItem.category} onChange={e => setNewExpenseItem({...newExpenseItem, category: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="food">餐飲</option><option value="shopping">購物</option><option value="transport">交通</option><option value="sight">景點</option><option value="accommodation">住宿</option><option value="other">其他</option></select></div></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">金額</label><input required type="number" step="0.01" value={newExpenseItem.amount} onChange={e => setNewExpenseItem({...newExpenseItem, amount: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newExpenseItem.currency} onChange={e => setNewExpenseItem({...newExpenseItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option></select></div></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">付款人</label><select value={newExpenseItem.payer} onChange={e => setNewExpenseItem({...newExpenseItem, payer: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => { const isChecked = newExpenseItem.sharedBy.includes(m.name); return (<button key={m.id} type="button" onClick={() => toggleSharedMember(m.name)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1 ${isChecked ? 'bg-blue-900/40 text-blue-400 border-blue-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>{isChecked ? '✓ ' : ''}{m.avatar} {m.name}</button>); })}</div></div><button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg">{newExpenseItem.id ? '儲存修改' : '確認新增'}</button></form></div></div>)}
+                    {showExpenseModal && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[90vh] border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0"><h3 className="font-bold text-lg text-slate-100">{newExpenseItem.id ? '修改花費' : '新增花費'}</h3><button onClick={() => setShowExpenseModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><form onSubmit={handleAddExpenseSubmit} className="p-6 space-y-4 overflow-y-auto"><div><label className="block text-sm font-bold text-slate-400 mb-1">名稱</label><input required value={newExpenseItem.title} onChange={e => setNewExpenseItem({...newExpenseItem, title: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">日期</label><input required type="date" value={newExpenseItem.date} onChange={e => setNewExpenseItem({...newExpenseItem, date: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">類別</label><select value={newExpenseItem.category} onChange={e => setNewExpenseItem({...newExpenseItem, category: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="food">餐飲</option><option value="shopping">購物</option><option value="transport">交通</option><option value="sight">景點</option><option value="accommodation">住宿</option><option value="other">其他</option></select></div></div><div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">金額</label><input required type="number" step="0.01" value={newExpenseItem.amount} onChange={e => setNewExpenseItem({...newExpenseItem, amount: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newExpenseItem.currency} onChange={e => setNewExpenseItem({...newExpenseItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option></select></div></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">付款人</label><select value={newExpenseItem.payer} onChange={e => setNewExpenseItem({...newExpenseItem, payer: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => { const isChecked = newExpenseItem.sharedBy.includes(m.name); return (<button key={m.id} type="button" onClick={() => toggleSharedMember(m.name)} className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1 ${isChecked ? 'bg-blue-900/40 text-blue-400 border-blue-500/50' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>{isChecked ? '✓ ' : ''}{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-4 h-4 rounded-full object-cover inline-block align-middle" /> : m.avatar} {m.name}</button>); })}</div></div><button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg">{newExpenseItem.id ? '儲存修改' : '確認新增'}</button></form></div></div>)}
                     {showShoppingModal && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">新增待買項目</h3><button onClick={() => setShowShoppingModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><form onSubmit={handleAddShoppingSubmit} className="p-6 space-y-4"><div><label className="block text-sm font-bold text-slate-400 mb-1">品名</label><input required value={newShoppingItem.name} onChange={e => setNewShoppingItem({...newShoppingItem, name: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex gap-4"><div className="w-20"><label className="block text-sm font-bold text-slate-400 mb-1">數量</label><input type="number" min="1" value={newShoppingItem.qty} onChange={e => setNewShoppingItem({...newShoppingItem, qty: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">單價</label><input required type="number" step="0.01" min="0" value={newShoppingItem.price} onChange={e => setNewShoppingItem({...newShoppingItem, price: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newShoppingItem.currency} onChange={e => setNewShoppingItem({...newShoppingItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option></select></div></div><div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">訂購人</label><select value={newShoppingItem.requester} onChange={e => setNewShoppingItem({...newShoppingItem, requester: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><button type="submit" className="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold mt-2 shadow-lg">確認新增</button></form></div></div>)}
                     {showPackingModal && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">新增行李項目</h3><button onClick={() => setShowPackingModal(false)}><Icons.X size={20} className="text-slate-500 hover:text-white transition-colors" /></button></div><form onSubmit={handleAddPacking} className="p-6 space-y-4"><div><label className="block text-sm font-bold text-slate-400 mb-1">物品名稱</label><input required placeholder="例如: 護照" value={newPackingItem.text} onChange={e => setNewPackingItem({...newPackingItem, text: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100"/></div><div><label className="block text-sm font-bold text-slate-400 mb-1">所屬成員</label><select value={newPackingItem.owner} onChange={e => setNewPackingItem({...newPackingItem, owner: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"><option value="all">👥 全體成員</option>{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div><button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg transition-colors">新增</button></form></div></div>)}
-                    {showCopyPackingModal && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full border border-slate-700 overflow-hidden"><div className="p-4 border-b border-slate-700 flex justify-between bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">複製行李項目</h3><button onClick={() => setShowCopyPackingModal(null)}><Icons.X size={20} className="text-slate-500 hover:text-white" /></button></div><div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto"><p className="text-sm text-slate-300 bg-slate-900 p-3 rounded-lg border border-slate-700">準備複製：<strong className="text-white ml-1">{showCopyPackingModal.text}</strong></p><p className="text-xs font-bold text-slate-400 mt-4 mb-2">請選擇目標對象：</p><div className="space-y-2"><button onClick={() => handleCopyPackingAction(showCopyPackingModal, 'all')} className="w-full p-3 rounded-xl border border-slate-600 bg-blue-900/20 hover:bg-blue-900/40 hover:border-blue-500 text-left flex items-center gap-3 transition-colors"><div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-slate-600 shadow-inner"><Icons.Users size={16}/></div><span className="font-bold text-blue-300">全體成員 (排除本人)</span></button><div className="my-2 border-t border-slate-700 w-full h-1"></div>{members.filter(m => m.name !== showCopyPackingModal.owner).map(m => (<button key={m.id} onClick={() => handleCopyPackingAction(showCopyPackingModal, m.name)} className="w-full p-3 rounded-xl border border-slate-600 bg-slate-900/50 hover:bg-slate-700 hover:border-blue-500 text-left flex items-center gap-3 transition-colors"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-inner ${m.color}`}>{m.avatar}</div><span className="font-bold text-slate-200">{m.name}</span></button>))}</div></div></div></div>)}
+                    {showCopyPackingModal && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full border border-slate-700 overflow-hidden"><div className="p-4 border-b border-slate-700 flex justify-between bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">複製行李項目</h3><button onClick={() => setShowCopyPackingModal(null)}><Icons.X size={20} className="text-slate-500 hover:text-white" /></button></div><div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto"><p className="text-sm text-slate-300 bg-slate-900 p-3 rounded-lg border border-slate-700">準備複製：<strong className="text-white ml-1">{showCopyPackingModal.text}</strong></p><p className="text-xs font-bold text-slate-400 mt-4 mb-2">請選擇目標對象：</p><div className="space-y-2"><button onClick={() => handleCopyPackingAction(showCopyPackingModal, 'all')} className="w-full p-3 rounded-xl border border-slate-600 bg-blue-900/20 hover:bg-blue-900/40 hover:border-blue-500 text-left flex items-center gap-3 transition-colors"><div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-slate-600 shadow-inner"><Icons.Users size={16}/></div><span className="font-bold text-blue-300">全體成員 (排除本人)</span></button><div className="my-2 border-t border-slate-700 w-full h-1"></div>{members.filter(m => m.name !== showCopyPackingModal.owner).map(m => (<button key={m.id} onClick={() => handleCopyPackingAction(showCopyPackingModal, m.name)} className="w-full p-3 rounded-xl border border-slate-600 bg-slate-900/50 hover:bg-slate-700 hover:border-blue-500 text-left flex items-center gap-3 transition-colors"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-inner overflow-hidden ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}</div><span className="font-bold text-slate-200">{m.name}</span></button>))}</div></div></div></div>)}
                     {showSettlementPlan && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Calculator size={20} className="text-blue-400"/>結算方案</h3><button onClick={() => setShowSettlementPlan(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto"><div className="bg-blue-900/20 rounded-xl p-4 border border-blue-800/30"><h4 className="text-sm font-bold text-blue-400 mb-2">建議轉帳 ({displayCurrency})</h4><div className="space-y-2">{settlementResult.transactions.length > 0 ? settlementResult.transactions.map((t, idx) => (<div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex items-center justify-between"><div className="text-sm text-slate-300">{t.from} ➔ {t.to}</div><div className="text-blue-400 font-bold">{displayCurrency} {formatNumber(t.amount, displayCurrency === 'JPY' ? 0 : 1)}</div></div>)) : <div className="text-center text-slate-500 text-sm py-2">目前帳目已平衡</div>}</div></div></div></div></div>)}
-                    {showMemberSettings && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Settings size={20} className="text-slate-400"/>成員資料</h3><button onClick={() => setShowMemberSettings(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">{members.map(m => (<div key={m.id} className="flex items-center gap-3 p-3 border border-slate-700 rounded-xl bg-slate-900/50"><input type="text" value={m.name} onChange={(e) => updateMember(m.id, 'name', e.target.value)} className="flex-1 px-3 py-1.5 rounded-lg text-slate-200 outline-none border border-slate-700 bg-slate-800 focus:ring-2 focus:ring-blue-500" /><button onClick={() => handleDeleteMember(m.id)} className="p-2 text-slate-600 hover:text-red-400 transition-colors"><Icons.Trash2 size={18} /></button></div>))}<button onClick={handleAddMember} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"><Icons.Plus size={16} /> 新增成員</button></div></div></div>)}
+                    {showMemberSettings && (<div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700"><div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Settings size={20} className="text-slate-400"/>成員資料</h3><button onClick={() => setShowMemberSettings(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div><div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">{members.map(m => (<div key={m.id} className="flex items-center gap-3 p-3 border border-slate-700 rounded-xl bg-slate-900/50"><label className={`relative w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-white text-lg shadow-inner overflow-hidden cursor-pointer group ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`} title="點擊更換頭像">{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}<div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center transition-colors"><Icons.Camera size={16} /></div><input type="file" accept="image/*" className="hidden" onChange={(e) => handleMemberAvatarUpload(m.id, e)} /></label><input type="text" value={m.name} onChange={(e) => updateMember(m.id, 'name', e.target.value)} className="flex-1 min-w-0 px-3 py-2.5 rounded-lg text-slate-200 outline-none border border-slate-700 bg-slate-800 focus:ring-2 focus:ring-blue-500" /><button onClick={() => handleDeleteMember(m.id)} className="p-2 shrink-0 text-slate-600 hover:text-red-400 transition-colors"><Icons.Trash2 size={18} /></button></div>))}<button onClick={handleAddMember} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"><Icons.Plus size={16} /> 新增成員</button></div></div></div>)}
                     {showDeleteDayConfirm && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此日？</h3><div className="flex gap-3 mt-6"><button onClick={() => setShowDeleteDayConfirm(false)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button><button onClick={() => { pushUpdate({trip:{...trip, days: trip.days.filter(d => d.id !== activeDayId)}}); if(trip.days.length > 1) setActiveDayId(trip.days.find(d=>d.id!==activeDayId).id); setShowDeleteDayConfirm(false); }} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg">刪除</button></div></div></div>)}
                     {placeToDelete && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此景點？</h3><div className="flex gap-3 mt-6"><button onClick={() => setPlaceToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button><button onClick={confirmDeletePlace} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg">刪除</button></div></div></div>)}
                     {expenseToDelete && (<div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md"><div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此筆消費嗎？</h3><div className="flex gap-3 mt-6"><button onClick={() => setExpenseToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button><button onClick={confirmDeleteExpense} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg">刪除</button></div></div></div>)}
@@ -1521,7 +1683,24 @@
             
             useEffect(() => { 
                 const initAuth = async () => { 
-                    try { await window.FirebaseSDK.signInAnonymously(auth); } catch (e) {} 
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        try {
+                            await window.FirebaseSDK.signInWithCustomToken(auth, __initial_auth_token);
+                        } catch (e) {
+                            console.warn("自訂 Token 已過期，系統已自動切換為備用匿名登入模式");
+                            try {
+                                await window.FirebaseSDK.signInAnonymously(auth);
+                            } catch (err) {
+                                console.warn("匿名登入失敗:", err);
+                            }
+                        }
+                    } else {
+                        try {
+                            await window.FirebaseSDK.signInAnonymously(auth); 
+                        } catch (e) {
+                            console.warn("匿名登入失敗:", e);
+                        }
+                    }
                 }; 
                 initAuth(); 
                 return window.FirebaseSDK.onAuthStateChanged(auth, setUser); 
