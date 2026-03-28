@@ -565,8 +565,7 @@
                 
                 const targetDay = newDays.find(d => d.id === targetDayId); 
                 if (targetDay) { 
-                    let insertIdx = targetPlaceIndex; if (sourceDayId === targetDayId && sourceIndex < targetPlaceIndex) insertIdx -= 1;
-                    targetDay.places.splice(insertIdx, 0, movedPlace); 
+                    targetDay.places.splice(targetPlaceIndex, 0, movedPlace); 
                     
                     const sDay = newDays.find(d => d.id === sourceDayId);
                     if (sDay) sDay.places = cascadeTimes(sDay.places, 0);
