@@ -626,26 +626,14 @@
                     canvas.width = 150; canvas.height = 150;
                     ctx.drawImage(img, (width - size) / 2, (height - size) / 2, size, size, 0, 0, 150, 150);
                 } else {
-                    const maxSize = 500; // 降低最大解析度以適應單一 JSON 檔的儲存模式
+                    const maxSize = 1024;
                     if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
                     else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
                     canvas.width = width; canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
                 }
                 
-                // 改回使用 JPEG，因為部分 iOS/內建瀏覽器不支援 WebP 壓縮，會導致轉成超巨大 PNG
-                let quality = 0.7; 
-                let dataUrl = canvas.toDataURL('image/jpeg', quality);
-                
-                // Firebase 單一文檔(整個行程)總容量上限是 1MB (1,048,576 bytes)
-                // 強制將單張圖片壓縮到約 45KB~50KB (大約 60,000 字元) 以內
-                // 這樣單一行程(單一 Firebase 檔) 才能容納近 20 張照片而不報錯
-                const maxLen = 60000; 
-                while (dataUrl.length > maxLen && quality > 0.1) {
-                    quality -= 0.1;
-                    dataUrl = canvas.toDataURL('image/jpeg', quality);
-                }
-                return dataUrl;
+                return canvas.toDataURL('image/jpeg', 0.8);
             };
 
             const stateRef = useRef({ trip, activeDayId, hoveredPlaceId, panelMode, modalMode, newItem, activeTab, showEditPlaceModal });
