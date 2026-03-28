@@ -632,15 +632,17 @@
                     canvas.width = width; canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
                 }
+                
+                // 升級為 WebP 黑科技格式！
                 let quality = 0.8; 
-                let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                let dataUrl = canvas.toDataURL('image/webp', quality);
                 
                 // Firebase 單一文檔(整個行程)總容量上限是 1MB (1,048,576 bytes)
                 // 為了讓一個行程能放多張圖片，單張圖片強制壓縮到約 150KB (200,000字元) 以內
                 const maxLen = 200000; 
                 while (dataUrl.length > maxLen && quality > 0.1) {
                     quality -= 0.1;
-                    dataUrl = canvas.toDataURL('image/jpeg', quality);
+                    dataUrl = canvas.toDataURL('image/webp', quality);
                 }
                 return dataUrl;
             };
