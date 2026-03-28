@@ -629,23 +629,25 @@
                     const size = Math.min(width, height);
                     canvas.width = 150; canvas.height = 150;
                     ctx.drawImage(img, (width - size) / 2, (height - size) / 2, size, size, 0, 0, 150, 150);
-                    return canvas.toDataURL('image/jpeg', 0.8);
+                    return canvas.toDataURL('image/jpeg', 0.6); // 頭像也進一步壓縮
                 }
                 
-                const maxSize = 800; // 限制最大邊為 800px
+                // 極致壓縮模式：將最大解析度從 800px 降至 600px，大幅減少基礎容量
+                const maxSize = 600; 
                 if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
                 else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
                 
                 canvas.width = width; canvas.height = height;
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // 放棄 WebP，改用 100% 支援的 JPEG，防止 iOS 偷偷轉成超大 PNG
-                let quality = 0.7; 
+                // 起始畫質調為 0.6
+                let quality = 0.6; 
                 let dataUrl = canvas.toDataURL('image/jpeg', quality);
                 
-                // 動態壓縮：為了讓「一個行程(最高1MB)」能塞入一二十張照片，單張盡量控制在 60KB (約 80,000 字元) 內
-                const maxLen = 80000; 
-                while (dataUrl.length > maxLen && quality > 0.2) {
+                // 目標容量壓低至約 35KB (約 45,000 字元)，讓單一行程能塞 25~30 張以上的照片
+                const maxLen = 45000; 
+                // 允許最低畫質降到 0.05 (5%)
+                while (dataUrl.length > maxLen && quality > 0.05) {
                     quality -= 0.1;
                     dataUrl = canvas.toDataURL('image/jpeg', quality);
                 }
