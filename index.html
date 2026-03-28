@@ -633,12 +633,13 @@
                         reader.onload = (event) => {
                             const img = new Image(); img.onload = () => {
                                 const canvas = document.createElement('canvas'); let w = img.width, h = img.height;
-                                const maxSize = 600;
+                                const maxSize = 800;
                                 if (w > h) { if (w > maxSize) { h *= maxSize/w; w = maxSize; } } else { if (h > maxSize) { w *= maxSize/h; h = maxSize; } }
                                 canvas.width = w; canvas.height = h; canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                                const imageDataUrl = canvas.toDataURL('image/jpeg', 0.4);
+                                let quality = 0.7; let imageDataUrl = canvas.toDataURL('image/jpeg', quality);
+                                while (imageDataUrl.length > 250000 && quality > 0.1) { quality -= 0.1; imageDataUrl = canvas.toDataURL('image/jpeg', quality); }
                                 if (current.panelMode === 'add' || current.panelMode === 'edit' || current.showEditPlaceModal) {
-                                    setNewItem(prev => ({ ...prev, image: imageDataUrl })); showMsg('✅ 圖片已貼上預覽 (請記得儲存)');
+                                    setNewItem(prev => ({ ...prev, image: imageDataUrl })); showMsg('✅ 圖片已貼上並壓縮 (請記得儲存)');
                                 } else if (current.hoveredPlaceId) {
                                     const targetPlace = current.trip.days.flatMap(d => d.places).find(p => p.id === current.hoveredPlaceId); const targetName = targetPlace?.name?.trim();
                                     const newDays = current.trip.days.map(d => ({ ...d, places: d.places.map(p => { if (p.id === current.hoveredPlaceId || (targetName && p.name?.trim() === targetName)) return { ...p, image: imageDataUrl }; return p; }) }));
@@ -683,7 +684,9 @@
                         if (w > h) { if (w > maxSize) { h *= maxSize/w; w = maxSize; } } else { if (h > maxSize) { w *= maxSize/h; h = maxSize; } }
                         canvas.width = w; canvas.height = h;
                         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                        setNewItem(prev => ({ ...prev, image: canvas.toDataURL('image/jpeg', 0.6) }));
+                        let quality = 0.7; let imageDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        while (imageDataUrl.length > 250000 && quality > 0.1) { quality -= 0.1; imageDataUrl = canvas.toDataURL('image/jpeg', quality); }
+                        setNewItem(prev => ({ ...prev, image: imageDataUrl }));
                     };
                     img.src = event.target.result;
                 };
@@ -881,7 +884,9 @@
                     const canvas = document.createElement('canvas'); const size = Math.min(img.width, img.height);
                     canvas.width = 150; canvas.height = 150; const ctx = canvas.getContext('2d');
                     const x = (img.width - size) / 2; const y = (img.height - size) / 2; ctx.drawImage(img, x, y, size, size, 0, 0, 150, 150);
-                    updateMember(memberId, 'avatar', canvas.toDataURL('image/jpeg', 0.6)); showMsg('✅ 頭像更新成功');
+                    let quality = 0.8; let imageDataUrl = canvas.toDataURL('image/jpeg', quality);
+                    while (imageDataUrl.length > 50000 && quality > 0.1) { quality -= 0.1; imageDataUrl = canvas.toDataURL('image/jpeg', quality); }
+                    updateMember(memberId, 'avatar', imageDataUrl); showMsg('✅ 頭像更新成功');
                 }; img.src = event.target.result; }; reader.readAsDataURL(file);
             };
 
