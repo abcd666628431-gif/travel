@@ -625,15 +625,37 @@
                     const size = Math.min(width, height);
                     canvas.width = 150; canvas.height = 150;
                     ctx.drawImage(img, (width - size) / 2, (height - size) / 2, size, size, 0, 0, 150, 150);
-                } else {
-                    const maxSize = 1024;
+                    return canvas.toDataURL('image/jpeg', 0.8);
+                }
+                
+                let maxSize = 800; // 初始最大尺寸設為 800px，保留不錯的清晰度
+                if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
+                else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
+                canvas.width = width; canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                let quality = 0.8; 
+                let dataUrl = canvas.toDataURL('image/jpeg', quality);
+                
+                // 動態壓縮：目標單張圖片小於 70KB (大約 100,000 Base64字元)
+                const maxLen = 100000; 
+                while (dataUrl.length > maxLen && quality > 0.2) {
+                    quality -= 0.15;
+                    dataUrl = canvas.toDataURL('image/jpeg', quality);
+                }
+                
+                // 雙重保險：如果降畫質後依然過大，啟動第二階段進一步縮小尺寸至 500px
+                if (dataUrl.length > maxLen) {
+                    maxSize = 500;
+                    width = img.width; height = img.height;
                     if (width > height && width > maxSize) { height *= maxSize / width; width = maxSize; }
                     else if (height > maxSize) { width *= maxSize / height; height = maxSize; }
                     canvas.width = width; canvas.height = height;
                     ctx.drawImage(img, 0, 0, width, height);
+                    dataUrl = canvas.toDataURL('image/jpeg', 0.6);
                 }
                 
-                return canvas.toDataURL('image/jpeg', 0.8);
+                return dataUrl;
             };
 
             const stateRef = useRef({ trip, activeDayId, hoveredPlaceId, panelMode, modalMode, newItem, activeTab, showEditPlaceModal });
