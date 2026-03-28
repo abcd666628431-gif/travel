@@ -629,7 +629,7 @@
                     const size = Math.min(width, height);
                     canvas.width = 150; canvas.height = 150;
                     ctx.drawImage(img, (width - size) / 2, (height - size) / 2, size, size, 0, 0, 150, 150);
-                    return canvas.toDataURL('image/webp', 0.5);
+                    return canvas.toDataURL('image/webp', 0.1);
                 }
                 
                 const maxSize = 800; // 單純限制最大邊為 800px
@@ -639,8 +639,8 @@
                 canvas.width = width; canvas.height = height;
                 ctx.drawImage(img, 0, 0, width, height);
                 
-                // 直接使用高效的 webp 壓縮 (品質 50%)，取消所有強制畫質遞減的限制
-                return canvas.toDataURL('image/webp', 0.5);
+                // 直接使用高效的 webp 壓縮 (品質 10%)，取消所有強制畫質遞減的限制
+                return canvas.toDataURL('image/webp', 0.1);
             };
 
             const stateRef = useRef({ trip, activeDayId, hoveredPlaceId, panelMode, modalMode, newItem, activeTab, showEditPlaceModal });
