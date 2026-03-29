@@ -1520,13 +1520,6 @@
                                         </div>
                                     </div>
                                     
-                                    {overviewMode === 'by_day' && trip.days && trip.days.length > 0 && (
-                                        <div className="mb-2 flex items-center gap-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-inner animate-fade-in">
-                                            <div className="text-slate-400 shrink-0"><Icons.Move size={18} /></div>
-                                            <input type="range" min="0" max="100" value={overviewScroll} onChange={handleOverviewScroll} className="w-full custom-range"/>
-                                        </div>
-                                    )}
-
                                     {overviewMode === 'by_category' ? (
                                         categoryConfigs.map(cat => {
                                             const places = groupedPlaces[cat.type]; if (!places || places.length === 0) return null;
@@ -1546,11 +1539,11 @@
                                             );
                                         })
                                     ) : (
-                                        <div ref={overviewContainerRef} className="flex flex-nowrap gap-4 overflow-hidden pb-8 items-start w-full">
+                                        <div ref={overviewContainerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 pb-8 items-start w-full">
                                             {trip.days?.map((day, idx) => {
                                                 const places = day.places || [];
                                                 return (
-                                                    <div key={day.id} className="w-[85vw] sm:w-[300px] md:w-[320px] flex-shrink-0 flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-3 shadow-lg h-full">
+                                                    <div key={day.id} className="w-full flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-3 shadow-lg h-full">
                                                         <div className="flex justify-between items-center bg-slate-800/80 p-3 rounded-xl mb-4 border border-slate-700 shadow-sm">
                                                             <div className="flex flex-col"><h3 className="font-bold text-base text-blue-400 tracking-wide">{day.title}</h3><div className="text-[10px] text-slate-400 mt-0.5">{formatShortDate(day.date)} · {places.length} 個景點</div></div>
                                                             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-900/50 text-sm border-2 border-slate-800">D{idx + 1}</div>
