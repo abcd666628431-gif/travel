@@ -183,24 +183,30 @@
         const calculateTravelInfo = (p1, p2) => {
             if (!p1 || !p2 || !p1.lat || !p1.lng || !p2.lat || !p2.lng) return null;
             const dist = getDistanceFromLatLonInKm(p1.lat, p1.lng, p2.lat, p2.lng);
-            const walkMin = Math.round((dist / 5) * 60); const driveMin = Math.round((dist / 30) * 60) + 5; 
-            const transitMin = Math.round((dist / 40) * 60) + 15;
+            const walkMin = Math.round((dist / 5) * 60); 
+            const driveMin = Math.round((dist / 30) * 60) + 5; 
+            const subwayMin = Math.round((dist / 40) * 60) + 15;
+            const busMin = Math.round((dist / 20) * 60) + 10;
             const format = (m) => m > 60 ? `${Math.floor(m/60)}小時${m%60}分` : `${m}分`;
-            return { walk: format(walkMin), drive: format(driveMin), transit: format(transitMin), dist, walkMin, driveMin, transitMin };
+            return { walk: format(walkMin), drive: format(driveMin), subway: format(subwayMin), bus: format(busMin), dist, walkMin, driveMin, subwayMin, busMin };
         };
 
-        const getRealTransitPopupHtml = (p1, p2, transit, travelInfo) => {
+        const getRealTransitPopupHtml = (p1, p2, transit, travelInfo, travelMode) => {
             const totalMins = Math.ceil(transit.duration / 60);
             const costStr = transit.cost && parseFloat(transit.cost) > 0 ? `<span class="text-xs font-bold text-slate-500 ml-2">約 ¥${transit.cost}</span>` : '';
             const distKm = (transit.distance / 1000).toFixed(1);
+            
+            const modeIcon = travelMode === 'bus' ? '🚌' : '🚇';
+            const modeTitle = travelMode === 'bus' ? '高德公車/大眾運輸' : '高德地鐵優先路線';
+            const timeColor = travelMode === 'bus' ? 'text-sky-500' : 'text-purple-600';
             
             let html = `
             <div class="w-[280px] font-sans text-slate-800 p-1 max-h-[350px] overflow-y-auto no-scrollbar styled-scrollbar">
                 <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-200 sticky top-0 bg-white z-20">
                     <div class="flex items-center gap-1.5">
-                        <span class="text-lg">🚇</span><span class="text-sm font-bold text-slate-800">高德大眾運輸路線</span>
+                        <span class="text-lg">${modeIcon}</span><span class="text-sm font-bold text-slate-800">${modeTitle}</span>
                     </div>
-                    <div class="text-lg font-black text-purple-600 drop-shadow-sm">${totalMins > 60 ? Math.floor(totalMins/60)+'小時'+totalMins%60+'分' : totalMins+'分'}</div>
+                    <div class="text-lg font-black ${timeColor} drop-shadow-sm">${totalMins > 60 ? Math.floor(totalMins/60)+'小時'+totalMins%60+'分' : totalMins+'分'}</div>
                 </div>
                 <div class="relative ml-2 pt-1 pb-2">
                     <div class="flex gap-3 mb-4 relative">
@@ -235,7 +241,7 @@
                     const bus = seg.bus.buslines[0];
                     const isMetro = bus.type && bus.type.includes('地铁');
                     const icon = isMetro ? '🚇' : '🚌';
-                    const color = isMetro ? '#8b5cf6' : '#3b82f6';
+                    const color = isMetro ? '#8b5cf6' : '#0ea5e9';
                     const lineName = bus.name.split('(')[0];
                     const stops = bus.via_num ? `經過 ${bus.via_num} 站` : '';
                     const duration = Math.ceil(bus.duration / 60);
@@ -362,20 +368,26 @@
         };
 
         const TravelSegmentUI = ({ p1, p2, onUpdateMode, onMouseEnter, onMouseLeave, onTouchStart }) => {
-            const mode = p1.travelMode || 'drive'; 
+            let mode = p1.travelMode || 'drive'; 
+            if (mode === 'transit') mode = 'subway'; // 舊資料自動升級防禦機制
             const travelInfo = calculateTravelInfo(p1, p2);
             
             const segmentKey = `${p1.id}-${p2.id}-${p1.lat},${p1.lng}-${p2.lat},${p2.lng}-${mode}`;
             const cachedRoute = window.routeCache ? window.routeCache[segmentKey] : null;
-            let finalTransitText = travelInfo?.transit || '計算中';
-            if (mode === 'transit' && cachedRoute && cachedRoute.type === 'amap_transit') {
+            let finalSubwayText = travelInfo?.subway || '計算中';
+            let finalBusText = travelInfo?.bus || '計算中';
+            
+            if ((mode === 'subway' || mode === 'bus') && cachedRoute && cachedRoute.type === 'amap_transit') {
                 const totalMins = Math.ceil(cachedRoute.transit.duration / 60);
-                finalTransitText = totalMins > 60 ? `${Math.floor(totalMins/60)}小時${totalMins%60}分` : `${totalMins}分`;
+                const formattedTime = totalMins > 60 ? `${Math.floor(totalMins/60)}小時${totalMins%60}分` : `${totalMins}分`;
+                if (mode === 'subway') finalSubwayText = formattedTime;
+                if (mode === 'bus') finalBusText = formattedTime;
             }
 
             if (!travelInfo) return <div className="h-8 px-3 rounded-full border border-slate-700 bg-slate-800/50 flex items-center gap-1 text-[10px] text-slate-500"><span>🚗</span><span>計算中</span></div>;
             const getTravelText = () => {
-                if (mode === 'transit') return `地鐵約 ${finalTransitText}`;
+                if (mode === 'subway') return `地鐵約 ${finalSubwayText}`;
+                if (mode === 'bus') return `公車約 ${finalBusText}`;
                 if (mode === 'walk') return `步行約 ${travelInfo.walk}`;
                 return `車程約 ${travelInfo.drive}`;
             };
@@ -383,7 +395,8 @@
                 <div className="flex items-center gap-2 py-1.5 px-3 bg-slate-800/90 border border-slate-600 shadow-lg rounded-xl animate-fade-in group cursor-pointer hover:border-blue-500 hover:shadow-blue-900/30 w-max" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onTouchStart={onTouchStart} onTouchEnd={onMouseLeave}>
                     <div className="flex bg-slate-900 border border-slate-700 rounded-md p-0.5 h-7 items-center overflow-hidden">
                         <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('drive'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'drive' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="開車導航">🚗</button>
-                        <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('transit'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'transit' ? 'bg-purple-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="地鐵/大眾運輸">🚇</button>
+                        <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('subway'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'subway' ? 'bg-purple-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="地鐵優先">🚇</button>
+                        <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('bus'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'bus' ? 'bg-sky-500 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="公車大眾運輸">🚌</button>
                         <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('walk'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'walk' ? 'bg-emerald-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="步行導航">🚶</button>
                     </div>
                     <div className="text-xs font-black text-amber-400 group-hover:text-amber-300 transition-colors tracking-wide">{getTravelText()}</div>
@@ -455,19 +468,22 @@
                             const outlineStyle = { color: '#ffffff', weight: 12, opacity: 1, lineCap: 'round', lineJoin: 'round' };
                             for (let i = 0; i < validPlaces.length - 1; i++) {
                                 if (!isMounted) break; const p1 = validPlaces[i]; const p2 = validPlaces[i + 1]; if (p1.lat === p2.lat && p1.lng === p2.lng) continue;
-                                const travelMode = p1.travelMode || 'drive'; const segmentKey = `${p1.id}-${p2.id}-${p1.lat},${p1.lng}-${p2.lat},${p2.lng}-${travelMode}`;
+                                let travelMode = p1.travelMode || 'drive';
+                                if (travelMode === 'transit') travelMode = 'subway'; // 舊資料自動升級
+                                const segmentKey = `${p1.id}-${p2.id}-${p1.lat},${p1.lng}-${p2.lat},${p2.lng}-${travelMode}`;
                                 let geoData = window.routeCache ? window.routeCache[segmentKey] : null;
                                 
                                 if (!geoData) {
                                     if (travelMode === 'straight') { 
                                         geoData = ['straight_line']; if (!window.routeCache) window.routeCache = {}; window.routeCache[segmentKey] = geoData; 
-                                    } else if (travelMode === 'transit') {
+                                    } else if (travelMode === 'subway' || travelMode === 'bus') {
                                         const [gLng1, gLat1] = wgs84togcj02(p1.lng, p1.lat);
                                         const [gLng2, gLat2] = wgs84togcj02(p2.lng, p2.lat);
                                         const getCity = async (lng, lat) => { try { const res = await fetch(`https://restapi.amap.com/v3/geocode/regeo?key=3bf27a17038b433640ab774dafa1d0a6&location=${lng},${lat}`); const data = await res.json(); if (data.status === '1') { const ac = data.regeocode.addressComponent; return ac.city && ac.city.length > 0 ? ac.city : ac.province; } } catch(e) {} return '全国'; };
                                         const c1 = await getCity(gLng1, gLat1); const c2 = await getCity(gLng2, gLat2);
-                                        const url = `https://restapi.amap.com/v3/direction/transit/integrated?key=3bf27a17038b433640ab774dafa1d0a6&origin=${gLng1},${gLat1}&destination=${gLng2},${gLat2}&city=${encodeURIComponent(c1)}&cityd=${encodeURIComponent(c2)}&strategy=0`;
-                                        try { const res = await fetch(url); const data = await res.json(); if (data.status === '1' && data.route && data.route.transits && data.route.transits.length > 0) { geoData = { type: 'amap_transit', transit: data.route.transits[0] }; } else geoData = ['straight_line']; } catch(e) { geoData = ['straight_line']; }
+                                        const strategy = travelMode === 'bus' ? 5 : 0; // 5: 不乘地鐵, 0: 最快捷(地鐵優先)
+                                        const url = `https://restapi.amap.com/v3/direction/transit/integrated?key=3bf27a17038b433640ab774dafa1d0a6&origin=${gLng1},${gLat1}&destination=${gLng2},${gLat2}&city=${encodeURIComponent(c1)}&cityd=${encodeURIComponent(c2)}&strategy=${strategy}`;
+                                        try { const res = await fetch(url); const data = await res.json(); if (data.status === '1' && data.route && data.route.transits && data.route.transits.length > 0) { geoData = { type: 'amap_transit', transit: data.route.transits[0], travelMode }; } else geoData = ['straight_line']; } catch(e) { geoData = ['straight_line']; }
                                         if (!window.routeCache) window.routeCache = {}; window.routeCache[segmentKey] = geoData;
                                     } else {
                                         const profile = travelMode === 'walk' ? 'foot' : 'driving'; const url = `https://router.project-osrm.org/route/v1/${profile}/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=simplified&geometries=geojson&alternatives=true`;
@@ -477,9 +493,9 @@
                                 }
 
                                 if (!isMounted || !mapInstanceRef.current) return; let outline, main, flow; let alts = []; let pathCoords = [];
-                                const isTransit = travelMode === 'transit'; const isWalk = travelMode === 'walk';
-                                const currentMainColor = isTransit ? '#a855f7' : (isWalk ? '#10b981' : routeColor);
-                                const mainStyle = { color: currentMainColor, weight: 8, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isTransit ? '10, 10' : null };
+                                const isSubway = travelMode === 'subway'; const isBus = travelMode === 'bus'; const isWalk = travelMode === 'walk';
+                                const currentMainColor = isSubway ? '#a855f7' : (isBus ? '#0ea5e9' : (isWalk ? '#10b981' : routeColor));
+                                const mainStyle = { color: currentMainColor, weight: 8, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: (isSubway || isBus) ? '10, 10' : null };
                                 const invisibleClickStyle = { color: 'transparent', weight: 30, opacity: 0, lineCap: 'round', lineJoin: 'round' };
                                 const travelInfo = calculateTravelInfo(p1, p2);
                                 let popupHtml; let clickArea;
@@ -494,13 +510,13 @@
                                     const latlngs = pathCoords;
                                     outline = L.polyline(latlngs, outlineStyle).addTo(mapInstanceRef.current); main = L.polyline(latlngs, mainStyle).addTo(mapInstanceRef.current); flow = L.polyline(latlngs, { color: '#ffffff', weight: 4, className: 'route-flow-anim', opacity: 0 }).addTo(mapInstanceRef.current);
                                     clickArea = L.polyline(latlngs, invisibleClickStyle).addTo(mapInstanceRef.current);
-                                    popupHtml = getRealTransitPopupHtml(p1, p2, transit, travelInfo);
+                                    popupHtml = getRealTransitPopupHtml(p1, p2, transit, travelInfo, travelMode);
                                 } else {
                                     const geometries = Array.isArray(geoData) ? geoData : [geoData]; const selectedIndex = p1.routeIndex || 0; const validIndex = selectedIndex < geometries.length ? selectedIndex : 0;
                                     if (geometries.length > 1) { geometries.forEach((geo, idx) => { if (idx === validIndex || geo === 'straight_line') return; const altStyle = { color: '#94a3b8', weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round', dashArray: '5, 10' }; const clickStyle = { color: 'transparent', weight: 20, opacity: 0 }; const geoGCJ = JSON.parse(JSON.stringify(geo)); if(geoGCJ.coordinates) { geoGCJ.coordinates = geoGCJ.coordinates.map(c => wgs84togcj02(c[0], c[1])); } const altMain = L.geoJSON(geoGCJ, { style: altStyle }).addTo(mapInstanceRef.current); const altClick = L.geoJSON(geoGCJ, { style: clickStyle }).addTo(mapInstanceRef.current); altClick.on('click', () => { if (onRouteAltSelect) onRouteAltSelect(p1.id, idx); }); altClick.on('mouseover', () => { altMain.setStyle({ color: '#cbd5e1', weight: 8, cursor: 'pointer' }); if (altMain.bringToFront) altMain.bringToFront(); }); altClick.on('mouseout', () => altMain.setStyle(altStyle)); alts.push(altMain, altClick); }); }
                                     const mainGeo = geometries[validIndex];
                                     
-                                    popupHtml = `<div class="min-w-[160px] font-sans"><div class="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-200"><span class="text-lg leading-none">${isWalk ? '🚶' : (travelMode==='straight'?'➖':'🚗')}</span><span class="font-bold text-slate-700 text-sm">${isWalk ? '步行導航' : (travelMode==='straight'?'直線連接':'開車導航')}</span></div><div class="flex flex-col gap-1.5 mb-2.5"><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p1.name}</span></div><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p2.name}</span></div></div><div class="bg-slate-100 p-2 rounded-lg flex justify-between items-center border border-slate-200"><span class="text-xs text-slate-500 font-bold">預估時間</span><span class="text-base font-black ${isWalk ? 'text-emerald-600' : 'text-blue-600'} drop-shadow-sm">${travelMode === 'straight' ? '--' : (isWalk ? travelInfo?.walk : travelInfo?.drive)}</span></div><div class="text-[10px] text-slate-400 text-right mt-1.5 font-mono font-bold">參考距離: ${travelInfo?.dist.toFixed(1)} km</div></div>`;
+                                    popupHtml = `<div class="min-w-[160px] font-sans"><div class="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-200"><span class="text-lg leading-none">${isWalk ? '🚶' : (isSubway ? '🚇' : (isBus ? '🚌' : (travelMode==='straight'?'➖':'🚗')))}</span><span class="font-bold text-slate-700 text-sm">${isWalk ? '步行導航' : (isSubway ? '地鐵導航' : (isBus ? '公車導航' : (travelMode==='straight'?'直線連接':'開車導航')))}</span></div><div class="flex flex-col gap-1.5 mb-2.5"><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p1.name}</span></div><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p2.name}</span></div></div><div class="bg-slate-100 p-2 rounded-lg flex justify-between items-center border border-slate-200"><span class="text-xs text-slate-500 font-bold">預估時間</span><span class="text-base font-black ${isWalk ? 'text-emerald-600' : (isSubway ? 'text-purple-600' : (isBus ? 'text-sky-500' : 'text-blue-600'))} drop-shadow-sm">${travelMode === 'straight' ? '--' : (isWalk ? travelInfo?.walk : (isSubway ? travelInfo?.subway : (isBus ? travelInfo?.bus : travelInfo?.drive)))}</span></div><div class="text-[10px] text-slate-400 text-right mt-1.5 font-mono font-bold">參考距離: ${travelInfo?.dist.toFixed(1)} km</div></div>`;
                                     
                                     if (mainGeo === 'straight_line') {
                                         const [gLng1, gLat1] = wgs84togcj02(p1.lng, p1.lat); const [gLng2, gLat2] = wgs84togcj02(p2.lng, p2.lat); pathCoords = [[gLat1, gLng1], [gLat2, gLng2]]; const latlngs = [[gLat1, gLng1], [gLat2, gLng2]];
@@ -774,9 +790,12 @@
                     const curr = updated[i]; const next = updated[i+1]; let travelMins = 0;
                     if (curr.lat && curr.lng && next.lat && next.lng) {
                         const dist = getDistanceFromLatLonInKm(curr.lat, curr.lng, next.lat, next.lng);
-                        const mode = curr.travelMode || 'drive';
+                        let mode = curr.travelMode || 'drive';
+                        if (mode === 'transit') mode = 'subway'; // 舊資料相容
+                        
                         if (mode === 'walk') travelMins = Math.round((dist / 5) * 60); 
-                        else if (mode === 'transit') travelMins = Math.round((dist / 40) * 60) + 15;
+                        else if (mode === 'subway') travelMins = Math.round((dist / 40) * 60) + 15;
+                        else if (mode === 'bus') travelMins = Math.round((dist / 20) * 60) + 10;
                         else travelMins = Math.round((dist / 30) * 60) + 5;
                     }
                     let [h, m] = curr.time.split(':').map(Number);
