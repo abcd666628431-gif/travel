@@ -197,7 +197,7 @@
             const distKm = (transit.distance / 1000).toFixed(1);
             
             const modeIcon = travelMode === 'bus' ? '🚌' : '🚇';
-            const modeTitle = travelMode === 'bus' ? '高德公車/大眾運輸' : '高德地鐵優先路線';
+            const modeTitle = travelMode === 'bus' ? '高德公車/大眾運輸' : '高德只有地鐵路線';
             const timeColor = travelMode === 'bus' ? 'text-sky-500' : 'text-purple-600';
             
             let html = `
@@ -239,7 +239,7 @@
 
                 if (seg.bus && seg.bus.buslines && seg.bus.buslines.length > 0) {
                     const bus = seg.bus.buslines[0];
-                    const isMetro = bus.type && bus.type.includes('地铁');
+                    const isMetro = bus.type && (bus.type.includes('地铁') || bus.type.includes('地鐵') || bus.type.includes('轻轨') || bus.type.includes('捷运') || bus.type.includes('磁悬浮'));
                     const icon = isMetro ? '🚇' : '🚌';
                     const color = isMetro ? '#8b5cf6' : '#0ea5e9';
                     const lineName = bus.name.split('(')[0];
@@ -369,7 +369,7 @@
 
         const TravelSegmentUI = ({ p1, p2, onUpdateMode, onMouseEnter, onMouseLeave, onTouchStart }) => {
             let mode = p1.travelMode || 'drive'; 
-            if (mode === 'transit') mode = 'subway'; // 舊資料自動升級防禦機制
+            if (mode === 'transit') mode = 'subway'; 
             const travelInfo = calculateTravelInfo(p1, p2);
             
             const segmentKey = `${p1.id}-${p2.id}-${p1.lat},${p1.lng}-${p2.lat},${p2.lng}-${mode}`;
@@ -395,7 +395,7 @@
                 <div className="flex items-center gap-2 py-1.5 px-3 bg-slate-800/90 border border-slate-600 shadow-lg rounded-xl animate-fade-in group cursor-pointer hover:border-blue-500 hover:shadow-blue-900/30 w-max" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave} onTouchStart={onTouchStart} onTouchEnd={onMouseLeave}>
                     <div className="flex bg-slate-900 border border-slate-700 rounded-md p-0.5 h-7 items-center overflow-hidden">
                         <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('drive'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'drive' ? 'bg-blue-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="開車導航">🚗</button>
-                        <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('subway'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'subway' ? 'bg-purple-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="地鐵優先">🚇</button>
+                        <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('subway'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'subway' ? 'bg-purple-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="只有地鐵">🚇</button>
                         <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('bus'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'bus' ? 'bg-sky-500 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="公車大眾運輸">🚌</button>
                         <button onClick={(e) => { e.stopPropagation(); if (onUpdateMode) onUpdateMode('walk'); }} className={`w-7 h-6 rounded transition-all flex items-center justify-center text-[14px] leading-none ${mode === 'walk' ? 'bg-emerald-600 text-white shadow-md scale-110' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700'}`} title="步行導航">🚶</button>
                     </div>
@@ -446,7 +446,7 @@
                 if (mapDataHashRef.current === currentHash) return; mapDataHashRef.current = currentHash;
 
                 Object.keys(markersRef.current).forEach(id => { if (map.hasLayer(markersRef.current[id].marker)) { map.removeLayer(markersRef.current[id].marker); } delete markersRef.current[id]; });
-                Object.keys(routeLayersRef.current).forEach(key => { const layers = routeLayersRef.current[key]; if (layers.outline && map.hasLayer(layers.outline)) map.removeLayer(layers.outline); if (layers.main && map.hasLayer(layers.main)) map.removeLayer(layers.main); if (layers.flow && map.hasLayer(layers.flow)) map.removeLayer(layers.flow); if (layers.alts) { layers.alts.forEach(altLayer => { if (map.hasLayer(altLayer)) map.removeLayer(altLayer); }); } delete routeLayersRef.current[key]; });
+                Object.keys(routeLayersRef.current).forEach(key => { const layers = routeLayersRef.current[key]; if (layers.outline && map.hasLayer(layers.outline)) map.removeLayer(layers.outline); if (layers.main && map.hasLayer(layers.main)) map.removeLayer(layers.main); if (layers.flow && map.hasLayer(layers.flow)) map.removeLayer(layers.flow); if (layers.clickArea && map.hasLayer(layers.clickArea)) map.removeLayer(layers.clickArea); if (layers.alts) { layers.alts.forEach(altLayer => { if (map.hasLayer(altLayer)) map.removeLayer(altLayer); }); } delete routeLayersRef.current[key]; });
 
                 if (validPlaces.length > 0) {
                     const posCounter = {}; const offsetStep = 0.0002;
@@ -481,9 +481,31 @@
                                         const [gLng2, gLat2] = wgs84togcj02(p2.lng, p2.lat);
                                         const getCity = async (lng, lat) => { try { const res = await fetch(`https://restapi.amap.com/v3/geocode/regeo?key=3bf27a17038b433640ab774dafa1d0a6&location=${lng},${lat}`); const data = await res.json(); if (data.status === '1') { const ac = data.regeocode.addressComponent; return ac.city && ac.city.length > 0 ? ac.city : ac.province; } } catch(e) {} return '全国'; };
                                         const c1 = await getCity(gLng1, gLat1); const c2 = await getCity(gLng2, gLat2);
-                                        const strategy = travelMode === 'bus' ? 5 : 0; // 5: 不乘地鐵, 0: 最快捷(地鐵優先)
+                                        const strategy = travelMode === 'bus' ? 5 : 0; // 5: 不乘地鐵, 0: 最快捷(優先推薦地鐵)
                                         const url = `https://restapi.amap.com/v3/direction/transit/integrated?key=3bf27a17038b433640ab774dafa1d0a6&origin=${gLng1},${gLat1}&destination=${gLng2},${gLat2}&city=${encodeURIComponent(c1)}&cityd=${encodeURIComponent(c2)}&strategy=${strategy}`;
-                                        try { const res = await fetch(url); const data = await res.json(); if (data.status === '1' && data.route && data.route.transits && data.route.transits.length > 0) { geoData = { type: 'amap_transit', transit: data.route.transits[0], travelMode }; } else geoData = ['straight_line']; } catch(e) { geoData = ['straight_line']; }
+                                        try { 
+                                            const res = await fetch(url); 
+                                            const data = await res.json(); 
+                                            if (data.status === '1' && data.route && data.route.transits && data.route.transits.length > 0) { 
+                                                let selectedTransit = data.route.transits[0];
+                                                if (travelMode === 'subway') {
+                                                    // 嚴格過濾：尋找只包含地鐵/軌道運輸的路線，剔除任何包含公車的方案
+                                                    const pureSubway = data.route.transits.find(t => 
+                                                        t.segments.every(seg => {
+                                                            if (!seg.bus || !seg.bus.buslines || seg.bus.buslines.length === 0) return true;
+                                                            const type = seg.bus.buslines[0].type || '';
+                                                            return type.includes('地铁') || type.includes('轻轨') || type.includes('捷运') || type.includes('磁悬浮') || type.includes('地鐵');
+                                                        })
+                                                    );
+                                                    if (pureSubway) {
+                                                        selectedTransit = pureSubway;
+                                                    } else {
+                                                        throw new Error('No pure subway route found'); // 找不到純地鐵則捨棄
+                                                    }
+                                                }
+                                                geoData = { type: 'amap_transit', transit: selectedTransit, travelMode }; 
+                                            } else geoData = ['straight_line']; 
+                                        } catch(e) { geoData = ['straight_line']; }
                                         if (!window.routeCache) window.routeCache = {}; window.routeCache[segmentKey] = geoData;
                                     } else {
                                         const profile = travelMode === 'walk' ? 'foot' : 'driving'; const url = `https://router.project-osrm.org/route/v1/${profile}/${p1.lng},${p1.lat};${p2.lng},${p2.lat}?overview=simplified&geometries=geojson&alternatives=true`;
@@ -516,7 +538,7 @@
                                     if (geometries.length > 1) { geometries.forEach((geo, idx) => { if (idx === validIndex || geo === 'straight_line') return; const altStyle = { color: '#94a3b8', weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round', dashArray: '5, 10' }; const clickStyle = { color: 'transparent', weight: 20, opacity: 0 }; const geoGCJ = JSON.parse(JSON.stringify(geo)); if(geoGCJ.coordinates) { geoGCJ.coordinates = geoGCJ.coordinates.map(c => wgs84togcj02(c[0], c[1])); } const altMain = L.geoJSON(geoGCJ, { style: altStyle }).addTo(mapInstanceRef.current); const altClick = L.geoJSON(geoGCJ, { style: clickStyle }).addTo(mapInstanceRef.current); altClick.on('click', () => { if (onRouteAltSelect) onRouteAltSelect(p1.id, idx); }); altClick.on('mouseover', () => { altMain.setStyle({ color: '#cbd5e1', weight: 8, cursor: 'pointer' }); if (altMain.bringToFront) altMain.bringToFront(); }); altClick.on('mouseout', () => altMain.setStyle(altStyle)); alts.push(altMain, altClick); }); }
                                     const mainGeo = geometries[validIndex];
                                     
-                                    popupHtml = `<div class="min-w-[160px] font-sans"><div class="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-200"><span class="text-lg leading-none">${isWalk ? '🚶' : (isSubway ? '🚇' : (isBus ? '🚌' : (travelMode==='straight'?'➖':'🚗')))}</span><span class="font-bold text-slate-700 text-sm">${isWalk ? '步行導航' : (isSubway ? '地鐵導航' : (isBus ? '公車導航' : (travelMode==='straight'?'直線連接':'開車導航')))}</span></div><div class="flex flex-col gap-1.5 mb-2.5"><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p1.name}</span></div><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p2.name}</span></div></div><div class="bg-slate-100 p-2 rounded-lg flex justify-between items-center border border-slate-200"><span class="text-xs text-slate-500 font-bold">預估時間</span><span class="text-base font-black ${isWalk ? 'text-emerald-600' : (isSubway ? 'text-purple-600' : (isBus ? 'text-sky-500' : 'text-blue-600'))} drop-shadow-sm">${travelMode === 'straight' ? '--' : (isWalk ? travelInfo?.walk : (isSubway ? travelInfo?.subway : (isBus ? travelInfo?.bus : travelInfo?.drive)))}</span></div><div class="text-[10px] text-slate-400 text-right mt-1.5 font-mono font-bold">參考距離: ${travelInfo?.dist.toFixed(1)} km</div></div>`;
+                                    popupHtml = `<div class="min-w-[160px] font-sans"><div class="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-200"><span class="text-lg leading-none">${isWalk ? '🚶' : (isSubway ? '🚇' : (isBus ? '🚌' : (travelMode==='straight'?'➖':'🚗')))}</span><span class="font-bold text-slate-700 text-sm">${isWalk ? '步行導航' : (isSubway ? '只有地鐵' : (isBus ? '公車導航' : (travelMode==='straight'?'直線連接':'開車導航')))}</span></div><div class="flex flex-col gap-1.5 mb-2.5"><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p1.name}</span></div><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p2.name}</span></div></div><div class="bg-slate-100 p-2 rounded-lg flex justify-between items-center border border-slate-200"><span class="text-xs text-slate-500 font-bold">預估時間</span><span class="text-base font-black ${isWalk ? 'text-emerald-600' : (isSubway ? 'text-purple-600' : (isBus ? 'text-sky-500' : 'text-blue-600'))} drop-shadow-sm">${travelMode === 'straight' ? '--' : (isWalk ? travelInfo?.walk : (isSubway ? travelInfo?.subway : (isBus ? travelInfo?.bus : travelInfo?.drive)))}</span></div><div class="text-[10px] text-slate-400 text-right mt-1.5 font-mono font-bold">參考距離: ${travelInfo?.dist.toFixed(1)} km</div></div>`;
                                     
                                     if (mainGeo === 'straight_line') {
                                         const [gLng1, gLat1] = wgs84togcj02(p1.lng, p1.lat); const [gLng2, gLat2] = wgs84togcj02(p2.lng, p2.lat); pathCoords = [[gLat1, gLng1], [gLat2, gLng2]]; const latlngs = [[gLat1, gLng1], [gLat2, gLng2]];
