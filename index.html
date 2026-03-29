@@ -1539,11 +1539,11 @@
                                             );
                                         })
                                     ) : (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6 pb-8 items-start w-full">
+                                        <div ref={overviewContainerRef} className="flex flex-nowrap gap-4 overflow-x-auto pb-8 items-start w-full no-scrollbar snap-x snap-mandatory">
                                             {trip.days?.map((day, idx) => {
                                                 const places = day.places || [];
                                                 return (
-                                                    <div key={day.id} className="flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-4 shadow-lg w-full">
+                                                    <div key={day.id} className="w-[85vw] sm:w-[300px] md:w-[340px] shrink-0 snap-start flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-3 md:p-4 shadow-lg h-full">
                                                         <div className="flex justify-between items-center bg-slate-800/80 p-3 rounded-xl mb-4 border border-slate-700 shadow-sm">
                                                             <div className="flex flex-col"><h3 className="font-bold text-base text-blue-400 tracking-wide">{day.title}</h3><div className="text-[10px] text-slate-400 mt-0.5">{formatShortDate(day.date)} · {places.length} 個景點</div></div>
                                                             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-900/50 text-sm border-2 border-slate-800">D{idx + 1}</div>
