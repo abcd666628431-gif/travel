@@ -56,6 +56,8 @@
         .styled-scrollbar::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
         .styled-scrollbar { scrollbar-width: thin; scrollbar-color: #4b5563 #1e293b; }
         .dark-map-tiles .leaflet-tile-pane { filter: invert(100%) hue-rotate(180deg) brightness(80%) contrast(110%) grayscale(20%); }
+        .custom-route-popup .leaflet-popup-content-wrapper { border-radius: 12px; padding: 0; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); border: 1px solid #e2e8f0; }
+        .custom-route-popup .leaflet-popup-content { margin: 10px 12px; }
     </style>
 </head>
 <body>
@@ -325,7 +327,7 @@
                 if (mapDataHashRef.current === currentHash) return; mapDataHashRef.current = currentHash;
 
                 Object.keys(markersRef.current).forEach(id => { if (map.hasLayer(markersRef.current[id].marker)) { map.removeLayer(markersRef.current[id].marker); } delete markersRef.current[id]; });
-                Object.keys(routeLayersRef.current).forEach(key => { const layers = routeLayersRef.current[key]; if (layers.outline && map.hasLayer(layers.outline)) map.removeLayer(layers.outline); if (layers.main && map.hasLayer(layers.main)) map.removeLayer(layers.main); if (layers.flow && map.hasLayer(layers.flow)) map.removeLayer(layers.flow); if (layers.alts) { layers.alts.forEach(altLayer => { if (map.hasLayer(altLayer)) map.removeLayer(altLayer); }); } delete routeLayersRef.current[key]; });
+                Object.keys(routeLayersRef.current).forEach(key => { const layers = routeLayersRef.current[key]; if (layers.outline && map.hasLayer(layers.outline)) map.removeLayer(layers.outline); if (layers.main && map.hasLayer(layers.main)) map.removeLayer(layers.main); if (layers.flow && map.hasLayer(layers.flow)) map.removeLayer(layers.flow); if (layers.clickArea && map.hasLayer(layers.clickArea)) map.removeLayer(layers.clickArea); if (layers.alts) { layers.alts.forEach(altLayer => { if (map.hasLayer(altLayer)) map.removeLayer(altLayer); }); } delete routeLayersRef.current[key]; });
 
                 if (validPlaces.length > 0) {
                     const posCounter = {}; const offsetStep = 0.0002;
@@ -361,17 +363,29 @@
                                 const isTransit = travelMode === 'transit'; const isWalk = travelMode === 'walk';
                                 const currentMainColor = isTransit ? '#a855f7' : (isWalk ? '#10b981' : routeColor);
                                 const mainStyle = { color: currentMainColor, weight: 8, opacity: 1, lineCap: 'round', lineJoin: 'round', dashArray: isTransit ? '10, 10' : null };
+                                const invisibleClickStyle = { color: 'transparent', weight: 30, opacity: 0, lineCap: 'round', lineJoin: 'round' };
+                                
                                 if (geometries.length > 1) { geometries.forEach((geo, idx) => { if (idx === validIndex || geo === 'straight_line') return; const altStyle = { color: '#94a3b8', weight: 6, opacity: 0.8, lineCap: 'round', lineJoin: 'round', dashArray: '5, 10' }; const clickStyle = { color: 'transparent', weight: 20, opacity: 0 }; const geoGCJ = JSON.parse(JSON.stringify(geo)); if(geoGCJ.coordinates) { geoGCJ.coordinates = geoGCJ.coordinates.map(c => wgs84togcj02(c[0], c[1])); } const altMain = L.geoJSON(geoGCJ, { style: altStyle }).addTo(mapInstanceRef.current); const altClick = L.geoJSON(geoGCJ, { style: clickStyle }).addTo(mapInstanceRef.current); altClick.on('click', () => { if (onRouteAltSelect) onRouteAltSelect(p1.id, idx); }); altClick.on('mouseover', () => { altMain.setStyle({ color: '#cbd5e1', weight: 8, cursor: 'pointer' }); if (altMain.bringToFront) altMain.bringToFront(); }); altClick.on('mouseout', () => altMain.setStyle(altStyle)); alts.push(altMain, altClick); }); }
+                                
                                 const mainGeo = geometries[validIndex];
+                                let clickArea;
+                                const travelInfo = calculateTravelInfo(p1, p2);
+                                const popupHtml = `<div class="min-w-[160px] font-sans"><div class="flex items-center gap-1.5 mb-2 pb-1.5 border-b border-slate-200"><span class="text-lg leading-none">${isTransit ? '🚇' : (isWalk ? '🚶' : (travelMode==='straight'?'➖':'🚗'))}</span><span class="font-bold text-slate-700 text-sm">${isTransit ? '大眾運輸建議 (地鐵/公車)' : (isWalk ? '步行導航' : (travelMode==='straight'?'直線連接':'開車導航'))}</span></div><div class="flex flex-col gap-1.5 mb-2.5"><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-blue-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p1.name}</span></div><div class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-red-500 shadow-sm"></div><span class="text-xs text-slate-600 font-bold truncate max-w-[140px]">${p2.name}</span></div></div><div class="bg-slate-100 p-2 rounded-lg flex justify-between items-center border border-slate-200"><span class="text-xs text-slate-500 font-bold">預估時間</span><span class="text-base font-black ${isTransit ? 'text-purple-600' : (isWalk ? 'text-emerald-600' : 'text-blue-600')} drop-shadow-sm">${travelMode === 'straight' ? '--' : (isTransit ? travelInfo?.transit : (isWalk ? travelInfo?.walk : travelInfo?.drive))}</span></div><div class="text-[10px] text-slate-400 text-right mt-1.5 font-mono font-bold">參考距離: ${travelInfo?.dist.toFixed(1)} km</div></div>`;
+
                                 if (mainGeo === 'straight_line') {
                                     const [gLng1, gLat1] = wgs84togcj02(p1.lng, p1.lat); const [gLng2, gLat2] = wgs84togcj02(p2.lng, p2.lat); pathCoords = [[gLat1, gLng1], [gLat2, gLng2]]; const latlngs = [[gLat1, gLng1], [gLat2, gLng2]];
                                     outline = L.polyline(latlngs, outlineStyle).addTo(mapInstanceRef.current); main = L.polyline(latlngs, mainStyle).addTo(mapInstanceRef.current); flow = L.polyline(latlngs, { color: '#ffffff', weight: 4, className: 'route-flow-anim', opacity: 0 }).addTo(mapInstanceRef.current);
+                                    clickArea = L.polyline(latlngs, invisibleClickStyle).addTo(mapInstanceRef.current);
                                 } else {
                                     const geoGCJ = JSON.parse(JSON.stringify(mainGeo)); if(geoGCJ.coordinates) { geoGCJ.coordinates = geoGCJ.coordinates.map(c => wgs84togcj02(c[0], c[1])); pathCoords = geoGCJ.coordinates.map(c => [c[1], c[0]]); }
                                     outline = L.geoJSON(geoGCJ, { style: outlineStyle }).addTo(mapInstanceRef.current); main = L.geoJSON(geoGCJ, { style: mainStyle }).addTo(mapInstanceRef.current); flow = L.geoJSON(geoGCJ, { style: { color: '#ffffff', weight: 4, className: 'route-flow-anim', opacity: 0 } }).addTo(mapInstanceRef.current);
+                                    clickArea = L.geoJSON(geoGCJ, { style: invisibleClickStyle }).addTo(mapInstanceRef.current);
                                 }
-                                if (main.bringToFront) main.bringToFront(); if (flow.bringToFront) flow.bringToFront();
-                                routeLayersRef.current[segmentKey] = { outline, main, flow, alts, p1Id: p1.id, p2Id: p2.id, baseColor: currentMainColor, pathCoords };
+                                
+                                clickArea.bindPopup(popupHtml, { closeButton: false, offset: [0, -5], className: 'custom-route-popup' });
+
+                                if (main.bringToFront) main.bringToFront(); if (flow.bringToFront) flow.bringToFront(); if (clickArea.bringToFront) clickArea.bringToFront();
+                                routeLayersRef.current[segmentKey] = { outline, main, flow, clickArea, alts, p1Id: p1.id, p2Id: p2.id, baseColor: currentMainColor, pathCoords };
                                 await new Promise(resolve => setTimeout(resolve, 30));
                             }
                         };
@@ -728,16 +742,43 @@
             };
 
             const handleOptimizeTrip = async () => {
-                showMsg('🔄 開始掃描並壓縮舊圖片...');
+                showMsg('🔄 開始深度掃描並重新壓縮所有圖片 (這可能需要幾秒鐘)...');
                 let tripModified = false;
                 let membersModified = false;
                 let newDays = JSON.parse(JSON.stringify(trip.days || []));
                 let newMembers = JSON.parse(JSON.stringify(members || []));
 
-                const compressAsync = (base64Str, isAvatar = false) => new Promise((resolve) => {
+                let originalTotalSize = 0;
+                let newTotalSize = 0;
+
+                const forceCompressAsync = (base64Str, isAvatar = false) => new Promise((resolve) => {
                     if (!base64Str || !base64Str.startsWith('data:image')) { resolve(base64Str); return; }
                     const img = new Image();
-                    img.onload = () => resolve(compressImageToUnder1MB(img, isAvatar));
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas'); 
+                        const ctx = canvas.getContext('2d');
+                        ctx.imageSmoothingEnabled = true; 
+                        ctx.imageSmoothingQuality = 'high';
+                        
+                        let oW = img.width, oH = img.height;
+                        if (isAvatar) {
+                            const size = Math.min(oW, oH);
+                            canvas.width = 120; canvas.height = 120; // 壓縮頭像尺寸
+                            ctx.drawImage(img, (oW - size) / 2, (oH - size) / 2, size, size, 0, 0, 120, 120);
+                            resolve(canvas.toDataURL('image/jpeg', 0.5));
+                            return;
+                        }
+                        
+                        let targetSize = 300; // 強制將舊圖縮小至最高 300px
+                        let w = oW, h = oH;
+                        if (w > h && w > targetSize) { h = Math.round(h * targetSize / w); w = targetSize; }
+                        else if (h > targetSize) { w = Math.round(w * targetSize / h); h = targetSize; }
+                        
+                        canvas.width = w; canvas.height = h;
+                        ctx.clearRect(0, 0, w, h);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.4)); // 強制使用低畫質 JPEG 最大化壓縮
+                    };
                     img.onerror = () => resolve(base64Str);
                     img.src = base64Str;
                 });
@@ -745,18 +786,29 @@
                 for (let d of newDays) {
                     if(!d.places) continue;
                     for (let p of d.places) {
-                        // 揪出超過安全容量的舊圖片重新壓縮 (大於約 50KB)
-                        if (p.image && p.image.length > 50000) { 
-                            p.image = await compressAsync(p.image);
-                            tripModified = true;
+                        if (p.image && p.image.startsWith('data:image')) {
+                            const oldLen = p.image.length;
+                            originalTotalSize += oldLen;
+                            const newImg = await forceCompressAsync(p.image, false);
+                            if (newImg.length < oldLen) {
+                                p.image = newImg;
+                                tripModified = true;
+                            }
+                            newTotalSize += p.image.length;
                         }
                     }
                 }
                 
                 for (let m of newMembers) {
-                    if (m.avatar && m.avatar.startsWith('data:image') && m.avatar.length > 30000) {
-                        m.avatar = await compressAsync(m.avatar, true);
-                        membersModified = true;
+                    if (m.avatar && m.avatar.startsWith('data:image')) {
+                        const oldLen = m.avatar.length;
+                        originalTotalSize += oldLen;
+                        const newAvatar = await forceCompressAsync(m.avatar, true);
+                        if (newAvatar.length < oldLen) {
+                            m.avatar = newAvatar;
+                            membersModified = true;
+                        }
+                        newTotalSize += m.avatar.length;
                     }
                 }
 
@@ -765,9 +817,10 @@
                     if (tripModified) payload.trip = { ...trip, days: newDays };
                     if (membersModified) payload.members = newMembers;
                     pushUpdate(payload);
-                    showMsg('✅ 瘦身完成！釋放了大量空間，現在可以正常上傳了！');
+                    const savedKB = Math.round((originalTotalSize - newTotalSize) / 1024);
+                    showMsg(`✅ 深度瘦身完成！共為您釋放了 ${savedKB} KB 的空間！`);
                 } else {
-                    showMsg('✅ 目前行程很健康，沒有過大的舊圖片。');
+                    showMsg('✅ 目前所有圖片已經是極致壓縮狀態，無需再瘦身。');
                 }
             };
 
@@ -784,16 +837,13 @@
 
                 if (isAvatar) {
                     const size = Math.min(oW, oH);
-                    canvas.width = 150; canvas.height = 150;
-                    ctx.drawImage(img, (oW - size) / 2, (oH - size) / 2, size, size, 0, 0, 150, 150);
-                    let url = canvas.toDataURL('image/webp', 0.6);
-                    if (url.startsWith('data:image/png')) url = canvas.toDataURL('image/jpeg', 0.6);
-                    return url;
+                    canvas.width = 120; canvas.height = 120;
+                    ctx.drawImage(img, (oW - size) / 2, (oH - size) / 2, size, size, 0, 0, 120, 120);
+                    return canvas.toDataURL('image/jpeg', 0.6); // 統一改用 JPEG 防相容性問題
                 }
                 
-                let targetSize = 400; // 初始目標尺寸
-                let quality = 0.6;
-                let format = 'image/webp';
+                let targetSize = 350; // 新上傳圖片最高畫質
+                let quality = 0.5; // 新上傳圖片預設壓縮率
                 
                 // 建立一個渲染函數，方便重複測試壓縮
                 const render = (s, q) => {
@@ -803,25 +853,22 @@
                     canvas.width = w; canvas.height = h;
                     ctx.clearRect(0, 0, w, h);
                     ctx.drawImage(img, 0, 0, w, h);
-                    let res = canvas.toDataURL(format, q);
-                    // iOS 防禦：如果不支援 webp 導致輸出 png，切換回 jpeg
-                    if (res.startsWith('data:image/png')) { format = 'image/jpeg'; res = canvas.toDataURL(format, q); }
-                    return res;
+                    return canvas.toDataURL('image/jpeg', q); // 統一改用 JPEG 確保檔案極小化
                 };
 
                 let dataUrl = render(targetSize, quality);
-                const maxLen = 30000; // 安全上限約 25KB
+                const maxLen = 25000; // 安全上限嚴格設定約 18KB
 
                 // 階段一：慢慢降低畫質
                 while (dataUrl.length > maxLen && quality > 0.1) {
-                    quality -= 0.15;
-                    dataUrl = render(targetSize, Math.max(0.05, quality));
+                    quality -= 0.1;
+                    dataUrl = render(targetSize, Math.max(0.1, quality));
                 }
 
                 // 階段二：降維打擊！專治竹編這類高頻細節圖 (若畫質降到極限還太大，就縮小尺寸)
                 while (dataUrl.length > maxLen && targetSize > 150) {
                     targetSize -= 50;
-                    dataUrl = render(targetSize, Math.max(0.05, quality));
+                    dataUrl = render(targetSize, Math.max(0.1, quality));
                 }
                 
                 return dataUrl;
