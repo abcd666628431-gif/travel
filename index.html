@@ -663,6 +663,7 @@
             };
             const handleOverviewDragEnd = () => { setDraggedOverviewPlace(null); setDragEnabledOverviewId(null); setDragOverOverview(null); };
             const handleOverviewScroll = (e) => { const val = e.target.value; setOverviewScroll(val); if (overviewContainerRef.current) { const maxScroll = overviewContainerRef.current.scrollWidth - overviewContainerRef.current.clientWidth; overviewContainerRef.current.scrollLeft = (val / 100) * maxScroll; } };
+            const handleOverviewContainerScroll = () => { if (overviewContainerRef.current) { const el = overviewContainerRef.current; const maxScroll = el.scrollWidth - el.clientWidth; if (maxScroll > 0) { setOverviewScroll((el.scrollLeft / maxScroll) * 100); } } };
 
             useEffect(() => {
                 if (!user || !tripId) return;
@@ -1539,7 +1540,7 @@
                                             );
                                         })
                                     ) : (
-                                        <div ref={overviewContainerRef} className="flex flex-nowrap gap-4 overflow-x-auto pb-8 items-start w-full no-scrollbar snap-x snap-mandatory">
+                                        <div ref={overviewContainerRef} onScroll={handleOverviewContainerScroll} className="flex flex-nowrap gap-4 overflow-x-auto pb-8 items-start w-full no-scrollbar snap-x snap-mandatory">
                                             {trip.days?.map((day, idx) => {
                                                 const places = day.places || [];
                                                 return (
