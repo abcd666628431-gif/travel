@@ -596,6 +596,7 @@
 
             const overviewContainerRef = useRef(null);
             const [overviewScroll, setOverviewScroll] = useState(0);
+            const isSliderDragging = useRef(false);
 
             const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
             const [dragEnabledOverviewId, setDragEnabledOverviewId] = useState(null);
@@ -663,7 +664,7 @@
             };
             const handleOverviewDragEnd = () => { setDraggedOverviewPlace(null); setDragEnabledOverviewId(null); setDragOverOverview(null); };
             const handleOverviewScroll = (e) => { const val = e.target.value; setOverviewScroll(val); if (overviewContainerRef.current) { const maxScroll = overviewContainerRef.current.scrollWidth - overviewContainerRef.current.clientWidth; overviewContainerRef.current.scrollLeft = (val / 100) * maxScroll; } };
-            const handleOverviewContainerScroll = () => { if (overviewContainerRef.current) { const el = overviewContainerRef.current; const maxScroll = el.scrollWidth - el.clientWidth; if (maxScroll > 0) { setOverviewScroll((el.scrollLeft / maxScroll) * 100); } } };
+            const handleOverviewContainerScroll = () => { if (!isSliderDragging.current && overviewContainerRef.current) { const el = overviewContainerRef.current; const maxScroll = el.scrollWidth - el.clientWidth; if (maxScroll > 0) { setOverviewScroll((el.scrollLeft / maxScroll) * 100); } } };
 
             useEffect(() => {
                 if (!user || !tripId) return;
@@ -1319,9 +1320,9 @@
                                         </div>
                                         <div className="flex items-end gap-3 text-right"><div className="text-sm text-slate-400 mb-1">{expenseFilter === 'all' ? '總計花費' : '成員花費'}</div><div className="text-3xl font-bold text-slate-100 font-mono">{displayCurrency} {formatNumber(filteredTotalDisplay, displayCurrency === 'JPY' ? 0 : 1)}</div></div>
                                     </div>
-                                    <div className="flex flex-nowrap gap-4 overflow-x-auto pb-8 snap-x snap-mandatory styled-scrollbar items-start">
+                                    <div className="flex flex-nowrap gap-4 overflow-x-auto pb-8 styled-scrollbar items-start">
                                         {orphanedExpenses.length > 0 && expenseFilter === 'all' && (
-                                            <div key="orphaned" className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 snap-start space-y-4 animate-fade-in bg-red-900/20 p-4 rounded-2xl border border-red-700/50">
+                                            <div key="orphaned" className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 space-y-4 animate-fade-in bg-red-900/20 p-4 rounded-2xl border border-red-700/50">
                                                 <div className="flex items-center gap-3 px-2">
                                                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg bg-slate-700">👻</div>
                                                     <div className="flex flex-col">
@@ -1360,7 +1361,7 @@
                                             const mTotalDisplay = mExpenses.reduce((sum, item) => sum + convertCurr(item.amount !== undefined ? item.amount : item.amountJPY, item.currency || 'JPY', displayCurrency), 0);
                                             const myBalance = settlementResult.balances[m.name] || 0;
                                             return (
-                                                <div key={m.id} className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 snap-start space-y-4 animate-fade-in bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
+                                                <div key={m.id} className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 space-y-4 animate-fade-in bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
                                                     <div className="flex items-center justify-between px-2"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg overflow-hidden ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}</div><div className="flex flex-col"><h3 className="font-bold text-slate-200 tracking-wide text-lg">{m.name}</h3><span className="text-[11px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 w-max mt-1">付款 {mExpenses.length} 筆</span></div></div><button onClick={() => { const defaultDate = activeDayData?.date ? activeDayData.date.split(' ')[0].replace(/\//g, '-') : '2026-04-03'; setNewExpenseItem({id: undefined, date: defaultDate, title: '', category: 'food', payer: m.name, amount: '', currency: displayCurrency, sharedBy: members.map(mem => mem.name), image: null}); setShowExpenseModal(true); }} className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-blue-600 rounded-lg transition-colors border border-slate-700" title="為此成員新增花費"><Icons.Plus size={16} /></button></div>
                                                     <div className="bg-slate-900/50 rounded-xl border border-slate-700 p-3 flex flex-col shadow-inner gap-2"><div className="flex justify-between items-center"><span className="text-xs text-slate-400">已墊付</span><div className="font-bold text-blue-400 font-mono text-sm">{displayCurrency} {formatNumber(mTotalDisplay, displayCurrency === 'JPY' ? 0 : 1)}</div></div><div className="border-t border-slate-700/50"></div><div className="flex justify-between items-center"><span className="text-xs text-slate-400">結算狀態</span>{myBalance > 0.01 ? (<div className="font-bold text-green-400 font-mono text-sm">應收 {displayCurrency} {formatNumber(myBalance, displayCurrency === 'JPY' ? 0 : 1)}</div>) : myBalance < -0.01 ? (<div className="font-bold text-red-400 font-mono text-sm">應付 {displayCurrency} {formatNumber(Math.abs(myBalance), displayCurrency === 'JPY' ? 0 : 1)}</div>) : (<div className="font-bold text-slate-500 text-sm">無欠款</div>)}</div></div>
                                                     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg h-[50vh] overflow-y-auto no-scrollbar">
@@ -1446,9 +1447,9 @@
                                 <div className="max-w-[1400px] mx-auto space-y-6 pb-32">
                                     <div className="flex justify-between items-center mb-2"><h2 className="text-2xl font-bold text-slate-100">行李清單</h2><button onClick={() => { setNewPackingItem({ text: '', owner: packingFilter !== 'all' ? packingFilter : 'all' }); setShowPackingModal(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2"><Icons.Plus size={18} /> 新增</button></div>
                                     <div className="flex justify-start"><div className="relative inline-flex items-center bg-slate-800 border border-slate-700 rounded-xl shadow-lg px-1 py-1 pr-8 hover:border-blue-500 transition-colors cursor-pointer"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shrink-0 mr-1.5 overflow-hidden ${packingFilter === 'all' ? 'bg-slate-600' : (getMemberInfo(packingFilter).avatar?.startsWith('data:image') ? 'bg-slate-800' : getMemberInfo(packingFilter).color)}`}>{packingFilter === 'all' ? <Icons.Users size={16}/> : (getMemberInfo(packingFilter).avatar?.startsWith('data:image') ? <img src={getMemberInfo(packingFilter).avatar} className="w-full h-full object-cover" /> : getMemberInfo(packingFilter).avatar)}</div><span className="text-xs sm:text-sm font-bold text-slate-300 whitespace-nowrap min-w-[60px]">{packingFilter === 'all' ? '全體成員' : packingFilter}</span><select value={packingFilter} onChange={(e) => setPackingFilter(e.target.value)} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none z-10"><option value="all">👥 全體成員</option>{members.map(member => (<option key={member.id} value={member.name}>{member.avatar?.startsWith('data:image') ? '👤' : member.avatar} {member.name}</option>))}</select></div></div>
-                                    <div className="flex flex-nowrap gap-4 overflow-x-auto pb-8 snap-x snap-mandatory styled-scrollbar items-start">
+                                    <div className="flex flex-nowrap gap-4 overflow-x-auto pb-8 styled-scrollbar items-start">
                                         {orphanedPacking.length > 0 && packingFilter === 'all' && (
-                                            <div key="orphaned-packing" className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 snap-start space-y-4 animate-fade-in bg-red-900/20 p-4 rounded-2xl border border-red-700/50">
+                                            <div key="orphaned-packing" className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 space-y-4 animate-fade-in bg-red-900/20 p-4 rounded-2xl border border-red-700/50">
                                                 <div className="flex items-center gap-3 px-2">
                                                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg bg-slate-700">👻</div>
                                                     <div className="flex flex-col">
@@ -1477,7 +1478,7 @@
                                         {members.filter(m => packingFilter === 'all' || packingFilter === m.name).map(m => {
                                             const items = packingList.filter(i => i.owner === m.name);
                                             return (
-                                                <div key={m.id} className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 snap-start space-y-4 animate-fade-in bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
+                                                <div key={m.id} className="w-[85vw] sm:w-[260px] lg:flex-1 lg:min-w-[230px] lg:max-w-[320px] flex-shrink-0 space-y-4 animate-fade-in bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
                                                     <div className="flex items-center justify-between px-2"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-inner text-lg overflow-hidden ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}</div><div className="flex flex-col"><h3 className="font-bold text-slate-200 tracking-wide text-lg">{m.name}</h3><span className="text-[11px] font-bold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700 w-max mt-1">共 {items.length} 項</span></div></div><button onClick={() => { setNewPackingItem({ text: '', owner: m.name }); setShowPackingModal(true); }} className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-blue-600 rounded-lg transition-colors border border-slate-700" title="為此成員新增項目"><Icons.Plus size={16} /></button></div>
                                                     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg h-[60vh] overflow-y-auto no-scrollbar">
                                                         {items.length > 0 ? items.map((item) => {
@@ -1524,7 +1525,7 @@
                                     {overviewMode === 'by_day' && trip.days && trip.days.length > 1 && (
                                         <div className="mb-2 flex items-center gap-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700 shadow-inner animate-fade-in">
                                             <div className="text-slate-400 shrink-0"><Icons.Move size={18} /></div>
-                                            <input type="range" min="0" max="100" value={overviewScroll} onChange={handleOverviewScroll} className="w-full custom-range"/>
+                                            <input type="range" min="0" max="100" value={overviewScroll} onChange={handleOverviewScroll} onPointerDown={() => isSliderDragging.current = true} onPointerUp={() => { isSliderDragging.current = false; handleOverviewContainerScroll(); }} onPointerCancel={() => isSliderDragging.current = false} onTouchStart={() => isSliderDragging.current = true} onTouchEnd={() => { isSliderDragging.current = false; handleOverviewContainerScroll(); }} className="w-full custom-range"/>
                                         </div>
                                     )}
 
@@ -1547,11 +1548,11 @@
                                             );
                                         })
                                     ) : (
-                                        <div ref={overviewContainerRef} onScroll={handleOverviewContainerScroll} className="flex flex-nowrap gap-4 overflow-x-auto pb-8 items-start w-full styled-scrollbar snap-x snap-mandatory">
+                                        <div ref={overviewContainerRef} onScroll={handleOverviewContainerScroll} className="flex flex-nowrap gap-4 overflow-x-auto pb-8 items-start w-full styled-scrollbar">
                                             {trip.days?.map((day, idx) => {
                                                 const places = day.places || [];
                                                 return (
-                                                    <div key={day.id} className="w-[85vw] sm:w-[300px] md:w-[340px] shrink-0 snap-start flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-3 md:p-4 shadow-lg h-full">
+                                                    <div key={day.id} className="w-[85vw] sm:w-[300px] md:w-[340px] shrink-0 flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-3 md:p-4 shadow-lg h-full">
                                                         <div className="flex justify-between items-center bg-slate-800/80 p-3 rounded-xl mb-4 border border-slate-700 shadow-sm">
                                                             <div className="flex flex-col"><h3 className="font-bold text-base text-blue-400 tracking-wide">{day.title}</h3><div className="text-[10px] text-slate-400 mt-0.5">{formatShortDate(day.date)} · {places.length} 個景點</div></div>
                                                             <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-900/50 text-sm border-2 border-slate-800">D{idx + 1}</div>
@@ -1994,7 +1995,7 @@
                                     <h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.FileText size={20} className="text-teal-400"/>成員分攤明細</h3>
                                     <button onClick={() => setShowExpenseDetails(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button>
                                 </div>
-                                <div className="p-4 md:p-6 overflow-x-auto flex flex-nowrap gap-3 md:gap-4 snap-x snap-mandatory pb-6 h-full min-h-[50vh] no-scrollbar">
+                                <div className="p-4 md:p-6 overflow-x-auto flex flex-nowrap gap-3 md:gap-4 pb-6 h-full min-h-[50vh] styled-scrollbar">
                                     {members.map(m => {
                                         const mSharedItems = expenses.flatMap(day => day.items.filter(item => item.sharedBy && item.sharedBy.includes(m.name)).map(item => ({ ...item, date: day.date }))).sort((a, b) => new Date(b.date) - new Date(a.date));
                                         
@@ -2005,7 +2006,7 @@
                                         }, 0);
 
                                         return (
-                                            <div key={m.id} className="w-[85vw] sm:w-[240px] lg:flex-1 lg:min-w-[220px] lg:max-w-[280px] flex-shrink-0 snap-start flex flex-col bg-slate-900/40 rounded-xl p-3 border border-slate-700/50 max-h-full">
+                                            <div key={m.id} className="w-[85vw] sm:w-[240px] lg:flex-1 lg:min-w-[220px] lg:max-w-[280px] flex-shrink-0 flex flex-col bg-slate-900/40 rounded-xl p-3 border border-slate-700/50 max-h-full">
                                                 <div className="flex items-center gap-2.5 mb-3 border-b border-slate-700/50 pb-2.5 shrink-0">
                                                     <div className={`w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 shadow-inner text-sm ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>
                                                         {m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}
