@@ -444,14 +444,14 @@
             const handleBlur = () => {
                 const trimmed = name.trim();
                 if (!trimmed) {
-                    setName(member.name); // 如果清空了，點擊旁邊時自動復原原名
+                    setName(member.name); 
                 } else if (trimmed !== member.name) {
                     onUpdate(member.id, 'name', trimmed);
                 }
             };
             
             const handleKeyDown = (e) => {
-                if (e.key === 'Enter') e.target.blur(); // 按下 Enter 自動觸發更新
+                if (e.key === 'Enter') e.target.blur(); 
             };
             
             return (
@@ -464,6 +464,14 @@
                     className="flex-1 min-w-0 px-3 py-2.5 rounded-lg text-slate-200 outline-none border border-slate-700 bg-slate-800 focus:ring-2 focus:ring-blue-500" 
                 />
             );
+        });
+
+        const DayTitleInput = React.memo(({ day, onUpdate }) => {
+            const [title, setTitle] = useState(day?.title || '');
+            useEffect(() => { setTitle(day?.title || ''); }, [day?.title, day?.id]);
+            const handleBlur = () => { const trimmed = title.trim(); if (!trimmed) { setTitle(day?.title || '新的一天'); } else if (trimmed !== day?.title) { onUpdate(day.id, trimmed); } };
+            const handleKeyDown = (e) => { if (e.key === 'Enter') e.target.blur(); };
+            return (<input type="text" value={title} onChange={(e) => setTitle(e.target.value)} onBlur={handleBlur} onKeyDown={handleKeyDown} className="font-bold text-blue-400 text-sm md:text-base bg-transparent outline-none w-full focus:bg-slate-900 focus:px-2 -ml-2 md:-ml-1 px-2 md:px-1 py-0.5 md:py-1 rounded transition-all border border-transparent focus:border-blue-500/50" placeholder="輸入天數名稱..." />);
         });
 
         const TripPlanner = ({ tripId, onBack, db, appId, user }) => {
@@ -501,7 +509,7 @@
             const [dragOverExpenseId, setDragOverExpenseId] = useState(null);
 
             const [displayCurrency, setDisplayCurrency] = useState('HKD');
-            const [newExpenseItem, setNewExpenseItem] = useState({ id: undefined, date: '2026-04-03', title: '', category: 'food', payer: '', amount: '', currency: 'HKD', sharedBy: [], image: null });
+            const [newExpenseItem, setNewExpenseItem] = useState({ id: undefined, date: new Date().toISOString().split('T')[0], title: '', category: 'food', payer: '', amount: '', currency: 'HKD', sharedBy: [], image: null });
             const [newShoppingItem, setNewShoppingItem] = useState({ name: '', qty: 1, price: 0, currency: 'HKD', requester: '', note: '', image: null });
             
             const searchTimeoutRef = useRef(null);
@@ -708,13 +716,13 @@
                 // 階段一：慢慢降低畫質
                 while (dataUrl.length > maxLen && quality > 0.1) {
                     quality -= 0.15;
-                    dataUrl = render(targetSize, Math.max(0.1, quality));
+                    dataUrl = render(targetSize, Math.max(0.05, quality));
                 }
 
                 // 階段二：降維打擊！專治竹編這類高頻細節圖 (若畫質降到極限還太大，就縮小尺寸)
                 while (dataUrl.length > maxLen && targetSize > 150) {
                     targetSize -= 50;
-                    dataUrl = render(targetSize, Math.max(0.1, quality));
+                    dataUrl = render(targetSize, Math.max(0.05, quality));
                 }
                 
                 return dataUrl;
@@ -916,7 +924,9 @@
                 e.preventDefault(); const expenseData = { id: newExpenseItem.id || 'e_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), payer: newExpenseItem.payer, title: newExpenseItem.title, category: newExpenseItem.category, sharedBy: newExpenseItem.sharedBy, amount: Number(newExpenseItem.amount), currency: newExpenseItem.currency, amountJPY: convertCurr(Number(newExpenseItem.amount), newExpenseItem.currency, 'JPY'), image: newExpenseItem.image }; 
                 let newExpenses = JSON.parse(JSON.stringify(expenses)); if (newExpenseItem.id) { newExpenses = newExpenses.map(day => ({ ...day, items: day.items.filter(i => i.id !== newExpenseItem.id) })).filter(day => day.items.length > 0); }
                 const dayIndex = newExpenses.findIndex(d => d.date === newExpenseItem.date); if (dayIndex >= 0) newExpenses[dayIndex].items.push(expenseData); else newExpenses.push({ date: newExpenseItem.date, items: [expenseData] }); 
-                pushUpdate({ expenses: newExpenses.sort((a, b) => new Date(a.date) - new Date(b.date)) }); setShowExpenseModal(false); setNewExpenseItem({ id: undefined, date: '2026-04-03', title: '', category: 'food', payer: members[0]?.name || '', amount: '', currency: displayCurrency, sharedBy: members.map(m => m.name), image: null }); 
+                pushUpdate({ expenses: newExpenses.sort((a, b) => new Date(a.date) - new Date(b.date)) }); setShowExpenseModal(false); 
+                const defaultDate = activeDayData?.date ? activeDayData.date.split(' ')[0].replace(/\//g, '-') : new Date().toISOString().split('T')[0];
+                setNewExpenseItem({ id: undefined, date: defaultDate, title: '', category: 'food', payer: members[0]?.name || '', amount: '', currency: displayCurrency, sharedBy: members.map(m => m.name), image: null }); 
             };
             const handleEditExpenseClick = (item, date) => { setNewExpenseItem({ id: item.id, date: date, title: item.title, category: item.category, payer: item.payer, amount: item.amount !== undefined ? item.amount : item.amountJPY, currency: item.currency || 'JPY', sharedBy: item.sharedBy || [], image: item.image || null }); setShowExpenseModal(true); };
             const confirmDeleteExpense = () => { if (expenseToDelete) { pushUpdate({ expenses: expenses.map(day => ({...day, items: day.items.filter(item => item.id !== expenseToDelete.id)})).filter(day => day.items.length > 0) }); setExpenseToDelete(null); } };
@@ -968,6 +978,8 @@
             
             const handleAddDay = () => { const newId = 'day_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); const nextIndex = trip.days ? trip.days.length : 0; pushUpdate({ trip: { ...trip, days: [...(trip.days||[]), { id: newId, date: getFutureDate(nextIndex), title: `新的一天`, color: '#3b82f6', weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }, places: [] }] } }); setActiveDayId(newId); };
 
+            const handleUpdateDayTitle = (dayId, newTitle) => { const newDays = trip.days.map(d => d.id === dayId ? { ...d, title: newTitle } : d); pushUpdate({ trip: { ...trip, days: newDays } }); };
+
             const handleMemberAvatarUpload = (memberId, e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = (event) => { const img = new Image(); img.onload = () => {
@@ -995,10 +1007,8 @@
                 if (!memberToDelete) return;
                 const delName = memberToDelete.name;
 
-                // 1. 刪除成員
                 const newMembers = members.filter(m => m.id !== id);
                 
-                // 2. 清理花費：刪除該成員付款的項目，並從其他項目的「分攤名單」中移除
                 const newExpenses = expenses.map(day => ({ 
                     ...day, 
                     items: day.items
@@ -1006,10 +1016,8 @@
                         .map(item => ({ ...item, sharedBy: item.sharedBy ? item.sharedBy.filter(n => n !== delName) : [] })) 
                 })).filter(day => day.items.length > 0);
                 
-                // 3. 清理待買清單
                 const newShoppingItems = shoppingItems.filter(item => item.requester !== delName);
                 
-                // 4. 清理行李清單
                 const newPackingList = packingList.filter(item => item.owner !== delName);
 
                 pushUpdate({ members: newMembers, expenses: newExpenses, shoppingItems: newShoppingItems, packingList: newPackingList }); 
@@ -1073,7 +1081,7 @@
                                             </div>
                                             
                                             <div className="itinerary-list-container px-3 md:px-4 py-4 overflow-y-auto flex-1 pb-32">
-                                                <div className="flex justify-between items-center bg-slate-800/50 p-3 rounded-xl mb-4 border border-slate-700/50"><div className="flex flex-col"><h3 className="font-bold text-blue-400">{activeDayData?.title}</h3><div className="text-[10px] text-slate-400 mt-1">{activeDayData?.places?.length || 0} 個景點</div></div><button onClick={() => setShowDeleteDayConfirm(true)} className="p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg border border-slate-700 transition-colors"><Icons.Trash2 size={16} /></button></div>
+                                                <div className="flex justify-between items-center bg-slate-800/50 p-2.5 md:p-3 rounded-xl mb-3 md:mb-4 border border-slate-700/50"><div className="flex flex-col flex-1 min-w-0 mr-2"><DayTitleInput day={activeDayData} onUpdate={handleUpdateDayTitle} /><div className="text-[10px] text-slate-400 mt-0.5 md:mt-1 px-2 md:px-1">{activeDayData?.places?.length || 0} 個景點</div></div><button onClick={() => setShowDeleteDayConfirm(true)} className="p-1.5 md:p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg border border-slate-700 transition-colors shrink-0"><Icons.Trash2 size={16} className="scale-90 md:scale-100" /></button></div>
                                                 <div className="flex flex-col mt-2">
                                                     {activeDayData?.places.map((p, i) => {
                                                         const isNoteExpanded = expandedNotes[p.id];
@@ -1120,12 +1128,12 @@
                                                     </div>
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-400 mb-1">景點名稱</label>
-                                                        <input required placeholder="*景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                                                        <input required placeholder="*景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-white" />
                                                     </div>
                                                     <div className="relative">
                                                         <label className="block text-xs font-bold text-slate-400 mb-1">搜尋更新地址 (選填)</label>
                                                         <div className="flex gap-2">
-                                                            <input placeholder="輸入地址更新地圖位置" value={newItem.address || ''} onChange={handleAddressInput} className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" />
+                                                            <input placeholder="輸入地址更新地圖位置" value={newItem.address || ''} onChange={handleAddressInput} className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-white" />
                                                             <button type="button" onClick={handleAddressSearch} disabled={isSearchingAddress} className="bg-blue-600 p-2.5 rounded-lg transition-colors hover:bg-blue-500 disabled:opacity-50 text-white shrink-0 flex items-center justify-center">
                                                                 <Icons.Search size={18} />
                                                             </button>
@@ -1163,7 +1171,7 @@
                                                     </div>
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-400 mb-1">備註</label>
-                                                        <textarea rows="3" value={newItem.note || ''} onChange={e => setNewItem({...newItem, note: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..."></textarea>
+                                                        <textarea rows="3" value={newItem.note || ''} onChange={e => setNewItem({...newItem, note: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..."></textarea>
                                                     </div>
                                                     
                                                     {newItem.image ? (
@@ -1190,11 +1198,9 @@
                                                             <Icons.Camera size={16} /> 上傳圖片
                                                             <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                                                         </label>
-                                                        {panelMode === 'edit' && (
-                                                            <button type="button" onClick={() => { setPlaceToDelete(newItem.id); setPanelMode('list'); }} className="px-4 py-2.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl font-bold transition-all border border-slate-600 hover:border-red-500/50 flex items-center justify-center gap-2 shadow-sm cursor-pointer relative z-10">
-                                                                <Icons.Trash2 size={16} /> 刪除
-                                                            </button>
-                                                        )}
+                                                        <button type="button" onClick={() => { setPlaceToDelete(newItem.id); setPanelMode('list'); }} className="px-4 py-2.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl font-bold transition-all border border-slate-600 hover:border-red-500/50 flex items-center justify-center gap-2 shadow-sm cursor-pointer relative z-10">
+                                                            <Icons.Trash2 size={16} /> 刪除
+                                                        </button>
                                                     </div>
                                                 </form>
                                             </div>
@@ -1242,7 +1248,7 @@
                                                                     <div onPointerDown={() => setDragEnabledExpenseId(item.id)} onTouchStart={() => setDragEnabledExpenseId(item.id)} className="drag-handle text-slate-400 bg-slate-800 p-1 rounded border border-slate-700 hover:text-white cursor-grab active:cursor-grabbing shrink-0 flex items-center justify-center mt-0.5 shadow-sm"><Icons.GripVertical size={16} /></div>
                                                                     <div className="flex justify-between items-start gap-2 flex-1 min-w-0">
                                                                         <div className="min-w-0 flex-1"><div className="flex items-center gap-2 mb-1"><CategoryIconWithLabel type={item.category} size={12} /><div className="font-bold text-slate-200 text-sm truncate">{item.title}</div></div><div className="text-[10px] text-slate-500">{formatShortDate(item.date)}</div>{item.sharedBy && item.sharedBy.length > 0 && (<div className="text-[10px] text-slate-400 mt-1 flex flex-wrap gap-1 items-center">分攤: <div className="flex -space-x-1">{item.sharedBy.map(name => { const info = getMemberInfo(name); return (<div key={name} className={`w-4 h-4 rounded-full border border-slate-700 flex items-center justify-center text-[8px] text-white shadow-sm overflow-hidden ${info.avatar?.startsWith('data:image') ? 'bg-slate-800' : (info.color || 'bg-slate-600')}`} title={name}>{info.avatar?.startsWith('data:image') ? <img src={info.avatar} className="w-full h-full object-cover" /> : info.avatar}</div>); })}</div></div>)}</div>
-                                                                        <div className="text-right shrink-0 relative"><div className="font-bold text-slate-100 text-sm font-mono leading-none">{displayCurrency} {formatNumber(convertedDisplayAmt, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono mt-1 leading-none">支付用 ({originalCurr} {formatNumber(originalAmount, originalCurr === 'JPY' ? 0 : 1)})</div>}{collectAmount > 0.01 && (<div className="mt-1.5 inline-block text-[10px] font-bold text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded border border-green-500/20">需收回 {formatNumber(collectAmount, displayCurrency === 'JPY' ? 0 : 1)}</div>)}
+                                                                        <div className="text-right shrink-0 relative"><div className="font-bold text-slate-100 text-sm font-mono leading-none">{displayCurrency} {formatNumber(convertedDisplayAmt, displayCurrency === 'JPY' ? 0 : 1)}</div>{originalCurr !== displayCurrency && <div className="text-[10px] text-slate-500 font-mono mt-1 leading-none">支付用 ({originalCurr} {formatNumber(originalAmount, originalCurr === 'JPY' ? 0 : 1)})</div>}
                                                                             <div className="flex items-center gap-1 mt-2 justify-end"><button onClick={(e) => { e.stopPropagation(); setActiveExpenseMenu(activeExpenseMenu?.id === item.id ? null : item); }} className="text-slate-500 hover:text-white p-1.5 rounded-md bg-slate-900 border border-slate-700 transition-colors"><Icons.MoreVertical size={12} /></button></div>
                                                                         </div>
                                                                     </div>
@@ -1492,11 +1498,11 @@
                                                                         </div>
                                                                         );
                                                                     })}
-                                                                    <div onDragOver={(e) => { e.preventDefault(); setDragOverOverview({ dayId: day.id, index: places.length }); }} onDrop={(e) => { handleOverviewDrop(e, day.id, places.length); setDragOverOverview(null); }} className={`w-full rounded-xl border-2 border-dashed transition-all flex items-center justify-center ${dragOverOverview?.dayId === day.id && dragOverOverview?.index === places.length ? 'h-16 mt-2 border-blue-400 bg-blue-500/10 opacity-100' : (draggedOverviewPlace ? 'h-10 mt-2 border-transparent opacity-0' : 'h-0 m-0 border-transparent opacity-0 pointer-events-none overflow-hidden')}`}><span className="text-xs font-bold text-blue-400 bg-blue-900/40 px-3 py-1 rounded-full">移至尾端</span></div>
                                                                 </>
                                                             )}
-                                                            <button onClick={() => { setShowEditPlaceModal(true); setActiveDayId(day.id); setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null }); setModalMode('add'); }} className="w-full py-3 mt-3 border-2 border-dashed border-slate-700/50 rounded-xl text-slate-500 font-bold hover:border-blue-500 hover:text-blue-400 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-sm"><Icons.Plus size={16} /> 新增行程景點</button>
+                                                            <div onDragOver={(e) => { e.preventDefault(); setDragOverOverview({ dayId: day.id, index: places.length }); }} onDrop={(e) => { handleOverviewDrop(e, day.id, places.length); setDragOverOverview(null); }} className={`flex-1 min-h-[60px] rounded-xl border-2 border-dashed transition-all flex items-center justify-center ${dragOverOverview?.dayId === day.id && dragOverOverview?.index === places.length ? 'h-16 mt-2 border-blue-400 bg-blue-500/10 opacity-100' : (draggedOverviewPlace ? 'h-10 mt-2 border-transparent opacity-0' : 'h-0 m-0 border-transparent opacity-0 pointer-events-none overflow-hidden')}`}><span className="text-xs font-bold text-blue-400 bg-blue-900/40 px-3 py-1 rounded-full">移至尾端</span></div>
                                                         </div>
+                                                        <button onClick={() => { setShowEditPlaceModal(true); setActiveDayId(day.id); setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null }); setModalMode('add'); }} className="w-full py-3 mt-3 border-2 border-dashed border-slate-700/50 rounded-xl text-slate-500 font-bold hover:border-blue-500 hover:text-blue-400 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-sm"><Icons.Plus size={16} /> 新增行程景點</button>
                                                     </div>
                                                 );
                                             })}
@@ -1508,6 +1514,115 @@
                     </div>
                     
                     {/* Action Modals */}
+                    {showMemberSettings && (
+                        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onClick={() => setShowMemberSettings(false)}>
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
+                                    <h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Settings size={20} className="text-slate-400"/>成員資料</h3>
+                                    <button onClick={() => setShowMemberSettings(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full transition-colors"><Icons.X size={20} /></button>
+                                </div>
+                                <div className="p-6 space-y-4 overflow-y-auto flex-1 no-scrollbar">
+                                    {members.map(m => (
+                                        <div key={m.id} className="flex items-center gap-3 p-3 border border-slate-700 rounded-xl bg-slate-900/50 shadow-sm">
+                                            <label className={`relative w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-white text-lg shadow-inner overflow-hidden cursor-pointer group ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`} title="點擊更換頭像">
+                                                {m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}
+                                                <div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center transition-colors"><Icons.Camera size={16} /></div>
+                                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleMemberAvatarUpload(m.id, e)} />
+                                            </label>
+                                            <MemberNameInput member={m} onUpdate={updateMember} />
+                                            <button onClick={() => handleDeleteMember(m.id)} className="p-2 shrink-0 text-slate-600 hover:text-red-400 transition-colors bg-slate-800 rounded-lg border border-slate-700"><Icons.Trash2 size={18} /></button>
+                                        </div>
+                                    ))}
+                                    <button onClick={handleAddMember} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-colors mt-2"><Icons.Plus size={18} /> 新增成員</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showDeleteDayConfirm && (
+                        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
+                                <h3 className="font-bold text-xl text-slate-100 mb-2">確定刪除此天行程？</h3>
+                                <p className="text-slate-400 text-sm mb-6">刪除後該天的所有景點將一併移除，無法復原。</p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setShowDeleteDayConfirm(false)} className="flex-1 py-2.5 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 font-bold transition-colors">取消</button>
+                                    <button onClick={() => {
+                                        const newDays = trip.days.filter(d => d.id !== activeDayId);
+                                        pushUpdate({ trip: { ...trip, days: newDays } });
+                                        setActiveDayId(newDays[0]?.id || null);
+                                        setShowDeleteDayConfirm(false);
+                                    }} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-colors">確定刪除</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {placeToDelete && (
+                        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
+                                <h3 className="font-bold text-lg text-slate-100 mb-2">確定刪除此景點嗎？</h3>
+                                <p className="text-slate-400 text-sm mb-6">刪除後將無法復原。</p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setPlaceToDelete(null)} className="flex-1 py-2.5 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 font-bold transition-colors">取消</button>
+                                    <button onClick={confirmDeletePlace} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-colors">確定刪除</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {expenseToDelete && (
+                        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
+                                <h3 className="font-bold text-lg text-slate-100 mb-2">確定刪除此花費嗎？</h3>
+                                <p className="text-slate-400 text-sm mb-6">相關的分攤金額將重新計算。</p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setExpenseToDelete(null)} className="flex-1 py-2.5 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 font-bold transition-colors">取消</button>
+                                    <button onClick={confirmDeleteExpense} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-colors">確定刪除</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {shoppingToDelete && (
+                        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
+                                <h3 className="font-bold text-lg text-slate-100 mb-2">確定刪除待買項目嗎？</h3>
+                                <p className="text-slate-400 text-sm mb-6">刪除後將無法復原。</p>
+                                <div className="flex gap-3">
+                                    <button onClick={() => setShoppingToDelete(null)} className="flex-1 py-2.5 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 font-bold transition-colors">取消</button>
+                                    <button onClick={confirmDeleteShopping} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-colors">確定刪除</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showClearOrphanedConfirm && (
+                        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
+                                <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
+                                    <Icons.Trash2 size={32} className="text-red-500" />
+                                </div>
+                                <h3 className="font-bold text-xl text-slate-100">確定清空殘留資料？</h3>
+                                <p className="text-slate-400 text-sm mt-2">這些資料屬於已被刪除的成員，清空後無法復原。</p>
+                                <div className="flex gap-3 mt-6">
+                                    <button onClick={() => setShowClearOrphanedConfirm(null)} className="flex-1 py-2.5 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 font-bold transition-colors">取消</button>
+                                    <button onClick={() => {
+                                        const validNames = members.map(m=>m.name);
+                                        if (showClearOrphanedConfirm === 'expenses') {
+                                            pushUpdate({ expenses: expenses.map(day => ({...day, items: day.items.filter(i => validNames.includes(i.payer))})).filter(day => day.items.length > 0) });
+                                        } else if (showClearOrphanedConfirm === 'packing') {
+                                            pushUpdate({ packingList: packingList.filter(i => validNames.includes(i.owner) || i.owner === 'all') });
+                                        } else if (showClearOrphanedConfirm === 'shopping') {
+                                            pushUpdate({ shoppingItems: shoppingItems.filter(i => validNames.includes(i.requester)) });
+                                        }
+                                        setShowClearOrphanedConfirm(null);
+                                        showMsg('✅ 殘留資料已全部清空！');
+                                    }} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-colors">確定清空</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {showEditPlaceModal && (
                         <div className="fixed inset-0 bg-black/70 z-[120] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowEditPlaceModal(false)}>
                             <div className="bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
@@ -1565,7 +1680,7 @@
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-400 mb-1">備註</label>
-                                            <textarea rows="3" value={newItem.note || ''} onChange={e => setNewItem({...newItem, note: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..."></textarea>
+                                            <textarea rows="3" value={newItem.note || ''} onChange={e => setNewItem({...newItem, note: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..."></textarea>
                                         </div>
                                         
                                         {newItem.image ? (
@@ -1696,7 +1811,7 @@
                                 <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">新增行李項目</h3><button onClick={() => setShowPackingModal(false)}><Icons.X size={20} className="text-slate-500 hover:text-white transition-colors" /></button></div>
                                 <form onSubmit={handleAddPacking} className="p-6 space-y-4">
                                     <div><label className="block text-sm font-bold text-slate-400 mb-1">物品名稱</label><input required placeholder="例如: 護照" value={newPackingItem.text} onChange={e => setNewPackingItem({...newPackingItem, text: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100"/></div>
-                                    <div><label className="block text-sm font-bold text-slate-400 mb-1">所屬成員</label><select value={newPackingItem.owner} onChange={e => setNewPackingItem({...newPackingItem, owner: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"><option value="all">👥 全體成員</option>{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
+                                    <div><label className="block text-sm font-bold text-slate-400 mb-1">所屬成員</label><select value={newPackingItem.owner} onChange={e => setNewPackingItem({...newPackingItem, owner: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"><option value="all">👥 全體成員 (每人各一項)</option>{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
                                     <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg transition-colors">新增</button>
                                 </form>
                             </div>
@@ -1721,7 +1836,7 @@
                     )}
 
                     {showSettlementPlan && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
+                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
                             <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-700 flex flex-col max-h-[90vh]">
                                 <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0"><h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Calculator size={20} className="text-blue-400"/>結算方案</h3><button onClick={() => setShowSettlementPlan(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div>
                                 <div className="p-6 overflow-y-auto flex flex-col md:flex-row gap-6">
@@ -1841,69 +1956,6 @@
                                             </div>
                                         );
                                     })}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {showMemberSettings && (
-                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700">
-                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Settings size={20} className="text-slate-400"/>成員資料</h3><button onClick={() => setShowMemberSettings(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div>
-                                <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-                                    {members.map(m => (<div key={m.id} className="flex items-center gap-3 p-3 border border-slate-700 rounded-xl bg-slate-900/50"><label className={`relative w-12 h-12 shrink-0 rounded-xl flex items-center justify-center text-white text-lg shadow-inner overflow-hidden cursor-pointer group ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`} title="點擊更換頭像">{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}<div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center transition-colors"><Icons.Camera size={16} /></div><input type="file" accept="image/*" className="hidden" onChange={(e) => handleMemberAvatarUpload(m.id, e)} /></label><MemberNameInput member={m} onUpdate={updateMember} /><button onClick={() => handleDeleteMember(m.id)} className="p-2 shrink-0 text-slate-600 hover:text-red-400 transition-colors"><Icons.Trash2 size={18} /></button></div>))}
-                                    <button onClick={handleAddMember} className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2"><Icons.Plus size={16} /> 新增成員</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {showDeleteDayConfirm && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此日？</h3><div className="flex gap-3 mt-6"><button onClick={() => setShowDeleteDayConfirm(false)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button><button onClick={() => { pushUpdate({trip:{...trip, days: trip.days.filter(d => d.id !== activeDayId)}}); if(trip.days.length > 1) setActiveDayId(trip.days.find(d=>d.id!==activeDayId).id); setShowDeleteDayConfirm(false); }} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg">刪除</button></div></div>
-                        </div>
-                    )}
-
-                    {placeToDelete && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此景點？</h3><div className="flex gap-3 mt-6"><button onClick={() => setPlaceToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button><button onClick={confirmDeletePlace} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg">刪除</button></div></div>
-                        </div>
-                    )}
-
-                    {expenseToDelete && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此筆消費嗎？</h3><div className="flex gap-3 mt-6"><button onClick={() => setExpenseToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button><button onClick={confirmDeleteExpense} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg">刪除</button></div></div>
-                        </div>
-                    )}
-
-                    {shoppingToDelete && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700"><h3 className="font-bold text-lg text-slate-100">確定刪除此待買項目嗎？</h3><div className="flex gap-3 mt-6"><button onClick={() => setShoppingToDelete(null)} className="flex-1 py-2 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 transition-colors">取消</button><button onClick={confirmDeleteShopping} className="flex-1 py-2 bg-red-600 hover:bg-red-500 text-white rounded-xl shadow-lg">刪除</button></div></div>
-                        </div>
-                    )}
-
-                    {showClearOrphanedConfirm && (
-                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
-                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
-                                <div className="w-16 h-16 bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-500/30">
-                                    <Icons.Trash2 size={32} className="text-red-500" />
-                                </div>
-                                <h3 className="font-bold text-xl text-slate-100">確定清空殘留資料？</h3>
-                                <p className="text-slate-400 text-sm mt-2">這些資料屬於已被刪除的成員，清空後無法復原。</p>
-                                <div className="flex gap-3 mt-6">
-                                    <button onClick={() => setShowClearOrphanedConfirm(null)} className="flex-1 py-2.5 border rounded-xl border-slate-600 hover:bg-slate-700 text-slate-300 font-bold transition-colors">取消</button>
-                                    <button onClick={() => {
-                                        const validNames = members.map(m=>m.name);
-                                        if (showClearOrphanedConfirm === 'expenses') {
-                                            pushUpdate({ expenses: expenses.map(day => ({...day, items: day.items.filter(i => validNames.includes(i.payer))})).filter(day => day.items.length > 0) });
-                                        } else if (showClearOrphanedConfirm === 'packing') {
-                                            pushUpdate({ packingList: packingList.filter(i => validNames.includes(i.owner) || i.owner === 'all') });
-                                        } else if (showClearOrphanedConfirm === 'shopping') {
-                                            pushUpdate({ shoppingItems: shoppingItems.filter(i => validNames.includes(i.requester)) });
-                                        }
-                                        setShowClearOrphanedConfirm(null);
-                                        showMsg('✅ 殘留資料已全部清空！');
-                                    }} className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl shadow-lg transition-colors">確定清空</button>
                                 </div>
                             </div>
                         </div>
