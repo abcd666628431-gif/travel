@@ -717,7 +717,51 @@
 
             const pushUpdate = (data) => {
                 window.FirebaseSDK.updateDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', tripId), JSON.parse(JSON.stringify(data)))
-                .catch(err => { if (err.message.includes('exceeds the maximum')) showMsg('❌ 儲存失敗：此行程總容量已達 1MB！請刪除部分照片以釋放空間'); else showMsg('❌ 同步失敗，請檢查網路連線'); });
+                .catch(err => { if (err.message.includes('exceeds the maximum')) showMsg('❌ 儲存失敗：此行程總容量已達 1MB！請點擊右上角「🧹空間瘦身」'); else showMsg('❌ 同步失敗，請檢查網路連線'); });
+            };
+
+            const handleOptimizeTrip = async () => {
+                showMsg('🔄 開始掃描並壓縮舊圖片...');
+                let tripModified = false;
+                let membersModified = false;
+                let newDays = JSON.parse(JSON.stringify(trip.days || []));
+                let newMembers = JSON.parse(JSON.stringify(members || []));
+
+                const compressAsync = (base64Str, isAvatar = false) => new Promise((resolve) => {
+                    if (!base64Str || !base64Str.startsWith('data:image')) { resolve(base64Str); return; }
+                    const img = new Image();
+                    img.onload = () => resolve(compressImageToUnder1MB(img, isAvatar));
+                    img.onerror = () => resolve(base64Str);
+                    img.src = base64Str;
+                });
+
+                for (let d of newDays) {
+                    if(!d.places) continue;
+                    for (let p of d.places) {
+                        // 揪出超過安全容量的舊圖片重新壓縮 (大於約 50KB)
+                        if (p.image && p.image.length > 50000) { 
+                            p.image = await compressAsync(p.image);
+                            tripModified = true;
+                        }
+                    }
+                }
+                
+                for (let m of newMembers) {
+                    if (m.avatar && m.avatar.startsWith('data:image') && m.avatar.length > 30000) {
+                        m.avatar = await compressAsync(m.avatar, true);
+                        membersModified = true;
+                    }
+                }
+
+                if (tripModified || membersModified) {
+                    const payload = {};
+                    if (tripModified) payload.trip = { ...trip, days: newDays };
+                    if (membersModified) payload.members = newMembers;
+                    pushUpdate(payload);
+                    showMsg('✅ 瘦身完成！釋放了大量空間，現在可以正常上傳了！');
+                } else {
+                    showMsg('✅ 目前行程很健康，沒有過大的舊圖片。');
+                }
             };
 
             const showMsg = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
@@ -1093,6 +1137,7 @@
                             <div className="flex flex-col min-w-0 flex-1"><input value={trip.title} onChange={(e) => pushUpdate({trip:{...trip, title:e.target.value}})} className="text-sm font-bold bg-transparent outline-none w-full" /><input value={trip.dates} onChange={(e) => pushUpdate({trip:{...trip, dates:e.target.value}})} className="text-xs text-slate-500 bg-transparent outline-none w-full" /></div>
                         </div>
                         <div className="flex items-center gap-2 md:gap-3 shrink-0 ml-2">
+                            <button onClick={handleOptimizeTrip} className="p-1.5 md:px-3 md:py-1.5 text-amber-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700" title="壓縮所有舊照片，釋放大量儲存空間">🧹<span className="hidden md:inline text-xs font-bold">空間瘦身</span></button>
                             <button onClick={() => setShowMemberSettings(true)} className="p-1.5 md:px-3 md:py-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700" title="成員管理"><Icons.Users size={16} /><span className="hidden md:inline text-xs font-bold">成員</span></button>
                             <OnlineUserBadge />
                         </div>
