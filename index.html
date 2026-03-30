@@ -391,6 +391,16 @@
             const map = { food: '餐飲', shopping: '購物', transport: '交通', sight: '景點', accommodation: '住宿' }; return map[type] || '其他';
         };
 
+        // 新增：智慧辨識 Google Drive 連結並轉換為直連圖
+        const processImageUrl = (url) => {
+            if (!url) return null;
+            const driveMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+            if (driveMatch && driveMatch[1]) {
+                return `https://drive.google.com/uc?id=${driveMatch[1]}`;
+            }
+            return url;
+        };
+
         const CategoryIconWithLabel = ({ type, size = 20 }) => {
             const baseClass = "rounded-full flex items-center justify-center shrink-0 shadow-sm";
             const style = { width: `${size*2}px`, height: `${size*2}px`, fontSize: `${size * 1.2}px` };
@@ -1081,6 +1091,17 @@
                 const handleGlobalPaste = (e) => {
                     const current = stateRef.current;
                     if (current.activeTab !== 'itinerary' && !current.showEditPlaceModal) return;
+                    
+                    // 檢查是否貼上了純文字網址 (例如 Google Drive 連結)
+                    const pastedText = e.clipboardData?.getData('Text');
+                    if (pastedText && pastedText.startsWith('http')) {
+                        const processedUrl = processImageUrl(pastedText);
+                        if (current.panelMode === 'add' || current.panelMode === 'edit' || current.showEditPlaceModal) {
+                            setNewItem(prev => ({ ...prev, image: processedUrl })); showMsg(`✅ 已套用外部圖片連結 (零容量負擔)`);
+                        }
+                        return;
+                    }
+
                     const items = e.clipboardData?.items; if (!items) return;
                     let imageFile = null; for (let i = 0; i < items.length; i++) { if (items[i].type.indexOf('image') !== -1) { imageFile = items[i].getAsFile(); break; } }
                     if (imageFile) {
@@ -1088,12 +1109,13 @@
                         reader.onload = (event) => {
                             const img = new Image(); img.onload = () => {
                                 const dataUrl = compressImageToUnder1MB(img);
+                                const kbSize = Math.round(dataUrl.length / 1024);
                                 if (current.panelMode === 'add' || current.panelMode === 'edit' || current.showEditPlaceModal) {
-                                    setNewItem(prev => ({ ...prev, image: dataUrl })); showMsg('✅ 圖片已貼上預覽 (請記得儲存)');
+                                    setNewItem(prev => ({ ...prev, image: dataUrl })); showMsg(`✅ 圖片已貼上並壓縮至 ${kbSize}KB (請記得儲存)`);
                                 } else if (current.hoveredPlaceId) {
                                     const targetPlace = current.trip.days.flatMap(d => d.places).find(p => p.id === current.hoveredPlaceId); const targetName = targetPlace?.name?.trim();
                                     const newDays = current.trip.days.map(d => ({ ...d, places: d.places.map(p => { if (p.id === current.hoveredPlaceId || (targetName && p.name?.trim() === targetName)) return { ...p, image: dataUrl }; return p; }) }));
-                                    pushUpdate({ trip: { ...current.trip, days: newDays } }); showMsg('✅ 圖片已同步儲存');
+                                    pushUpdate({ trip: { ...current.trip, days: newDays } }); showMsg(`✅ 圖片已同步並自動壓縮至 ${kbSize}KB`);
                                 }
                             }; img.src = event.target.result;
                         }; reader.readAsDataURL(imageFile);
@@ -1129,7 +1151,9 @@
                     const img = new Image();
                     img.onload = () => {
                         const dataUrl = compressImageToUnder1MB(img);
+                        const kbSize = Math.round(dataUrl.length / 1024);
                         setNewItem(prev => ({ ...prev, image: dataUrl }));
+                        showMsg(`✅ 圖片已自動壓縮至 ${kbSize}KB 以節省空間`);
                     };
                     img.src = event.target.result;
                 };
@@ -1536,20 +1560,40 @@
                                                         <textarea rows="3" value={newItem.note || ''} onChange={e => setNewItem({...newItem, note: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..."></textarea>
                                                     </div>
                                                     
-                                                    {newItem.image ? (
-                                                        <div className="relative w-full h-40 bg-slate-800 rounded-xl overflow-hidden mt-4 border border-slate-600 shadow-md group shrink-0">
-                                                            <img src={newItem.image} className="w-full h-full object-cover" alt="Preview" />
-                                                            <button type="button" onClick={() => setNewItem({...newItem, image: null})} className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors z-10">
-                                                                <Icons.X size={16} />
-                                                            </button>
+                                                    <div className="pt-2 border-t border-slate-700/50 mt-4">
+                                                        <label className="block text-xs font-bold text-slate-400 mb-2">景點圖片 (支援 Google 雲端網址或上傳)</label>
+                                                        <div className="flex flex-col gap-3">
+                                                            <input 
+                                                                type="text" 
+                                                                placeholder="貼上圖片網址 (支援 Google Drive 分享連結)" 
+                                                                value={newItem.image && newItem.image.startsWith('http') ? newItem.image : ''}
+                                                                onChange={e => setNewItem({...newItem, image: processImageUrl(e.target.value)})}
+                                                                className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                                            />
+                                                            
+                                                            <div className="flex items-center gap-4">
+                                                                <div className="flex-1 h-px bg-slate-700"></div>
+                                                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">OR</span>
+                                                                <div className="flex-1 h-px bg-slate-700"></div>
+                                                            </div>
+
+                                                            {newItem.image ? (
+                                                                <div className="relative w-full h-40 bg-slate-800 rounded-xl overflow-hidden border border-slate-600 shadow-md group shrink-0">
+                                                                    <img src={newItem.image} className="w-full h-full object-cover" alt="Preview" />
+                                                                    <button type="button" onClick={() => setNewItem({...newItem, image: null})} className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors z-10">
+                                                                        <Icons.X size={16} />
+                                                                    </button>
+                                                                    {newItem.image.startsWith('http') && <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-white text-[10px] rounded backdrop-blur-sm">外部連結</div>}
+                                                                </div>
+                                                            ) : (
+                                                                <div className="relative w-full h-32 bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors group cursor-pointer shrink-0">
+                                                                    <Icons.Image size={28} className="mb-2 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                                                    <span className="text-xs font-medium">點擊或貼上 (Ctrl+V) 圖片檔案</span>
+                                                                    <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    ) : (
-                                                        <div className="relative w-full h-40 bg-slate-800/50 rounded-xl mt-4 border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors group cursor-pointer shrink-0">
-                                                            <Icons.Image size={28} className="mb-2 opacity-60 group-hover:opacity-100 transition-opacity" />
-                                                            <span className="text-xs font-medium">點擊或貼上 (Ctrl+V) 圖片</span>
-                                                            <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                                                        </div>
-                                                    )}
+                                                    </div>
 
                                                     <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-4 shadow-lg transition-all">
                                                         {panelMode === 'add' ? '新增景點' : '儲存修改'}
@@ -2060,20 +2104,40 @@
                                             <textarea rows="3" value={newItem.note || ''} onChange={e => setNewItem({...newItem, note: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..."></textarea>
                                         </div>
                                         
-                                        {newItem.image ? (
-                                            <div className="relative w-full h-40 bg-slate-800 rounded-xl overflow-hidden mt-4 border border-slate-600 shadow-md group shrink-0">
-                                                <img src={newItem.image} className="w-full h-full object-cover" alt="Preview" />
-                                                <button type="button" onClick={() => setNewItem({...newItem, image: null})} className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors z-10">
-                                                    <Icons.X size={16} />
-                                                </button>
+                                        <div className="pt-2 border-t border-slate-700/50 mt-4">
+                                            <label className="block text-xs font-bold text-slate-400 mb-2">景點圖片 (支援 Google 雲端網址或上傳)</label>
+                                            <div className="flex flex-col gap-3">
+                                                <input 
+                                                    type="text" 
+                                                    placeholder="貼上圖片網址 (支援 Google Drive 分享連結)" 
+                                                    value={newItem.image && newItem.image.startsWith('http') ? newItem.image : ''}
+                                                    onChange={e => setNewItem({...newItem, image: processImageUrl(e.target.value)})}
+                                                    className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                                />
+                                                
+                                                <div className="flex items-center gap-4">
+                                                    <div className="flex-1 h-px bg-slate-700"></div>
+                                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">OR</span>
+                                                    <div className="flex-1 h-px bg-slate-700"></div>
+                                                </div>
+
+                                                {newItem.image ? (
+                                                    <div className="relative w-full h-40 bg-slate-800 rounded-xl overflow-hidden border border-slate-600 shadow-md group shrink-0">
+                                                        <img src={newItem.image} className="w-full h-full object-cover" alt="Preview" />
+                                                        <button type="button" onClick={() => setNewItem({...newItem, image: null})} className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors z-10">
+                                                            <Icons.X size={16} />
+                                                        </button>
+                                                        {newItem.image.startsWith('http') && <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-white text-[10px] rounded backdrop-blur-sm">外部連結</div>}
+                                                    </div>
+                                                ) : (
+                                                    <div className="relative w-full h-32 bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors group cursor-pointer shrink-0">
+                                                        <Icons.Image size={28} className="mb-2 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                                        <span className="text-xs font-medium">點擊或貼上 (Ctrl+V) 圖片檔案</span>
+                                                        <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                                    </div>
+                                                )}
                                             </div>
-                                        ) : (
-                                            <div className="relative w-full h-40 bg-slate-800/50 rounded-xl mt-4 border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors group cursor-pointer shrink-0">
-                                                <Icons.Image size={28} className="mb-2 opacity-60 group-hover:opacity-100 transition-opacity" />
-                                                <span className="text-xs font-medium">點擊或貼上 (Ctrl+V) 圖片</span>
-                                                <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-                                            </div>
-                                        )}
+                                        </div>
 
                                         <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-4 shadow-lg transition-all">
                                             {modalMode === 'add' ? '新增景點' : '儲存修改'}
