@@ -408,7 +408,6 @@
                 default: return <span style={style} title="晴天">☀️</span>;
             }
         };
-
         const TravelSegmentUI = ({ p1, p2, onUpdateMode, onMouseEnter, onMouseLeave, onTouchStart }) => {
             let mode = p1.travelMode || 'drive'; 
             if (mode === 'transit') mode = 'subway'; 
@@ -847,7 +846,7 @@
             const overviewContainerRef = useRef(null);
             const [overviewScroll, setOverviewScroll] = useState(0);
             const isSliderDragging = useRef(false);
-            const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
+const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
             const [dragEnabledOverviewId, setDragEnabledOverviewId] = useState(null);
             const [dragOverOverview, setDragOverOverview] = useState(null);
 
@@ -1079,7 +1078,7 @@
 
             const handleSuggestionClick = (s) => {
                 const name = s.name; const addr = s.address && s.address.length > 0 ? s.address : s.adname; setNewItem(p => ({...p, address: addr, name: p.name || name}));
-                if (s.location) { const [lngStr, latStr] = s.location.split(','); const [wgsLng, wgsLat] = gcj02towgs84(parseFloat(lngStr), parseFloat(latStr)); setTempMarker({ lat: wgsLat, lng: wgsLat, name }); }
+                if (s.location) { const [lngStr, latStr] = s.location.split(','); const [wgsLng, wgsLat] = gcj02towgs84(parseFloat(lngStr), parseFloat(latStr)); setTempMarker({ lat: wgsLat, lng: wgsLng, name }); }
                 setAddressSuggestions([]);
             };
 
@@ -1528,12 +1527,12 @@
 
             const categoryConfigs = [ { type: 'sight', title: '景點', color: 'text-green-400', border: 'border-green-500/30', bg: 'bg-green-500/10' }, { type: 'food', title: '餐廳', color: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-500/10' }, { type: 'shopping', title: '購物', color: 'text-pink-400', border: 'border-pink-500/30', bg: 'bg-pink-500/10' }, { type: 'accommodation', title: '住宿', color: 'text-purple-400', border: 'border-purple-500/30', bg: 'bg-purple-500/10' }, { type: 'transport', title: '交通', color: 'text-blue-400', border: 'border-blue-500/30', bg: 'bg-blue-500/10' } ];
 return (
-                <div className={isLibraryModal ? "fixed inset-0 z-[300] bg-black/80 flex items-center justify-center backdrop-blur-sm animate-fade-in" : "flex flex-col h-[100dvh] bg-slate-900 text-slate-100 font-sans relative"}>
-                    {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[400] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700 shadow-2xl font-bold tracking-wide"><span>{toast}</span></div></div>}
+                <div className="flex flex-col h-[100dvh] bg-slate-900 text-slate-100 font-sans relative">
+                    {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] animate-toast"><div className="bg-slate-800 text-white px-6 py-3 rounded-full border border-slate-700 shadow-2xl font-bold tracking-wide"><span>{toast}</span></div></div>}
                     
                     {previewImage && (
-                        <div className="fixed inset-0 z-[500] bg-black/90 flex flex-col items-center justify-start p-4 animate-fade-in overflow-y-auto" onClick={() => setPreviewImage(null)}>
-                            <button className="fixed top-4 right-4 p-2 bg-slate-800 text-white rounded-full hover:bg-slate-700 transition-colors shadow-lg z-[520]"><Icons.X size={24} /></button>
+                        <div className="fixed inset-0 z-[110] bg-black/90 flex flex-col items-center justify-start p-4 animate-fade-in overflow-y-auto" onClick={() => setPreviewImage(null)}>
+                            <button className="fixed top-4 right-4 p-2 bg-slate-800 text-white rounded-full hover:bg-slate-700 transition-colors shadow-lg z-[120]"><Icons.X size={24} /></button>
                             <div className="w-full max-w-3xl my-auto flex flex-col gap-4 py-10" onClick={e => e.stopPropagation()}>
                                 {Array.isArray(previewImage) ? previewImage.map((img, i) => (
                                     <img key={i} src={img} className="max-w-full h-auto rounded-lg shadow-2xl mx-auto" />
@@ -1544,293 +1543,206 @@ return (
                         </div>
                     )}
                     
-                    {isLibraryModal ? (
-                        <div className="bg-slate-900 w-full h-full flex flex-col overflow-hidden cursor-default" onClick={e => e.stopPropagation()}>
-                            <div className="h-16 border-b border-slate-800 flex items-center justify-between px-4 shrink-0 bg-slate-800/50">
-                                <div className="flex items-center gap-2 flex-1 min-w-0">
-                                    <Icons.Bookmark size={24} className="text-amber-400 shrink-0" />
-                                    <input 
-                                        value={trip.title} 
-                                        onChange={(e) => pushUpdate({trip:{...trip, title: e.target.value}})} 
-                                        className="text-xl font-bold text-amber-400 bg-transparent outline-none w-full md:w-80 focus:border-b border-amber-400/50 transition-colors" 
-                                        placeholder="輸入收藏庫名稱..." 
-                                    />
+                  <header className="h-14 border-b border-slate-800 flex items-center justify-between px-3 md:px-4 bg-slate-900 shrink-0 z-20 shadow-lg">
+                        <div className="flex items-center gap-3 flex-1">
+                            <button onClick={onBack} className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-300 shrink-0"><Icons.ArrowLeft size={20} /></button>
+                            <div className={`w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold hover:scale-105 transition-transform shrink-0`}><input value={trip.icon || '🚀'} onChange={e => pushUpdate({trip:{...trip, icon:e.target.value}})} className="w-full h-full bg-transparent text-center text-lg outline-none cursor-pointer" maxLength="2"/></div>
+                            <div className="flex flex-col min-w-0 flex-1 flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <input value={trip.title} onChange={(e) => pushUpdate({trip:{...trip, title:e.target.value}})} className="text-sm font-bold bg-transparent outline-none flex-1 min-w-[100px]" />
+                                    {tripId === 'trip_global_library' && <span className="bg-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/30 whitespace-nowrap shrink-0">行程收藏庫</span>}
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0 ml-4">
-                                    <button onClick={onBack} className="p-2 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-full transition-colors border border-slate-700 shadow-sm"><Icons.X size={20} /></button>
-                                </div>
-                            </div>
-                            <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-950 flex flex-nowrap gap-4 overflow-x-auto items-start w-full styled-scrollbar">
-                                {trip.days?.map((day, idx) => {
-                                    const places = day.places || [];
-                                    return (
-                                        <div key={day.id} className="w-[85vw] sm:w-[300px] md:w-[340px] shrink-0 flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-3 md:p-4 shadow-lg h-max">
-                                            <div className="flex justify-between items-center bg-slate-800/80 p-3 rounded-xl mb-4 border border-slate-700 shadow-sm shrink-0">
-                                                <div className="flex flex-col flex-1 min-w-0 mr-2">
-                                                    <DayTitleInput day={day} onUpdate={handleUpdateDayTitle} />
-                                                    <div className="text-[10px] text-slate-400 mt-0.5">{places.length} 個景點</div>
-                                                </div>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-900/50 text-sm border-2 border-slate-800">D{idx + 1}</div>
-                                                    <button onClick={() => { setActiveDayId(day.id); setShowDeleteDayConfirm(true); }} className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-700 rounded-md transition-colors" title="刪除此群組">
-                                                        <Icons.Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="flex flex-col gap-3 relative min-h-[60px]">
-                                                {places.length === 0 ? (
-                                                    <div onDragOver={(e) => { e.preventDefault(); setDragOverOverview({ dayId: day.id, index: 0 }); }} onDrop={(e) => { handleOverviewDrop(e, day.id, 0); setDragOverOverview(null); }} className={`h-20 flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors ${dragOverOverview?.dayId === day.id && dragOverOverview?.index === 0 ? 'border-blue-400 bg-blue-500/10 opacity-100' : 'border-slate-700 text-slate-500'}`}>
-                                                        <span className={`text-xs font-bold ${dragOverOverview?.dayId === day.id && dragOverOverview?.index === 0 ? 'text-blue-400' : ''}`}>拖放至此</span>
-                                                    </div>
-                                                ) : (
-                                                    places.map((p, i) => {
-                                                        const draggedIdxInList = draggedOverviewPlace?.dayId === day.id ? draggedOverviewPlace.placeIndex : -1;
-                                                        const isDraggingDown = draggedIdxInList !== -1 && draggedIdxInList < i;
-                                                        const isDraggingUp = draggedIdxInList === -1 || draggedIdxInList > i;
-                                                        const placeImg = images[`place_${p.id}`]; 
-                                                        return (
-                                                            <div key={p.id} onDragOver={(e) => { e.preventDefault(); setDragOverOverview({ dayId: day.id, index: i }); }} onDrop={(e) => { handleOverviewDrop(e, day.id, i); setDragOverOverview(null); }} className="flex flex-col">
-                                                                {dragOverOverview?.dayId === day.id && dragOverOverview?.index === i && isDraggingUp && draggedOverviewPlace?.place?.id !== p.id && (<div className="w-full h-16 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl mb-2 pointer-events-none flex items-center justify-center animate-fade-in shadow-inner"><span className="text-blue-400 font-bold text-xs bg-blue-900/40 px-3 py-1 rounded-full">拖放至此</span></div>)}
-                                                                
-                                                                <div draggable={true} onDragStart={(e) => handleOverviewDragStart(e, day.id, i, p)} onDragEnd={handleOverviewDragEnd} className={`bg-slate-800 rounded-xl border border-slate-700 flex items-stretch overflow-hidden hover:border-blue-500 transition-all shadow-md group relative ${draggedOverviewPlace?.place?.id === p.id ? 'opacity-30 scale-[0.98]' : ''}`}>
-                                                                    <div className="w-[80px] bg-slate-700/50 shrink-0 relative cursor-pointer flex items-center justify-center" onClick={() => placeImg && setPreviewImage(placeImg)}>
-                                                                        {placeImg ? <img src={placeImg} draggable={false} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <div className="opacity-30 pointer-events-none"><CategoryIconWithLabel type={p.type} size={20} /></div>}
-                                                                        {placeImg && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors z-10 pointer-events-none"></div>}
-                                                                    </div>
-                                                                    <div className="flex-1 p-3 flex flex-col justify-center min-w-0">
-                                                                        <div className="flex justify-between items-start gap-1">
-                                                                            <h4 className="font-bold text-slate-100 text-sm line-clamp-2 leading-snug" title={p.name}>{p.name}</h4>
-                                                                            <div className="flex flex-col items-center gap-1 shrink-0 -mt-1 -mr-1">
-                                                                                <button onClick={(e) => { e.stopPropagation(); setActivePlaceMenu({...p, sourceDayId: day.id, image: placeImg}); }} className="p-1 text-slate-500 hover:text-white hover:bg-slate-700 rounded-md transition-colors" title="選項"><Icons.MoreVertical size={16} /></button>
-                                                                                <div onPointerDown={() => setDragEnabledOverviewId(p.id)} onTouchStart={() => setDragEnabledOverviewId(p.id)} className="drag-handle p-1 text-slate-500 hover:text-white hover:bg-slate-700 rounded-md cursor-grab active:cursor-grabbing transition-colors"><Icons.GripVertical size={16} /></div>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1.5 mt-1">
-                                                                            <span className="px-1.5 py-0.5 rounded text-[10px] text-slate-300 bg-slate-700 font-bold uppercase">{getCategoryName(p.type)}</span>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                                
-                                                                {dragOverOverview?.dayId === day.id && dragOverOverview?.index === i && isDraggingDown && draggedOverviewPlace?.place?.id !== p.id && (<div className="w-full h-16 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl mt-2 pointer-events-none flex items-center justify-center animate-fade-in shadow-inner"><span className="text-blue-400 font-bold text-xs bg-blue-900/40 px-3 py-1 rounded-full">拖放至此</span></div>)}
-                                                            </div>
-                                                        )
-                                                    })
-                                                )}
-                                                {places.length > 0 && (
-                                                    <div onDragOver={(e) => { e.preventDefault(); setDragOverOverview({ dayId: day.id, index: places.length }); }} onDrop={(e) => { handleOverviewDrop(e, day.id, places.length); setDragOverOverview(null); }} className={`w-full rounded-xl border-2 border-dashed transition-all flex items-center justify-center ${dragOverOverview?.dayId === day.id && dragOverOverview?.index === places.length ? 'h-12 mt-1 border-blue-400 bg-blue-500/10 opacity-100' : (draggedOverviewPlace ? 'h-8 mt-1 border-transparent opacity-0' : 'h-0 m-0 border-transparent opacity-0 pointer-events-none overflow-hidden')}`}><span className="text-xs font-bold text-blue-400 bg-blue-900/40 px-3 py-1 rounded-full">移至尾端</span></div>
-                                                )}
-                                                <button onClick={() => { setShowEditPlaceModal(true); setActiveDayId(day.id); setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null }); setModalMode('add'); }} className="w-full py-3 border-2 border-dashed border-slate-700/50 rounded-xl text-slate-500 font-bold hover:border-blue-500 hover:text-blue-400 hover:bg-slate-800 transition-all flex items-center justify-center gap-2 mt-1"><Icons.Plus size={16} /> 新增卡片</button>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                                <button onClick={handleAddDay} className="w-[60px] sm:w-[80px] shrink-0 h-[200px] rounded-[2rem] border-2 border-dashed border-slate-700 hover:border-blue-500 hover:bg-slate-800 text-slate-500 hover:text-blue-400 transition-all flex flex-col items-center justify-center gap-2 font-bold shadow-md"><Icons.Plus size={24}/>群組</button>
+                                <input value={trip.dates} onChange={(e) => pushUpdate({trip:{...trip, dates:e.target.value}})} className="text-xs text-slate-500 bg-transparent outline-none w-full mt-0.5" />
                             </div>
                         </div>
-                    ) : (
-                        <>
-                            <header className="h-14 border-b border-slate-800 flex items-center justify-between px-3 md:px-4 bg-slate-900 shrink-0 z-20 shadow-lg">
-                                <div className="flex items-center gap-3 flex-1">
-                                    <button onClick={onBack} className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-300 shrink-0"><Icons.ArrowLeft size={20} /></button>
-                                    <div className={`w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold hover:scale-105 transition-transform shrink-0`}><input value={trip.icon || '🚀'} onChange={e => pushUpdate({trip:{...trip, icon:e.target.value}})} className="w-full h-full bg-transparent text-center text-lg outline-none cursor-pointer" maxLength="2"/></div>
-                                    <div className="flex flex-col min-w-0 flex-1 flex-wrap">
-                                        <div className="flex items-center gap-2">
-                                            <input value={trip.title} onChange={(e) => pushUpdate({trip:{...trip, title:e.target.value}})} className="text-sm font-bold bg-transparent outline-none flex-1 min-w-[100px]" />
-                                            {tripId === 'trip_global_library' && <span className="bg-amber-500/20 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-500/30 whitespace-nowrap shrink-0">行程收藏庫</span>}
-                                        </div>
-                                        <input value={trip.dates} onChange={(e) => pushUpdate({trip:{...trip, dates:e.target.value}})} className="text-xs text-slate-500 bg-transparent outline-none w-full mt-0.5" />
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-2 md:gap-3 shrink-0 ml-2">
-                                    <button onClick={onOpenLibrary} className="p-1.5 md:px-3 md:py-1.5 text-amber-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700" title="開啟行程收藏庫"><Icons.Bookmark size={16} /><span className="hidden md:inline text-xs font-bold">行程收藏庫</span></button>
-                                    <button onClick={() => setShowMemberSettings(true)} className="p-1.5 md:px-3 md:py-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700" title="成員管理"><Icons.Users size={16} /><span className="hidden md:inline text-xs font-bold">成員</span></button>
-                                </div>
-                            </header>
+                        <div className="flex items-center gap-2 md:gap-3 shrink-0 ml-2">
+                            {tripId !== 'trip_global_library' && (
+                                <button onClick={onOpenLibrary} className="p-1.5 md:px-3 md:py-1.5 text-amber-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700" title="開啟行程收藏庫"><Icons.Bookmark size={16} /><span className="hidden md:inline text-xs font-bold">行程收藏庫</span></button>
+                            )}
+                            <button onClick={() => setShowMemberSettings(true)} className="p-1.5 md:px-3 md:py-1.5 text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors flex items-center gap-1.5 border border-slate-700" title="成員管理"><Icons.Users size={16} /><span className="hidden md:inline text-xs font-bold">成員</span></button>
+                        </div>
+                    </header>
 
-                            <div className="flex border-b border-slate-800 bg-slate-900 px-2 md:px-4 gap-4 md:gap-6 text-sm font-medium overflow-x-auto no-scrollbar">
-                                <button onClick={() => setActiveTab('itinerary')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Map size={18} />行程</button>
-                                <button onClick={() => setActiveTab('expenses')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'expenses' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Wallet size={18} />花費</button>
-                                <button onClick={() => setActiveTab('shopping')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'shopping' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.ShoppingBag size={18} />待買</button>
-                                <button onClick={() => setActiveTab('packing')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'packing' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Briefcase size={18} />行李</button>
-                                <button onClick={() => setActiveTab('categories')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'categories' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.FileText size={18} />總覽</button>
+                    <div className="flex border-b border-slate-800 bg-slate-900 px-2 md:px-4 gap-4 md:gap-6 text-sm font-medium overflow-x-auto no-scrollbar">
+                        <button onClick={() => setActiveTab('itinerary')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Map size={18} />行程</button>
+                        <button onClick={() => setActiveTab('expenses')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'expenses' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Wallet size={18} />花費</button>
+                        <button onClick={() => setActiveTab('shopping')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'shopping' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.ShoppingBag size={18} />待買</button>
+                        <button onClick={() => setActiveTab('packing')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'packing' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Briefcase size={18} />行李</button>
+                        <button onClick={() => setActiveTab('categories')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'categories' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.FileText size={18} />總覽</button>
+                    </div>
+                    
+                    <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative bg-slate-950">
+                        <div className={`w-full flex-col md:flex-row h-full absolute inset-0 bg-slate-950 ${activeTab === 'itinerary' ? 'flex z-10 opacity-100 pointer-events-auto' : 'hidden z-0 opacity-0 pointer-events-none'}`}>
+                            <div className="w-full h-[40vh] md:h-full md:flex-1 relative order-1 md:order-2 shrink-0 z-0 border-b md:border-b-0 md:border-l border-slate-800 shadow-md md:shadow-none">
+                                <RealMap places={activeDayData?.places || []} hoveredId={hoveredPlaceId} hoveredSegmentId={hoveredSegmentId} zoomControlKey={activeDayId} dayColor={activeDayData?.color} onRouteAltSelect={(pId, altIdx) => handleUpdateRouteIndex(activeDayData.id, pId, altIdx)} tempMarker={tempMarker} isActive={activeTab === 'itinerary'} />
                             </div>
-                            
-                            <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative bg-slate-950">
-                                <div className={`w-full flex-col md:flex-row h-full absolute inset-0 bg-slate-950 ${activeTab === 'itinerary' ? 'flex z-10 opacity-100 pointer-events-auto' : 'hidden z-0 opacity-0 pointer-events-none'}`}>
-                                    <div className="w-full h-[40vh] md:h-full md:flex-1 relative order-1 md:order-2 shrink-0 z-0 border-b md:border-b-0 md:border-l border-slate-800 shadow-md md:shadow-none">
-                                        <RealMap places={activeDayData?.places || []} hoveredId={hoveredPlaceId} hoveredSegmentId={hoveredSegmentId} zoomControlKey={activeDayId} dayColor={activeDayData?.color} onRouteAltSelect={(pId, altIdx) => handleUpdateRouteIndex(activeDayData.id, pId, altIdx)} tempMarker={tempMarker} isActive={activeTab === 'itinerary'} />
-                                    </div>
-                                    <div className="w-full flex-1 md:flex-none md:w-[420px] lg:w-[480px] flex flex-col bg-slate-900 relative order-2 md:order-1 z-10 transition-all overflow-hidden shrink-0 rounded-t-3xl md:rounded-none shadow-[0_-10px_20px_rgba(0,0,0,0.3)] md:shadow-none -mt-4 md:mt-0 pt-2 md:pt-0">
-                                        {panelMode === 'list' ? (
-                                            <>
-                                                <div className="w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto my-1.5 md:hidden"></div>
-                                                <div ref={daysContainerRef} onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} onMouseLeave={() => { isDraggingDay.current = false; }} onMouseUp={() => { isDraggingDay.current = false; }} onMouseMove={(e) => { if(!isDraggingDay.current) return; const x = e.pageX; const walk = (x - dragStartX.current); if (Math.abs(walk) > 5) { dragHasMoved.current = true; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; } }} className="bg-slate-900 border-b border-slate-800 px-2 pb-2 md:px-3 md:pb-3 md:py-4 flex flex-nowrap gap-1.5 md:gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none shrink-0">
-                                                    {trip.days?.map((day, idx) => (
-                                                        <button key={day.id} onClick={() => { if(!dragHasMoved.current) setActiveDayId(day.id); }} className={`relative flex flex-col items-center justify-center min-w-[44px] md:min-w-[100px] shrink-0 p-1 md:p-3 rounded-md md:rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 md:ring-2 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}>
-                                                            {activeDayId === day.id && trip.days?.length > 1 && (
-                                                                <div onClick={(e) => { e.stopPropagation(); setShowDeleteDayConfirm(true); }} className="absolute -top-1.5 -right-1.5 w-4 h-4 md:w-5 md:h-5 bg-slate-600/60 hover:bg-slate-500/80 backdrop-blur-sm text-slate-200 rounded-full flex items-center justify-center shadow-md z-10 pointer-events-auto transition-colors" title="刪除此天"><Icons.X size={10} className="md:hidden" /><Icons.X size={12} className="hidden md:block" /></div>
-                                                            )}
-                                                            <div className="flex items-center gap-0.5 md:gap-1 w-full justify-center pointer-events-none"><span className={`text-[9px] md:text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>D{idx + 1}</span><div className="scale-75 md:scale-100"><WeatherIcon type={day.weather?.type} size={16} /></div></div><span className="text-[8px] md:text-xs font-medium text-slate-500 pointer-events-none mt-0.5">{formatShortDate(day.date)}</span>
-                                                        </button>
-                                                    ))}
-                                                    <button onClick={() => { if(!dragHasMoved.current) handleAddDay(); }} className="min-w-[44px] md:min-w-[80px] p-1 md:p-3 rounded-md md:rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center"><div className="bg-slate-800 rounded-full p-0.5 md:p-1.5 mb-0.5 md:mb-1.5 pointer-events-none scale-75 md:scale-100"><Icons.Plus size={18} /></div><span className="text-[8px] md:text-xs font-bold pointer-events-none">新增</span></button>
-                                                </div>
-                                                
-                                                <div className="itinerary-list-container px-3 md:px-4 py-4 overflow-y-auto flex-1 pb-32">
-                                                    <div className="flex justify-between items-center bg-slate-800/50 p-2.5 md:p-3 rounded-xl mb-3 md:mb-4 border border-slate-700/50"><div className="flex flex-col flex-1 min-w-0 mr-2"><DayTitleInput day={activeDayData} onUpdate={handleUpdateDayTitle} /><div className="text-[10px] text-slate-400 mt-0.5 md:mt-1 px-2 md:px-1">{activeDayData?.places?.length || 0} 個景點</div></div><button onClick={() => setShowDeleteDayConfirm(true)} className="p-1.5 md:p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg border border-slate-700 transition-colors shrink-0"><Icons.Trash2 size={16} className="scale-90 md:scale-100" /></button></div>
-                                                    <div className="flex flex-col mt-2">
-                                                        {activeDayData?.places.map((p, i) => {
-                                                            const isNoteExpanded = expandedNotes[p.id];
-                                                            const placeImg = images[`place_${p.id}`];
-                                                            return (
-                                                                <div key={p.id} onDragOver={(e) => { e.preventDefault(); if (draggedPlaceIndexRef.current !== i) setDragOverPlaceIndex(i); }} onDrop={(e) => { handleDrop(e, i); setDragOverPlaceIndex(null); }} className="flex flex-col">
-                                                                    {dragOverPlaceIndex === i && draggedPlaceIndexRef.current !== null && draggedPlaceIndexRef.current > i && (<div className="w-full h-24 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl mb-4 pointer-events-none flex items-center justify-center animate-fade-in shadow-inner"><span className="text-blue-400 font-bold text-sm bg-blue-900/40 px-3 py-1 rounded-full">放在此處</span></div>)}
-                                                                    <div id={`place-card-${p.id}`} draggable={true} onDragStart={e => handleDragStart(e, i, p.id)} onDragEnd={handleDragEnd} className={`flex flex-col group/card transition-all duration-200 ${draggedPlaceIndex === i ? 'opacity-30 scale-[0.98]' : ''}`}>
-                                                                        <div className="flex gap-2.5 items-stretch">
-                                                                            <div className="flex flex-col items-center w-10 shrink-0"><div className="text-[11px] font-bold text-blue-300 font-mono mb-1.5 pt-1">{p.time}</div><div onPointerDown={() => setDragEnabledId(p.id)} onTouchStart={() => setDragEnabledId(p.id)} className="drag-handle w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors">{i+1}</div>{i < activeDayData.places.length - 1 && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}</div>
-                                                                            <div className="flex-1">
-                                                                                <div className={`flex items-stretch overflow-hidden rounded-xl border border-slate-700 bg-slate-800/90 transition-all ${hoveredPlaceId === p.id ? 'border-blue-500 shadow-xl' : ''}`} onMouseEnter={() => setHoveredPlaceId(p.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
-                                                                                    <div className="w-[85px] sm:w-[120px] bg-slate-700/50 shrink-0 relative cursor-pointer overflow-hidden group/img flex items-center justify-center" onClick={() => placeImg && setPreviewImage(placeImg)}>{placeImg ? (<img src={placeImg} draggable={false} className="absolute inset-0 w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-300 pointer-events-none" />) : (<div className="pointer-events-none opacity-50 relative z-10"><CategoryIconWithLabel type={p.type} size={24} /></div>)}{placeImg && <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors z-10 pointer-events-none"></div>}</div>
-                                                                                    <div className="flex-1 min-w-0 relative p-2"><div className="flex justify-between items-start"><div className="flex flex-col"><div className="flex items-start gap-0.5">{p.note && (<button onClick={(e) => toggleNote(p.id, e)} className="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0 outline-none">{isNoteExpanded ? <Icons.ChevronUp size={16} /> : <Icons.ChevronDown size={16} />}</button>)}<h3 className={`font-bold text-slate-100 text-sm md:text-base leading-snug ${isNoteExpanded ? '' : 'line-clamp-2'}`}>{p.name}</h3></div>{p.note && isNoteExpanded && (<div className="mt-1.5 ml-4 text-xs md:text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{p.note}</div>)}</div><div className="flex items-center gap-0.5 shrink-0 ml-1"><div onPointerDown={() => setDragEnabledId(p.id)} onTouchStart={() => setDragEnabledId(p.id)} className="drag-handle p-1 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors"><Icons.GripVertical size={16} /></div><button onClick={(e) => { e.stopPropagation(); saveListScroll(); setActivePlaceMenu({...p, sourceDayId: activeDayData.id, image: placeImg}); }} className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"><Icons.MoreVertical size={16} /></button></div></div><div className={`text-[10px] md:text-[11px] text-slate-400 mt-1 ${p.note ? 'ml-4' : ''}`}>停留 {formatStayTime(p.stayTime)}</div><div className={`mt-1.5 flex flex-wrap items-center gap-1.5 ${p.note ? 'ml-4' : ''}`}><span className="px-1.5 py-0.5 rounded text-[9px] md:text-[10px] text-slate-300 bg-slate-700 font-bold uppercase tracking-wider">{getCategoryName(p.type)}</span></div></div>
-                                                                                </div>
+                            <div className="w-full flex-1 md:flex-none md:w-[420px] lg:w-[480px] flex flex-col bg-slate-900 relative order-2 md:order-1 z-10 transition-all overflow-hidden shrink-0 rounded-t-3xl md:rounded-none shadow-[0_-10px_20px_rgba(0,0,0,0.3)] md:shadow-none -mt-4 md:mt-0 pt-2 md:pt-0">
+                                {panelMode === 'list' ? (
+                                    <>
+                                        <div className="w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto my-1.5 md:hidden"></div>
+                                        <div ref={daysContainerRef} onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} onMouseLeave={() => { isDraggingDay.current = false; }} onMouseUp={() => { isDraggingDay.current = false; }} onMouseMove={(e) => { if(!isDraggingDay.current) return; const x = e.pageX; const walk = (x - dragStartX.current); if (Math.abs(walk) > 5) { dragHasMoved.current = true; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; } }} className="bg-slate-900 border-b border-slate-800 px-2 pb-2 md:px-3 md:pb-3 md:py-4 flex flex-nowrap gap-1.5 md:gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none shrink-0">
+                                            {trip.days?.map((day, idx) => (
+                                                <button key={day.id} onClick={() => { if(!dragHasMoved.current) setActiveDayId(day.id); }} className={`relative flex flex-col items-center justify-center min-w-[44px] md:min-w-[100px] shrink-0 p-1 md:p-3 rounded-md md:rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 md:ring-2 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}>
+                                                    {activeDayId === day.id && trip.days?.length > 1 && (
+                                                        <div onClick={(e) => { e.stopPropagation(); setShowDeleteDayConfirm(true); }} className="absolute -top-1.5 -right-1.5 w-4 h-4 md:w-5 md:h-5 bg-slate-600/60 hover:bg-slate-500/80 backdrop-blur-sm text-slate-200 rounded-full flex items-center justify-center shadow-md z-10 pointer-events-auto transition-colors" title="刪除此天"><Icons.X size={10} className="md:hidden" /><Icons.X size={12} className="hidden md:block" /></div>
+                                                    )}
+                                                    <div className="flex items-center gap-0.5 md:gap-1 w-full justify-center pointer-events-none"><span className={`text-[9px] md:text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>D{idx + 1}</span><div className="scale-75 md:scale-100"><WeatherIcon type={day.weather?.type} size={16} /></div></div><span className="text-[8px] md:text-xs font-medium text-slate-500 pointer-events-none mt-0.5">{formatShortDate(day.date)}</span>
+                                                </button>
+                                            ))}
+                                            <button onClick={() => { if(!dragHasMoved.current) handleAddDay(); }} className="min-w-[44px] md:min-w-[80px] p-1 md:p-3 rounded-md md:rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center"><div className="bg-slate-800 rounded-full p-0.5 md:p-1.5 mb-0.5 md:mb-1.5 pointer-events-none scale-75 md:scale-100"><Icons.Plus size={18} /></div><span className="text-[8px] md:text-xs font-bold pointer-events-none">新增</span></button>
+                                        </div>
+                                        
+                                        <div className="itinerary-list-container px-3 md:px-4 py-4 overflow-y-auto flex-1 pb-32">
+                                            <div className="flex justify-between items-center bg-slate-800/50 p-2.5 md:p-3 rounded-xl mb-3 md:mb-4 border border-slate-700/50"><div className="flex flex-col flex-1 min-w-0 mr-2"><DayTitleInput day={activeDayData} onUpdate={handleUpdateDayTitle} /><div className="text-[10px] text-slate-400 mt-0.5 md:mt-1 px-2 md:px-1">{activeDayData?.places?.length || 0} 個景點</div></div><button onClick={() => setShowDeleteDayConfirm(true)} className="p-1.5 md:p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg border border-slate-700 transition-colors shrink-0"><Icons.Trash2 size={16} className="scale-90 md:scale-100" /></button></div>
+                                            <div className="flex flex-col mt-2">
+                                                {activeDayData?.places.map((p, i) => {
+                                                    const isNoteExpanded = expandedNotes[p.id];
+                                                    const placeImg = images[`place_${p.id}`];
+                                                    return (
+                                                        <div key={p.id} onDragOver={(e) => { e.preventDefault(); if (draggedPlaceIndexRef.current !== i) setDragOverPlaceIndex(i); }} onDrop={(e) => { handleDrop(e, i); setDragOverPlaceIndex(null); }} className="flex flex-col">
+                                                            {dragOverPlaceIndex === i && draggedPlaceIndexRef.current !== null && draggedPlaceIndexRef.current > i && (<div className="w-full h-24 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl mb-4 pointer-events-none flex items-center justify-center animate-fade-in shadow-inner"><span className="text-blue-400 font-bold text-sm bg-blue-900/40 px-3 py-1 rounded-full">放在此處</span></div>)}
+                                                            <div id={`place-card-${p.id}`} draggable={true} onDragStart={e => handleDragStart(e, i, p.id)} onDragEnd={handleDragEnd} className={`flex flex-col group/card transition-all duration-200 ${draggedPlaceIndex === i ? 'opacity-30 scale-[0.98]' : ''}`}>
+                                                                <div className="flex gap-2.5 items-stretch">
+                                                                    <div className="flex flex-col items-center w-10 shrink-0"><div className="text-[11px] font-bold text-blue-300 font-mono mb-1.5 pt-1">{p.time}</div><div onPointerDown={() => setDragEnabledId(p.id)} onTouchStart={() => setDragEnabledId(p.id)} className="drag-handle w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold text-white mt-1 shadow-lg shadow-blue-900/50 border-2 border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors">{i+1}</div>{i < activeDayData.places.length - 1 && <div className="w-0.5 bg-slate-700 flex-1 mt-1.5 min-h-[1.5rem]"></div>}</div>
+                                                                    <div className="flex-1">
+                                                                        <div className={`flex items-stretch overflow-hidden rounded-xl border border-slate-700 bg-slate-800/90 transition-all ${hoveredPlaceId === p.id ? 'border-blue-500 shadow-xl' : ''}`} onMouseEnter={() => setHoveredPlaceId(p.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
+                                                                            <div className="w-[85px] sm:w-[120px] bg-slate-700/50 shrink-0 relative cursor-pointer overflow-hidden group/img flex items-center justify-center" onClick={() => placeImg && setPreviewImage(placeImg)}>{placeImg ? (<img src={placeImg} draggable={false} className="absolute inset-0 w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-300 pointer-events-none" />) : (<div className="pointer-events-none opacity-50 relative z-10"><CategoryIconWithLabel type={p.type} size={24} /></div>)}{placeImg && <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors z-10 pointer-events-none"></div>}</div>
+                                                                            <div className="flex-1 min-w-0 relative p-2"><div className="flex justify-between items-start"><div className="flex flex-col"><div className="flex items-start gap-0.5">{p.note && (<button onClick={(e) => toggleNote(p.id, e)} className="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0 outline-none">{isNoteExpanded ? <Icons.ChevronUp size={16} /> : <Icons.ChevronDown size={16} />}</button>)}<h3 className={`font-bold text-slate-100 text-sm md:text-base leading-snug ${isNoteExpanded ? '' : 'line-clamp-2'}`}>{p.name}</h3></div>{p.note && isNoteExpanded && (<div className="mt-1.5 ml-4 text-xs md:text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{p.note}</div>)}</div><div className="flex items-center gap-0.5 shrink-0 ml-1"><div onPointerDown={() => setDragEnabledId(p.id)} onTouchStart={() => setDragEnabledId(p.id)} className="drag-handle p-1 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors"><Icons.GripVertical size={16} /></div><button onClick={(e) => { e.stopPropagation(); saveListScroll(); setActivePlaceMenu({...p, sourceDayId: activeDayData.id, image: placeImg}); }} className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"><Icons.MoreVertical size={16} /></button></div></div><div className={`text-[10px] md:text-[11px] text-slate-400 mt-1 ${p.note ? 'ml-4' : ''}`}>停留 {formatStayTime(p.stayTime)}</div><div className={`mt-1.5 flex flex-wrap items-center gap-1.5 ${p.note ? 'ml-4' : ''}`}><span className="px-1.5 py-0.5 rounded text-[9px] md:text-[10px] text-slate-300 bg-slate-700 font-bold uppercase tracking-wider">{getCategoryName(p.type)}</span></div></div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                                {i < activeDayData.places.length - 1 && (
+                                                                    <div className="flex items-center relative py-4 w-full group/segment">
+                                                                        <div className="absolute left-5 -ml-[1px] top-0 bottom-0 border-l-2 border-dashed border-slate-600 z-0"></div>
+                                                                        
+                                                                        <div className="absolute left-5 top-1/2 w-6 md:w-8 border-t-2 border-dashed border-slate-600 -translate-y-[1px] z-0 group-hover/segment:border-slate-500 transition-colors"></div>
+                                                                        
+                                                                        <div className="w-10 shrink-0 flex justify-center z-10 relative">
+                                                                            <div className="text-[10px] md:text-[11px] font-bold text-slate-400 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 shadow-sm transition-colors group-hover/segment:border-slate-500 group-hover/segment:text-slate-200">
+                                                                                {getEndTime(p.time, parseFloat(p.stayTime || 1))}
                                                                             </div>
                                                                         </div>
-                                                                        {i < activeDayData.places.length - 1 && (
-                                                                            <div className="flex items-center relative py-4 w-full group/segment">
-                                                                                <div className="absolute left-5 -ml-[1px] top-0 bottom-0 border-l-2 border-dashed border-slate-600 z-0"></div>
-                                                                                
-                                                                                <div className="absolute left-5 top-1/2 w-6 md:w-8 border-t-2 border-dashed border-slate-600 -translate-y-[1px] z-0 group-hover/segment:border-slate-500 transition-colors"></div>
-                                                                                
-                                                                                <div className="w-10 shrink-0 flex justify-center z-10 relative">
-                                                                                    <div className="text-[10px] md:text-[11px] font-bold text-slate-400 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 shadow-sm transition-colors group-hover/segment:border-slate-500 group-hover/segment:text-slate-200">
-                                                                                        {getEndTime(p.time, parseFloat(p.stayTime || 1))}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <div className="flex-1 z-10 pl-2 md:pl-4 relative">
-                                                                                    <TravelSegmentUI p1={p} p2={activeDayData.places[i+1]} onUpdateMode={(m) => handleUpdateTravelMode(activeDayData.id, p.id, m)} onMouseEnter={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} onMouseLeave={() => setHoveredSegmentId(null)} onTouchStart={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} />
-                                                                                </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    {dragOverPlaceIndex === i && draggedPlaceIndexRef.current !== null && draggedPlaceIndexRef.current < i && (<div className="w-full h-24 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl mt-4 mb-2 pointer-events-none flex items-center justify-center animate-fade-in shadow-inner"><span className="text-blue-400 font-bold text-sm bg-blue-900/40 px-3 py-1 rounded-full">放在此處</span></div>)}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                    <div onDragOver={(e) => { e.preventDefault(); setDragOverPlaceIndex(activeDayData?.places.length || 0); }} onDrop={(e) => { handleDrop(e, activeDayData?.places.length || 0); setDragOverPlaceIndex(null); }} className={`w-full rounded-xl border-2 border-dashed transition-all flex items-center justify-center ${dragOverPlaceIndex === (activeDayData?.places.length || 0) ? 'h-16 mt-2 mb-4 border-blue-400 bg-blue-500/10 opacity-100' : (draggedPlaceIndex !== null ? 'h-10 mt-2 border-transparent opacity-0' : 'h-0 m-0 border-transparent opacity-0 pointer-events-none overflow-hidden')}`}><span className="text-blue-400 font-bold text-sm bg-blue-900/40 px-3 py-1 rounded-full">移至底部</span></div>
-                                                    <button onClick={() => { saveListScroll(); setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null }); setTempMarker(null); setPanelMode('add'); }} className="w-full py-3.5 border-2 border-dashed border-slate-700/50 rounded-xl text-slate-400 font-bold hover:border-blue-500 hover:text-blue-400 transition-all flex items-center justify-center gap-2 mt-2"><Icons.Plus size={18} /> 新增行程景點</button>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <div className="flex flex-col h-full bg-slate-900 animate-fade-in">
-                                                <div className="w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto my-1.5 md:hidden"></div>
-                                                <div className="flex items-center bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 p-2">
-                                                    <button type="button" onClick={() => { setPanelMode('list'); setTempMarker(null); restoreListScroll(); }} className="p-2 text-slate-400 hover:text-white shrink-0">
-                                                        <Icons.ArrowLeft size={20} />
-                                                    </button>
-                                                    <div className="flex flex-1 items-center justify-center font-bold text-slate-200 pr-8">{panelMode === 'add' ? '新增景點' : '編輯景點資料'}</div>
-                                                </div>
-                                                
-                                                <div className="overflow-y-auto p-4 flex-1 pb-32">
-                                                    <form onSubmit={panelMode === 'add' ? handleManualAddSubmit : handleEditSubmit} className="space-y-4">
-                                                        <div className="flex justify-between items-baseline mb-2">
-                                                            <h4 className="font-bold text-lg text-slate-100">基本資料</h4>
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs font-bold text-slate-400 mb-1">景點名稱</label>
-                                                            <input required placeholder="*景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100" />
-                                                        </div>
-                                                        <div className="relative">
-                                                            <label className="block text-xs font-bold text-slate-400 mb-1">搜尋更新地址 (選填)</label>
-                                                            <div className="flex gap-2">
-                                                                <input placeholder="輸入地址更新地圖位置" value={newItem.address || ''} onChange={handleAddressInput} className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100" />
-                                                                <button type="button" onClick={handleAddressSearch} disabled={isSearchingAddress} className="bg-blue-600 p-2.5 rounded-lg transition-colors hover:bg-blue-500 disabled:opacity-50 text-white shrink-0 flex items-center justify-center">
-                                                                    <Icons.Search size={18} />
-                                                                </button>
-                                                            </div>
-                                                            {addressSuggestions.length > 0 && (
-                                                                <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg overflow-hidden shadow-2xl z-50 max-h-48 overflow-y-auto">
-                                                                    {addressSuggestions.map((s, idx) => (
-                                                                        <div key={idx} onClick={() => handleSuggestionClick(s)} className="p-3 border-b border-slate-700 last:border-0 hover:bg-slate-700 cursor-pointer transition-colors">
-                                                                            <div className="font-bold text-slate-200">{s.name}</div>
-                                                                            <div className="text-xs text-slate-400 truncate mt-0.5">{s.address || s.adname}</div>
+                                                                        <div className="flex-1 z-10 pl-2 md:pl-4 relative">
+                                                                            <TravelSegmentUI p1={p} p2={activeDayData.places[i+1]} onUpdateMode={(m) => handleUpdateTravelMode(activeDayData.id, p.id, m)} onMouseEnter={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} onMouseLeave={() => setHoveredSegmentId(null)} onTouchStart={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} />
                                                                         </div>
-                                                                    ))}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex gap-4 pt-2 border-t border-slate-700/50 mt-4">
-                                                            <div className="flex-1">
-                                                                <label className="block text-xs font-bold text-slate-400 mb-1">抵達時間</label>
-                                                                <input type="time" required value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm" />
-                                                            </div>
-                                                            <div className="flex-1">
-                                                                <label className="block text-xs font-bold text-slate-400 mb-1">停留時間</label>
-                                                                <StayTimeInput value={newItem.stayTime} onChange={v => setNewItem({...newItem, stayTime: v})} />
-                                                            </div>
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs font-bold text-slate-400 mb-1">景點類型</label>
-                                                            <select value={newItem.type} onChange={e => setNewItem({...newItem, type: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm">
-                                                                <option value="sight">景點</option>
-                                                                <option value="food">餐廳</option>
-                                                                <option value="shopping">購物</option>
-                                                                <option value="transport">交通</option>
-                                                                <option value="accommodation">住宿</option>
-                                                            </select>
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs font-bold text-slate-400 mb-1">備註</label>
-                                                            <textarea rows="3" value={newItem.note || ''} onChange={e => setNewItem({...newItem, note: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..."></textarea>
-                                                        </div>
-                                                        
-                                                        <div className="pt-2 border-t border-slate-700/50 mt-4">
-                                                            <label className="block text-xs font-bold text-slate-400 mb-2">景點圖片</label>
-                                                            <div className="flex flex-col gap-3">
-                                                                {newItem.image ? (
-                                                                    <div className="relative w-full h-40 bg-slate-800 rounded-xl overflow-hidden border border-slate-600 shadow-md group shrink-0">
-                                                                        <img src={newItem.image} className="w-full h-full object-cover" alt="Preview" />
-                                                                        <button type="button" onClick={() => setNewItem({...newItem, image: null})} className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors z-10">
-                                                                            <Icons.X size={16} />
-                                                                        </button>
-                                                                        {newItem.image.startsWith('http') && <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-white text-[10px] rounded backdrop-blur-sm">外部連結</div>}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="relative w-full h-32 bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors group cursor-pointer shrink-0">
-                                                                        <Icons.Image size={28} className="mb-2 opacity-60 group-hover:opacity-100 transition-opacity" />
-                                                                        <span className="text-xs font-medium">點擊或貼上 (Ctrl+V) 圖片檔案</span>
-                                                                        <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
                                                                     </div>
                                                                 )}
                                                             </div>
+                                                            {dragOverPlaceIndex === i && draggedPlaceIndexRef.current !== null && draggedPlaceIndexRef.current < i && (<div className="w-full h-24 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl mt-4 mb-2 pointer-events-none flex items-center justify-center animate-fade-in shadow-inner"><span className="text-blue-400 font-bold text-sm bg-blue-900/40 px-3 py-1 rounded-full">放在此處</span></div>)}
                                                         </div>
-
-                                                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-4 shadow-lg transition-all">
-                                                            {modalMode === 'add' ? '新增景點' : '儲存修改'}
-                                                        </button>
-                                                        
-                                                        <div className="flex gap-4 pt-6 mt-4 border-t border-slate-800">
-                                                            <label className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-all text-center cursor-pointer border border-slate-600 flex justify-center items-center gap-2 text-sm shadow-sm" title="也可以直接在畫面 Ctrl+V 貼上圖片">
-                                                                <Icons.Camera size={16} /> 上傳圖片
-                                                                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                                            </label>
-                                                            {modalMode === 'edit' && (
-                                                                <button type="button" onClick={() => { setPlaceToDelete(newItem.id); setPanelMode('list'); }} className="px-4 py-2.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl font-bold transition-all border border-slate-600 hover:border-red-500/50 flex items-center justify-center gap-2 shadow-sm cursor-pointer relative z-10">
-                                                                    <Icons.Trash2 size={16} /> 刪除
-                                                                </button>
-                                                            )}
-                                                        </div>
-                                                    </form>
-                                                </div>
+                                                    );
+                                                })}
                                             </div>
-                                        )}
+                                            <div onDragOver={(e) => { e.preventDefault(); setDragOverPlaceIndex(activeDayData?.places.length || 0); }} onDrop={(e) => { handleDrop(e, activeDayData?.places.length || 0); setDragOverPlaceIndex(null); }} className={`w-full rounded-xl border-2 border-dashed transition-all flex items-center justify-center ${dragOverPlaceIndex === (activeDayData?.places.length || 0) ? 'h-16 mt-2 mb-4 border-blue-400 bg-blue-500/10 opacity-100' : (draggedPlaceIndex !== null ? 'h-10 mt-2 border-transparent opacity-0' : 'h-0 m-0 border-transparent opacity-0 pointer-events-none overflow-hidden')}`}><span className="text-blue-400 font-bold text-sm bg-blue-900/40 px-3 py-1 rounded-full">移至底部</span></div>
+                                            <button onClick={() => { saveListScroll(); setNewItem({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null }); setTempMarker(null); setPanelMode('add'); }} className="w-full py-3.5 border-2 border-dashed border-slate-700/50 rounded-xl text-slate-400 font-bold hover:border-blue-500 hover:text-blue-400 transition-all flex items-center justify-center gap-2 mt-2"><Icons.Plus size={18} /> 新增行程景點</button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex flex-col h-full bg-slate-900 animate-fade-in">
+                                        <div className="w-12 h-1.5 bg-slate-700/80 rounded-full mx-auto my-1.5 md:hidden"></div>
+                                        <div className="flex items-center bg-slate-900/80 border-b border-slate-700 sticky top-0 z-20 p-2">
+                                            <button type="button" onClick={() => { setPanelMode('list'); setTempMarker(null); restoreListScroll(); }} className="p-2 text-slate-400 hover:text-white shrink-0">
+                                                <Icons.ArrowLeft size={20} />
+                                            </button>
+                                            <div className="flex flex-1 items-center justify-center font-bold text-slate-200 pr-8">{panelMode === 'add' ? '新增景點' : '編輯景點資料'}</div>
+                                        </div>
+                                        
+                                        <div className="overflow-y-auto p-4 flex-1 pb-32">
+                                            <form onSubmit={panelMode === 'add' ? handleManualAddSubmit : handleEditSubmit} className="space-y-4">
+                                                <div className="flex justify-between items-baseline mb-2">
+                                                    <h4 className="font-bold text-lg text-slate-100">基本資料</h4>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">景點名稱</label>
+                                                    <input required placeholder="*景點名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100" />
+                                                </div>
+                                                <div className="relative">
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">搜尋更新地址 (選填)</label>
+                                                    <div className="flex gap-2">
+                                                        <input placeholder="輸入地址更新地圖位置" value={newItem.address || ''} onChange={handleAddressInput} className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100" />
+                                                        <button type="button" onClick={handleAddressSearch} disabled={isSearchingAddress} className="bg-blue-600 p-2.5 rounded-lg transition-colors hover:bg-blue-500 disabled:opacity-50 text-white shrink-0 flex items-center justify-center">
+                                                            <Icons.Search size={18} />
+                                                        </button>
+                                                    </div>
+                                                    {addressSuggestions.length > 0 && (
+                                                        <div className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border border-slate-600 rounded-lg overflow-hidden shadow-2xl z-50 max-h-48 overflow-y-auto">
+                                                            {addressSuggestions.map((s, idx) => (
+                                                                <div key={idx} onClick={() => handleSuggestionClick(s)} className="p-3 border-b border-slate-700 last:border-0 hover:bg-slate-700 cursor-pointer transition-colors">
+                                                                    <div className="font-bold text-slate-200">{s.name}</div>
+                                                                    <div className="text-xs text-slate-400 truncate mt-0.5">{s.address || s.adname}</div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex gap-4 pt-2 border-t border-slate-700/50 mt-4">
+                                                    <div className="flex-1">
+                                                        <label className="block text-xs font-bold text-slate-400 mb-1">抵達時間</label>
+                                                        <input type="time" required value={newItem.time} onChange={e => setNewItem({...newItem, time: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm" />
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <label className="block text-xs font-bold text-slate-400 mb-1">停留時間</label>
+                                                        <StayTimeInput value={newItem.stayTime} onChange={v => setNewItem({...newItem, stayTime: v})} />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">景點類型</label>
+                                                    <select value={newItem.type} onChange={e => setNewItem({...newItem, type: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-sm">
+                                                        <option value="sight">景點</option>
+                                                        <option value="food">餐廳</option>
+                                                        <option value="shopping">購物</option>
+                                                        <option value="transport">交通</option>
+                                                        <option value="accommodation">住宿</option>
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-400 mb-1">備註</label>
+                                                    <textarea rows="3" value={newItem.note || ''} onChange={e => setNewItem({...newItem, note: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 resize-none auto-extend" placeholder="輸入備註事項..."></textarea>
+                                                </div>
+                                                
+                                                <div className="pt-2 border-t border-slate-700/50 mt-4">
+                                                    <label className="block text-xs font-bold text-slate-400 mb-2">景點圖片</label>
+                                                    <div className="flex flex-col gap-3">
+                                                        {newItem.image ? (
+                                                            <div className="relative w-full h-40 bg-slate-800 rounded-xl overflow-hidden border border-slate-600 shadow-md group shrink-0">
+                                                                <img src={newItem.image} className="w-full h-full object-cover" alt="Preview" />
+                                                                <button type="button" onClick={() => setNewItem({...newItem, image: null})} className="absolute top-2 right-2 p-1.5 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors z-10">
+                                                                    <Icons.X size={16} />
+                                                                </button>
+                                                                {newItem.image.startsWith('http') && <div className="absolute bottom-2 left-2 px-2 py-1 bg-black/60 text-white text-[10px] rounded backdrop-blur-sm">外部連結</div>}
+                                                            </div>
+                                                        ) : (
+                                                            <div className="relative w-full h-32 bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors group cursor-pointer shrink-0">
+                                                                <Icons.Image size={28} className="mb-2 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                                                <span className="text-xs font-medium">點擊或貼上 (Ctrl+V) 圖片檔案</span>
+                                                                <input type="file" accept="image/*" onChange={handleImageUpload} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-4 shadow-lg transition-all">
+                                                    {modalMode === 'add' ? '新增景點' : '儲存修改'}
+                                                </button>
+                                                
+                                                <div className="flex gap-4 pt-6 mt-4 border-t border-slate-800">
+                                                    <label className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-all text-center cursor-pointer border border-slate-600 flex justify-center items-center gap-2 text-sm shadow-sm" title="也可以直接在畫面 Ctrl+V 貼上圖片">
+                                                        <Icons.Camera size={16} /> 上傳圖片
+                                                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                                    </label>
+                                                    {modalMode === 'edit' && (
+                                                        <button type="button" onClick={() => { setPlaceToDelete(newItem.id); setPanelMode('list'); }} className="px-4 py-2.5 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl font-bold transition-all border border-slate-600 hover:border-red-500/50 flex items-center justify-center gap-2 shadow-sm cursor-pointer relative z-10">
+                                                            <Icons.Trash2 size={16} /> 刪除
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </form>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
-                        )}
-                        
-                        {activeTab === 'expenses' && (
+                        </div>
+{activeTab === 'expenses' && (
                             <div className="w-full h-full bg-slate-900 p-4 md:p-8 overflow-y-auto relative z-20">
                                 <div className="max-w-[1400px] mx-auto space-y-6 pb-32">
                                     <div className="flex justify-between items-center mb-2"><h2 className="text-2xl font-bold text-slate-100">花費紀錄</h2><div className="flex gap-2"><button onClick={() => setShowExpenseDetails(true)} className="bg-slate-800 hover:bg-slate-700 text-teal-400 px-4 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2 border border-slate-700"><Icons.FileText size={18} /> <span className="hidden sm:inline">明細</span></button><button onClick={() => setShowSettlementPlan(true)} className="bg-slate-800 hover:bg-slate-700 text-blue-400 px-4 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2 border border-slate-700"><Icons.Calculator size={18} /> <span className="hidden sm:inline">結算方案</span></button><button onClick={() => { const defaultDate = activeDayData?.date ? activeDayData.date.split(' ')[0].replace(/\//g, '-') : '2026-04-03'; setNewExpenseItem({id: undefined, date: defaultDate, title: '', category: 'food', payer: members[0]?.name || '', amount: '', currency: displayCurrency, sharedBy: members.map(m => m.name), images: []}); setShowExpenseModal(true); }} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg flex items-center gap-2"><Icons.Plus size={18} /> 新增</button></div></div>
@@ -2175,13 +2087,10 @@ return (
                                                 const places = day.places || [];
                                                 return (
                                                     <div key={day.id} className="w-[85vw] sm:w-[300px] md:w-[340px] shrink-0 flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-3 md:p-4 shadow-lg h-max">
-                                                       <div className="flex justify-between items-center bg-slate-800/80 p-3 rounded-xl mb-4 border border-slate-700 shadow-sm shrink-0">
-                                                <div className="flex flex-col flex-1 min-w-0 mr-2">
-                                                    <DayTitleInput day={day} onUpdate={handleUpdateDayTitle} />
-                                                    <div className="text-[10px] text-slate-400 mt-0.5">{places.length} 個景點</div>
-                                                </div>
-                                                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-900/50 text-sm border-2 border-slate-800 shrink-0">D{idx + 1}</div>
-                                            </div>
+                                                        <div className="flex justify-between items-center bg-slate-800/80 p-3 rounded-xl mb-4 border border-slate-700 shadow-sm shrink-0">
+                                                            <div className="flex flex-col"><h3 className="font-bold text-base text-blue-400 tracking-wide">{day.title}</h3><div className="text-[10px] text-slate-400 mt-0.5">{formatShortDate(day.date)} · {places.length} 個景點</div></div>
+                                                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-black shadow-lg shadow-blue-900/50 text-sm border-2 border-slate-800">D{idx + 1}</div>
+                                                        </div>
                                                         <div className="flex flex-col relative min-h-[60px]">
                                                             {places.length === 0 ? (
                                                                 <div onDragOver={(e) => { e.preventDefault(); setDragOverOverview({ dayId: day.id, index: 0 }); }} onDrop={(e) => { handleOverviewDrop(e, day.id, 0); setDragOverOverview(null); }} className={`h-24 flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors ${dragOverOverview?.dayId === day.id && dragOverOverview?.index === 0 ? 'border-blue-400 bg-blue-500/10 opacity-100' : 'border-slate-700 text-slate-500'}`}>
@@ -2245,9 +2154,7 @@ return (
                                 </div>
                             </div>
                         )}
-                        </>
-                    )}
-
+                    </div>
                     {showMemberSettings && (
                         <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setShowMemberSettings(false))}>
                             <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700 flex flex-col max-h-[90vh]">
@@ -2495,15 +2402,11 @@ return (
                                         <div className="animate-fade-in">
                                             <label className="block text-xs font-bold text-slate-400 mb-2">請選擇目標天數</label>
                                             <select value={transferTargetDay} onChange={(e) => setTransferTargetDay(e.target.value)} className="w-full px-3 py-3 bg-slate-900 border border-slate-600 text-slate-100 rounded-xl outline-none focus:border-blue-500 font-medium">
-    <option value="" disabled>-- 選擇目標位置 --</option>
-    {trips.find(t => t.id === transferTargetTrip)?.trip?.days?.map((d, i) => (
-        <option key={d.id} value={d.id}>
-            {transferTargetTrip === 'trip_global_library' 
-                ? `📂 ${d.title}` 
-                : `第 ${i+1} 天：${d.title} (${formatShortDate(d.date) || '無日期'})`}
-        </option>
-    ))}
-</select>
+                                                <option value="" disabled>-- 選擇天數 --</option>
+                                                {trips.find(t => t.id === transferTargetTrip)?.trip?.days?.map((d, i) => (
+                                                    <option key={d.id} value={d.id}>第 {i+1} 天：{d.title} ({formatShortDate(d.date) || '無日期'})</option>
+                                                ))}
+                                            </select>
                                         </div>
                                     )}
                                     <button onClick={handleTransferSubmit} disabled={!transferTargetTrip || !transferTargetDay} className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:hover:bg-blue-600 text-white rounded-xl font-bold shadow-lg transition-colors flex items-center justify-center gap-2 mt-4">
@@ -2554,6 +2457,246 @@ return (
                             </div>
                         </div>
                     )}
+
+                    {showExpenseModal && (() => {
+                        const totalAmount = Number(newExpenseItem.amount) || 0;
+                        const splitCount = newExpenseItem.sharedBy.length;
+                        const splitAmount = splitCount > 0 ? (totalAmount / splitCount) : 0;
+                        return (
+                            <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setShowExpenseModal(false))}>
+                                <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[90vh] border border-slate-700">
+                                    <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0"><h3 className="font-bold text-lg text-slate-100">{newExpenseItem.id ? '修改花費' : '新增花費'}</h3><button onClick={() => setShowExpenseModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div>
+                                    <form onSubmit={handleAddExpenseSubmit} className="p-6 space-y-4 overflow-y-auto">
+                                        <div><label className="block text-sm font-bold text-slate-400 mb-1">名稱</label><input required value={newExpenseItem.title} onChange={e => setNewExpenseItem({...newExpenseItem, title: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                                        <div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">日期</label><input required type="date" value={newExpenseItem.date} onChange={e => setNewExpenseItem({...newExpenseItem, date: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">類別</label><select value={newExpenseItem.category} onChange={e => setNewExpenseItem({...newExpenseItem, category: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="food">餐飲</option><option value="shopping">購物</option><option value="transport">交通</option><option value="sight">景點</option><option value="accommodation">住宿</option><option value="other">其他</option></select></div></div>
+                                        <div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">金額</label><input required type="number" step="0.01" value={newExpenseItem.amount} onChange={e => setNewExpenseItem({...newExpenseItem, amount: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newExpenseItem.currency} onChange={e => setNewExpenseItem({...newExpenseItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option></select></div></div>
+                                        <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">付款人</label><select value={newExpenseItem.payer} onChange={e => setNewExpenseItem({...newExpenseItem, payer: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
+                                        <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <label className="block text-sm font-bold text-slate-300">分攤成員</label>
+                                                {splitCount > 0 && <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">每人 {newExpenseItem.currency} {formatNumber(splitAmount, newExpenseItem.currency === 'JPY' ? 0 : 1)}</span>}
+                                            </div>
+                                            <div className="flex flex-col gap-1.5">
+                                                {members.map(m => { 
+                                                    const isChecked = newExpenseItem.sharedBy.includes(m.name); 
+                                                    return (
+                                                        <button key={m.id} type="button" onClick={() => toggleSharedMember(m.name)} className={`w-full px-2.5 py-1.5 rounded-lg text-sm font-bold transition-all border flex items-center justify-between ${isChecked ? 'bg-blue-900/40 text-blue-400 border-blue-500/50' : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:bg-slate-700'}`}>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className={`w-6 h-6 text-xs rounded-full overflow-hidden flex items-center justify-center shrink-0 shadow-inner ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>
+                                                                    {m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}
+                                                                </div>
+                                                                <span>{m.name}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                {isChecked && <span className="text-[11px] bg-slate-900 px-1.5 py-0.5 rounded text-blue-300 font-mono shadow-inner">{newExpenseItem.currency} {formatNumber(splitAmount, newExpenseItem.currency === 'JPY' ? 0 : 1)}</span>}
+                                                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-blue-600 border-blue-500 text-white shadow-sm' : 'border-slate-600 bg-slate-900'}`}>
+                                                                    {isChecked && <Icons.Check size={12} />}
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ); 
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-2 border-t border-slate-700/50 mt-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <label className="block text-sm font-bold text-slate-400">帳單截圖 (可上傳多張)</label>
+                                            </div>
+                                            
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {newExpenseItem.images && newExpenseItem.images.map((img, idx) => (
+                                                    <div key={idx} className="relative w-full aspect-square bg-slate-800 rounded-xl overflow-hidden border border-slate-600 shadow-md">
+                                                        <img src={img} className="w-full h-full object-cover" />
+                                                        <button type="button" onClick={() => removeExpenseImage(idx)} className="absolute top-1 right-1 p-1 bg-black/60 text-white rounded-full hover:bg-red-500 transition-colors z-10">
+                                                            <Icons.X size={12} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                                <label className="relative w-full aspect-square bg-slate-800/50 rounded-xl border-2 border-dashed border-slate-700 flex flex-col items-center justify-center text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors cursor-pointer group">
+                                                    <Icons.Camera size={24} className="mb-1 opacity-60 group-hover:opacity-100 transition-opacity" />
+                                                    <span className="text-[10px] font-medium">新增圖片</span>
+                                                    <input type="file" accept="image/*" multiple onChange={handleExpenseImageUpload} className="hidden" />
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg">{newExpenseItem.id ? '儲存修改' : '確認新增'}</button>
+                                    </form>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {showShoppingModal && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setShowShoppingModal(false))}>
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden border border-slate-700">
+                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">{newShoppingItem.id ? '修改待買項目' : '新增待買項目'}</h3><button onClick={() => setShowShoppingModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div>
+                                <form onSubmit={handleAddShoppingSubmit} className="p-6 space-y-4">
+                                    <div><label className="block text-sm font-bold text-slate-400 mb-1">品名</label><input required value={newShoppingItem.name} onChange={e => setNewShoppingItem({...newShoppingItem, name: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-white" /></div>
+                                    <div className="flex gap-4"><div className="w-20"><label className="block text-sm font-bold text-slate-400 mb-1">數量</label><input type="number" min="1" value={newShoppingItem.qty} onChange={e => setNewShoppingItem({...newShoppingItem, qty: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-white" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">單價</label><input required type="number" step="0.01" min="0" value={newShoppingItem.price} onChange={e => setNewShoppingItem({...newShoppingItem, price: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-white" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newShoppingItem.currency} onChange={e => setNewShoppingItem({...newShoppingItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none text-white"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option></select></div></div>
+                                    <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">訂購人</label><select value={newShoppingItem.requester} onChange={e => setNewShoppingItem({...newShoppingItem, requester: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg text-white">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
+                                    <button type="submit" className="w-full py-3 bg-teal-600 hover:bg-teal-500 text-white rounded-xl font-bold mt-2 shadow-lg">{newShoppingItem.id ? '儲存修改' : '確認新增'}</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {showPackingModal && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setShowPackingModal(false))}>
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full border border-slate-700">
+                                <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">新增行李項目</h3><button onClick={() => setShowPackingModal(false)}><Icons.X size={20} className="text-slate-500 hover:text-white transition-colors" /></button></div>
+                                <form onSubmit={handleAddPacking} className="p-6 space-y-4">
+                                    <div><label className="block text-sm font-bold text-slate-400 mb-1">物品名稱</label><input required placeholder="例如: 護照" value={newPackingItem.text} onChange={e => setNewPackingItem({...newPackingItem, text: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-slate-100"/></div>
+                                    <div><label className="block text-sm font-bold text-slate-400 mb-1">所屬成員</label><select value={newPackingItem.owner} onChange={e => setNewPackingItem({...newPackingItem, owner: e.target.value})} className="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500"><option value="all">👥 全體成員 (每人各一項)</option>{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
+                                    <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg transition-colors">新增</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {showCopyPackingModal && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setShowCopyPackingModal(null))}>
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full border border-slate-700 overflow-hidden">
+                                <div className="p-4 border-b border-slate-700 flex justify-between bg-slate-900/50"><h3 className="font-bold text-lg text-slate-100">複製行李項目</h3><button onClick={() => setShowCopyPackingModal(null)}><Icons.X size={20} className="text-slate-500 hover:text-white" /></button></div>
+                                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                                    <p className="text-sm text-slate-300 bg-slate-900 p-3 rounded-lg border border-slate-700">準備複製：<strong className="text-white ml-1">{showCopyPackingModal.text}</strong></p>
+                                    <p className="text-xs font-bold text-slate-400 mt-4 mb-2">請選擇目標對象：</p>
+                                    <div className="space-y-2">
+                                        <button onClick={() => handleCopyPackingAction(showCopyPackingModal, 'all')} className="w-full p-3 rounded-xl border border-slate-600 bg-blue-900/20 hover:bg-blue-900/40 hover:border-blue-500 text-left flex items-center gap-3 transition-colors"><div className="w-8 h-8 rounded-lg flex items-center justify-center text-white bg-slate-600 shadow-inner"><Icons.Users size={16}/></div><span className="font-bold text-blue-300">全體成員 (排除本人)</span></button>
+                                        <div className="my-2 border-t border-slate-700 w-full h-1"></div>
+                                        {members.filter(m => m.name !== showCopyPackingModal.owner).map(m => (<button key={m.id} onClick={() => handleCopyPackingAction(showCopyPackingModal, m.name)} className="w-full p-3 rounded-xl border border-slate-600 bg-slate-900/50 hover:bg-slate-700 hover:border-blue-500 text-left flex items-center gap-3 transition-colors"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-inner overflow-hidden ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>{m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}</div><span className="font-bold text-slate-200">{m.name}</span></button>))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showSettlementPlan && (
+                        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setShowSettlementPlan(false))}>
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-700 flex flex-col max-h-[90vh]">
+                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0"><h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.Calculator size={20} className="text-blue-400"/>結算方案</h3><button onClick={() => setShowSettlementPlan(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div>
+                                <div className="p-6 overflow-y-auto flex flex-col md:flex-row gap-6">
+                                    <div className="flex-1 bg-slate-900/40 rounded-xl p-4 border border-slate-700/50 h-max">
+                                        <h4 className="text-sm font-bold text-slate-300 mb-3">成員花費明細 ({displayCurrency})</h4>
+                                        <div className="space-y-3">
+                                            {members.map(m => {
+                                                const paid = settlementResult.paid[m.name] || 0;
+                                                const share = settlementResult.share[m.name] || 0;
+                                                const bal = settlementResult.balances[m.name] || 0;
+                                                return (
+                                                    <div key={m.id} className="bg-slate-800/80 p-3 rounded-lg border border-slate-700 flex flex-col gap-2 shadow-sm hover:border-slate-500 transition-colors">
+                                                        <div className="flex items-center gap-2 font-bold text-slate-200">
+                                                            <div className={`w-5 h-5 rounded-full overflow-hidden flex items-center justify-center shrink-0 shadow-inner text-[10px] ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>
+                                                                {m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}
+                                                            </div>
+                                                            <span className="text-sm">{m.name}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-[11px] text-slate-400 pl-7">
+                                                            <span>已墊付: <span className="text-slate-300 font-mono">{formatNumber(paid, displayCurrency === 'JPY' ? 0 : 1)}</span></span>
+                                                            <span>應分攤: <span className="text-slate-300 font-mono">{formatNumber(share, displayCurrency === 'JPY' ? 0 : 1)}</span></span>
+                                                        </div>
+                                                        <div className="flex justify-end text-[10px] pl-7 mt-1">
+                                                            {bal > 0.01 ? (
+                                                                <span className="text-green-400 font-bold bg-green-400/10 px-2 py-1 rounded border border-green-500/20">應收 {formatNumber(bal, displayCurrency === 'JPY' ? 0 : 1)}</span>
+                                                            ) : bal < -0.01 ? (
+                                                                <span className="text-red-400 font-bold bg-red-400/10 px-2 py-1 rounded border border-red-500/20">應付 {formatNumber(Math.abs(bal), displayCurrency === 'JPY' ? 0 : 1)}</span>
+                                                            ) : (
+                                                                <span className="text-slate-500 font-bold bg-slate-700/50 px-2 py-1 rounded border border-slate-600">無欠款</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    <div className="flex-1 bg-blue-900/20 rounded-xl p-4 border border-blue-800/30 h-max">
+                                        <h4 className="text-sm font-bold text-blue-400 mb-3">建議轉帳 ({displayCurrency})</h4>
+                                        <div className="space-y-2">
+                                            {settlementResult.transactions.length > 0 ? settlementResult.transactions.map((t, idx) => (
+                                                <div key={idx} className="bg-slate-900/50 p-3 rounded-lg border border-slate-700 flex flex-col gap-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="text-sm font-bold text-red-400">{t.from}</div>
+                                                        <div className="text-[10px] text-slate-500 px-2 py-0.5 rounded-full bg-slate-800 border border-slate-700">轉帳給</div>
+                                                        <div className="text-sm font-bold text-green-400">{t.to}</div>
+                                                    </div>
+                                                    <div className="text-center text-blue-400 font-bold font-mono text-sm bg-blue-900/40 px-2 py-1.5 rounded-md mt-1">{displayCurrency} {formatNumber(t.amount, displayCurrency === 'JPY' ? 0 : 1)}</div>
+                                                </div>
+                                            )) : <div className="text-center text-slate-500 text-sm py-6 bg-slate-900/30 rounded-lg border border-slate-800">目前帳目已平衡</div>}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {showExpenseDetails && (
+                        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setShowExpenseDetails(false))}>
+                            <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-7xl w-full overflow-hidden border border-slate-700 flex flex-col max-h-[90vh]">
+                                <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
+                                    <h3 className="font-bold text-lg text-slate-100 flex items-center gap-2"><Icons.FileText size={20} className="text-teal-400"/>成員分攤明細</h3>
+                                    <button onClick={() => setShowExpenseDetails(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button>
+                                </div>
+                                <div className="p-4 md:p-6 overflow-x-auto flex flex-nowrap gap-3 md:gap-4 pb-6 h-full min-h-[50vh] styled-scrollbar">
+                                    {members.map(m => {
+                                        const mSharedItems = expenses.flatMap(day => day.items.filter(item => item.sharedBy && item.sharedBy.includes(m.name)).map(item => ({ ...item, date: day.date }))).sort((a, b) => new Date(b.date) - new Date(a.date));
+                                        
+                                        const mTotalShared = mSharedItems.reduce((sum, item) => {
+                                            const originalAmount = item.amount !== undefined ? item.amount : item.amountJPY;
+                                            const convertedAmt = convertCurr(originalAmount, item.currency || 'JPY', displayCurrency);
+                                            return sum + (convertedAmt / item.sharedBy.length);
+                                        }, 0);
+
+                                        return (
+                                            <div key={m.id} className="w-[85vw] sm:w-[240px] lg:flex-1 lg:min-w-[220px] lg:max-w-[280px] flex-shrink-0 flex flex-col bg-slate-900/40 rounded-xl p-3 border border-slate-700/50 max-h-full">
+                                                <div className="flex items-center gap-2.5 mb-3 border-b border-slate-700/50 pb-2.5 shrink-0">
+                                                    <div className={`w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center shrink-0 shadow-inner text-sm ${m.avatar?.startsWith('data:image') ? 'bg-slate-800' : m.color}`}>
+                                                        {m.avatar?.startsWith('data:image') ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.avatar}
+                                                    </div>
+                                                    <div className="flex flex-col min-w-0">
+                                                        <h4 className="font-bold text-slate-200 text-sm truncate">{m.name}</h4>
+                                                        <span className="text-[9px] font-bold text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-md border border-slate-700 w-max mt-0.5">共 {mSharedItems.length} 項分攤</span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center mb-2.5 shrink-0 bg-slate-800/80 p-2 rounded-lg border border-slate-700">
+                                                    <span className="text-[11px] text-slate-400">分攤總計</span>
+                                                    <span className="font-bold text-teal-400 font-mono text-base leading-none">{displayCurrency} {formatNumber(mTotalShared, displayCurrency === 'JPY' ? 0 : 1)}</span>
+                                                </div>
+                                                <div className="overflow-y-auto pr-1 space-y-1.5 flex-1 no-scrollbar">
+                                                    {mSharedItems.length > 0 ? mSharedItems.map(item => {
+                                                        const originalAmount = item.amount !== undefined ? item.amount : item.amountJPY;
+                                                        const originalCurr = item.currency || 'JPY';
+                                                        const convertedAmt = convertCurr(originalAmount, originalCurr, displayCurrency);
+                                                        const splitAmt = convertedAmt / item.sharedBy.length;
+                                                        
+                                                        return (
+                                                            <div key={item.id} className="flex flex-col bg-slate-800/50 p-2.5 rounded-lg border border-slate-700/50 shadow-sm hover:border-slate-500 transition-colors">
+                                                                <div className="flex justify-between items-start mb-1">
+                                                                    <span className="text-slate-200 font-bold text-xs leading-snug line-clamp-1" title={item.title}>{item.title}</span>
+                                                                    <span className="text-teal-300 font-mono text-xs font-bold shrink-0 ml-1.5">{displayCurrency} {formatNumber(splitAmt, displayCurrency === 'JPY' ? 0 : 1)}</span>
+                                                                </div>
+                                                                <div className="flex justify-between items-end gap-1">
+                                                                    <div className="flex flex-col min-w-0">
+                                                                        <span className="text-[9px] text-slate-400 truncate">{formatShortDate(item.date)} · {getCategoryName(item.category)}</span>
+                                                                        <span className="text-[9px] text-slate-500 mt-0.5 truncate">付: {item.payer}</span>
+                                                                    </div>
+                                                                    <div className="text-[9px] text-slate-400 bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-700 shrink-0 whitespace-nowrap">
+                                                                        {item.sharedBy.length}人分
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    }) : (
+                                                        <div className="text-center text-slate-500 text-xs py-8 bg-slate-800/30 rounded-lg border border-slate-700/50 border-dashed">尚無分攤項目</div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             );
         };
@@ -2562,7 +2705,6 @@ return (
             const [user, setUser] = useState(null);
             const [currentView, setCurrentView] = useState('dashboard');
             const [activeTripId, setActiveTripId] = useState(null);
-            const [showLibraryModal, setShowLibraryModal] = useState(false);
             const [trips, setTrips] = useState([]);
             const [toast, setToast] = useState(null);
             const [tripToDelete, setTripToDelete] = useState(null);
@@ -2573,13 +2715,18 @@ return (
             
             const [backdropTarget, setBackdropTarget] = useState(null);
             const onBackdropDown = (e) => setBackdropTarget(e.target);
-            const onBackdropUp = (e, closeFn) => { if (e.target === e.currentTarget && backdropTarget === e.currentTarget) { closeFn(); } setBackdropTarget(null); };
+            const onBackdropUp = (e, closeFn) => {
+                if (e.target === e.currentTarget && backdropTarget === e.currentTarget) {
+                    closeFn();
+                }
+                setBackdropTarget(null);
+            };
 
             useEffect(() => { 
                 const initAuth = async () => { 
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         try { await window.FirebaseSDK.signInWithCustomToken(auth, __initial_auth_token); } 
-                        catch (e) { try { await window.FirebaseSDK.signInAnonymously(auth); } catch (err) {} }
+                        catch (e) { console.warn("Token 過期"); try { await window.FirebaseSDK.signInAnonymously(auth); } catch (err) {} }
                     } else { try { await window.FirebaseSDK.signInAnonymously(auth); } catch (e) {} }
                 }; 
                 initAuth(); return window.FirebaseSDK.onAuthStateChanged(auth, setUser); 
@@ -2614,13 +2761,15 @@ return (
             const handleOpenLibrary = async () => {
                 const libId = 'trip_global_library';
                 const libExists = trips.find(t => t.id === libId);
+                // 首次開啟會自動建立這座收藏庫
                 if (!libExists) {
                     await window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', libId), { 
                         trip: { id: libId, title: '行程收藏庫', dates: '永久保存版', icon: '📌', days: [{id: 'lib_day_1', title: '我的最愛', date: getFutureDate(0), places: [], weather: { type: 'sun', minTemp: 20, maxTemp: 25, label: '晴天' }}] }, 
                         members: [{ id: 'm1', name: '我', color: 'bg-amber-500', avatar: '👤' }], expenses: [], shoppingItems: [], packingList: [] 
                     });
                 }
-                setShowLibraryModal(true);
+                setActiveTripId(libId);
+                setCurrentView('planner');
             };
             
             if (!user) return <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-blue-400 font-bold">同步連線中...</div>;
@@ -2639,12 +2788,8 @@ return (
                             }} 
                             onSelectTrip={(id) => { setActiveTripId(id); setCurrentView('planner'); }} onDeleteTrip={(id) => setTripToDelete(id)} onImportTrip={handleImportTrip} onExportTrip={handleExportTrip} onOpenLibrary={handleOpenLibrary} toast={toast} 
                         />
-                    ) : (<TripPlanner tripId={activeTripId} trips={trips} onBack={() => setCurrentView('dashboard')} onOpenLibrary={handleOpenLibrary} db={db} appId={appId} user={user} isLibraryModal={false} />)}
+                    ) : (<TripPlanner tripId={activeTripId} trips={trips} onBack={() => setCurrentView('dashboard')} onOpenLibrary={handleOpenLibrary} db={db} appId={appId} user={user} />)}
                     
-                    {showLibraryModal && (
-                        <TripPlanner tripId="trip_global_library" trips={trips} onBack={() => setShowLibraryModal(false)} onOpenLibrary={() => {}} db={db} appId={appId} user={user} isLibraryModal={true} />
-                    )}
-
                     {tripToDelete && (
                         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setTripToDelete(null))}>
                             <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center border border-slate-700">
