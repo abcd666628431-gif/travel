@@ -696,8 +696,7 @@
                 </div>
             );
         };
-
-        const MemberNameInput = React.memo(({ member, onUpdate }) => {
+const MemberNameInput = React.memo(({ member, onUpdate }) => {
             const [name, setName] = useState(member.name);
             useEffect(() => { setName(member.name); }, [member.name]);
             
@@ -846,7 +845,7 @@
             const overviewContainerRef = useRef(null);
             const [overviewScroll, setOverviewScroll] = useState(0);
             const isSliderDragging = useRef(false);
-const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
+            const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
             const [dragEnabledOverviewId, setDragEnabledOverviewId] = useState(null);
             const [dragOverOverview, setDragOverOverview] = useState(null);
 
@@ -868,7 +867,11 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                 const imagesCol = window.FirebaseSDK.collection(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`);
                 return window.FirebaseSDK.onSnapshot(imagesCol, (snap) => {
                     const imgDict = {};
-                    snap.docs.forEach(doc => { imgDict[doc.id] = doc.data().image; });
+                    snap.docs.forEach(doc => { 
+                        const data = doc.data();
+                        // 支援景點的單張 (data.image) 與花費的多張 (data.images)
+                        imgDict[doc.id] = data.images || data.image; 
+                    });
                     setImages(imgDict);
                 });
             }, [user, tripId, db, appId]);
@@ -881,8 +884,12 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                     const el = document.getElementById(`place-card-${p.id}`);
                     if(el) {
                         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        el.classList.add('bg-blue-900/30', 'border-blue-500');
                         setHoveredPlaceId(p.id);
-                        setTimeout(() => setHoveredPlaceId(null), 3000);
+                        setTimeout(() => {
+                            el.classList.remove('bg-blue-900/30', 'border-blue-500');
+                            setHoveredPlaceId(null);
+                        }, 3000);
                     }
                 }, 100);
             };
@@ -958,6 +965,7 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                                         }
                                         seenIds.add(p.id);
                                         
+                                        // 搬移景點圖片
                                         if (p.image && p.image.startsWith('data:image')) {
                                             migrationPromises.push(window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`, `place_${p.id}`), { image: p.image }));
                                             delete p.image;
@@ -977,6 +985,13 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                                             const originalLen = item.sharedBy.length;
                                             const newSharedBy = item.sharedBy.filter(n => validNames.includes(n));
                                             if (newSharedBy.length !== originalLen) { item.sharedBy = newSharedBy; needsHeal = true; }
+                                        }
+                                        
+                                        // 【新增】自動把主文件裡的花費圖片搬移到獨立集合，幫主文件瘦身
+                                        if (item.images && item.images.length > 0 && typeof item.images[0] === 'string' && item.images[0].startsWith('data:image')) {
+                                            migrationPromises.push(window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`, `expense_${item.id}`), { images: item.images }));
+                                            delete item.images; // 從主文件中刪除
+                                            needsHeal = true;
                                         }
                                     });
                                 }
@@ -1180,7 +1195,6 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                 try {
                     const isSameTrip = tripId === transferTargetTrip;
                     
-                    // 【核心修復】同行程「移動」時保持原 ID，跨行程或複製才給新 ID
                     const keepSameId = isSameTrip && type === 'move';
                     const newPlaceId = keepSameId ? place.id : ('p_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5));
                     const placeToInsert = { ...place, id: newPlaceId, time: '12:00' };
@@ -1189,22 +1203,19 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                         let newDays = JSON.parse(JSON.stringify(trip.days));
                         
                         if (type === 'move') {
-                            // 【修復】強制轉字串比對，解決 Number 與 String 不匹配導致的消失問題
                             const sDay = newDays.find(d => String(d.id) === String(sourceDayId));
                             if (sDay) {
                                 sDay.places = sDay.places.filter(p => String(p.id) !== String(place.id));
-                                sDay.places = cascadeTimes(sDay.places, 0); // 重新計算時間
+                                sDay.places = cascadeTimes(sDay.places, 0); 
                             }
                         }
                         
-                        // 【修復】強制轉字串比對
                         const tDay = newDays.find(d => String(d.id) === String(transferTargetDay));
                         if (tDay) {
                             tDay.places.push(placeToInsert);
-                            tDay.places = cascadeTimes(tDay.places, 0); // 重新計算時間
+                            tDay.places = cascadeTimes(tDay.places, 0); 
                         }
 
-                        // 如果是複製，才需要複製圖片
                         if (!keepSameId && images[`place_${place.id}`]) {
                             const imgRef = window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`, `place_${newPlaceId}`);
                             await window.FirebaseSDK.setDoc(imgRef, { image: images[`place_${place.id}`] });
@@ -1212,21 +1223,18 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                         
                         pushUpdate({ trip: { ...trip, days: newDays } });
                     } else {
-                        // 跨行程處理
                         const targetDocRef = window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', 'trips', transferTargetTrip);
                         const targetSnap = await window.FirebaseSDK.getDoc(targetDocRef);
                         if (!targetSnap.exists()) throw new Error("找不到目標行程");
                         const targetData = targetSnap.data();
                         let targetTrip = targetData.trip;
                         
-                        // 【修復】強制轉字串比對
                         const targetDayIndex = targetTrip.days.findIndex(d => String(d.id) === String(transferTargetDay));
                         if (targetDayIndex === -1) throw new Error("找不到目標天數");
 
                         targetTrip.days[targetDayIndex].places.push(placeToInsert);
                         targetTrip.days[targetDayIndex].places = cascadeTimes(targetTrip.days[targetDayIndex].places, 0);
 
-                        // 跨行程圖片轉移
                         if (images[`place_${place.id}`]) {
                             const targetImgRef = window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${transferTargetTrip}`, `place_${newPlaceId}`);
                             await window.FirebaseSDK.setDoc(targetImgRef, { image: images[`place_${place.id}`] });
@@ -1242,7 +1250,6 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                             }
                             pushUpdate({ trip: { ...trip, days: newLocalDays } });
                             
-                            // 跨行程移動成功後，刪除原行程的圖片
                             if (images[`place_${place.id}`]) {
                                 window.FirebaseSDK.deleteDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`, `place_${place.id}`));
                             }
@@ -1366,7 +1373,8 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
 
             const handleAddExpenseSubmit = (e) => { 
                 e.preventDefault(); 
-                const expenseData = { id: newExpenseItem.id || 'e_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5), payer: newExpenseItem.payer, title: newExpenseItem.title, category: newExpenseItem.category, sharedBy: newExpenseItem.sharedBy, amount: Number(newExpenseItem.amount), currency: newExpenseItem.currency, amountJPY: convertCurr(Number(newExpenseItem.amount), newExpenseItem.currency, 'JPY'), images: newExpenseItem.images || [] }; 
+                const expenseId = newExpenseItem.id || 'e_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                const expenseData = { id: expenseId, payer: newExpenseItem.payer, title: newExpenseItem.title, category: newExpenseItem.category, sharedBy: newExpenseItem.sharedBy, amount: Number(newExpenseItem.amount), currency: newExpenseItem.currency, amountJPY: convertCurr(Number(newExpenseItem.amount), newExpenseItem.currency, 'JPY') }; 
                 let newExpenses = JSON.parse(JSON.stringify(expenses)); 
                 
                 if (newExpenseItem.id) {
@@ -1393,20 +1401,40 @@ const [draggedOverviewPlace, setDraggedOverviewPlace] = useState(null);
                     else newExpenses.push({ date: newExpenseItem.date, items: [expenseData] }); 
                 }
                 
-                pushUpdate({ expenses: newExpenses.sort((a, b) => new Date(a.date) - new Date(b.date)) }); setShowExpenseModal(false); 
+                pushUpdate({ expenses: newExpenses.sort((a, b) => new Date(a.date) - new Date(b.date)) }); 
+                
+                // 【新增】將圖片獨立存入專屬圖庫
+                if (newExpenseItem.images && newExpenseItem.images.length > 0) {
+                    window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`, `expense_${expenseId}`), { images: newExpenseItem.images });
+                } else if (images[`expense_${expenseId}`]) {
+                    window.FirebaseSDK.deleteDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`, `expense_${expenseId}`));
+                }
+
+                setShowExpenseModal(false); 
                 const defaultDate = activeDayData?.date ? activeDayData.date.split(' ')[0].replace(/\//g, '-') : new Date().toISOString().split('T')[0];
                 setNewExpenseItem({ id: undefined, date: defaultDate, title: '', category: 'food', payer: members[0]?.name || '', amount: '', currency: displayCurrency, sharedBy: members.map(m => m.name), images: [] }); 
             };
             
             const handleEditExpenseClick = (item, date) => { 
                 let imagesToEdit = [];
-                if (item.images && Array.isArray(item.images)) { imagesToEdit = item.images; }
+                // 優先從獨立圖庫中讀取圖片
+                const globalImgs = images[`expense_${item.id}`];
+                if (globalImgs) { imagesToEdit = Array.isArray(globalImgs) ? globalImgs : [globalImgs]; }
+                else if (item.images && Array.isArray(item.images)) { imagesToEdit = item.images; } // 兼容尚未搬移的舊資料
                 else if (item.image) { imagesToEdit = [item.image]; }
+                
                 setNewExpenseItem({ id: item.id, date: date, title: item.title, category: item.category, payer: item.payer, amount: item.amount !== undefined ? item.amount : item.amountJPY, currency: item.currency || 'JPY', sharedBy: item.sharedBy || [], images: imagesToEdit }); 
                 setShowExpenseModal(true); 
             };
             
-            const confirmDeleteExpense = () => { if (expenseToDelete) { pushUpdate({ expenses: expenses.map(day => ({...day, items: day.items.filter(item => item.id !== expenseToDelete.id)})).filter(day => day.items.length > 0) }); setExpenseToDelete(null); } };
+            const confirmDeleteExpense = () => { 
+                if (expenseToDelete) { 
+                    pushUpdate({ expenses: expenses.map(day => ({...day, items: day.items.filter(item => item.id !== expenseToDelete.id)})).filter(day => day.items.length > 0) }); 
+                    // 【新增】同時刪除圖庫中的紀錄
+                    window.FirebaseSDK.deleteDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`, `expense_${expenseToDelete.id}`));
+                    setExpenseToDelete(null); 
+                } 
+            };
 
             const handleAddShoppingSubmit = (e) => { 
                 e.preventDefault(); 
@@ -1775,7 +1803,9 @@ return (
                                                         const draggedIdxInList = orphanedExpenses.findIndex(i => i.id === draggedExpenseId); const currentItemIndex = orphanedExpenses.findIndex(i => i.id === item.id); const isDraggingDown = draggedIdxInList !== -1 && draggedIdxInList < currentItemIndex; const isDraggingUp = draggedIdxInList === -1 || draggedIdxInList > currentItemIndex;
                                                         
                                                         let itemImages = [];
-                                                        if (item.images && Array.isArray(item.images)) itemImages = item.images;
+                                                        const globalImgs = images[`expense_${item.id}`];
+                                                        if (globalImgs) itemImages = Array.isArray(globalImgs) ? globalImgs : [globalImgs];
+                                                        else if (item.images && Array.isArray(item.images)) itemImages = item.images;
                                                         else if (item.image) itemImages = [item.image];
                                                         
                                                         return (
@@ -1851,7 +1881,9 @@ return (
                                                             const draggedIdxInList = mExpenses.findIndex(i => i.id === draggedExpenseId); const currentItemIndex = mExpenses.findIndex(i => i.id === item.id); const isDraggingDown = draggedIdxInList !== -1 && draggedIdxInList < currentItemIndex; const isDraggingUp = draggedIdxInList === -1 || draggedIdxInList > currentItemIndex;
                                                             
                                                             let itemImages = [];
-                                                            if (item.images && Array.isArray(item.images)) itemImages = item.images;
+                                                            const globalImgs = images[`expense_${item.id}`];
+                                                            if (globalImgs) itemImages = Array.isArray(globalImgs) ? globalImgs : [globalImgs];
+                                                            else if (item.images && Array.isArray(item.images)) itemImages = item.images;
                                                             else if (item.image) itemImages = [item.image];
 
                                                             return (
