@@ -1371,10 +1371,24 @@ const MemberNameInput = React.memo(({ member, onUpdate }) => {
             const filteredTotalDisplay = useMemo(() => { let total = 0; filteredExpenses.forEach(d => d.items.forEach(i => { total += convertCurr(i.amount !== undefined ? i.amount : i.amountJPY, i.currency || 'JPY', displayCurrency); })); return total; }, [filteredExpenses, displayCurrency, convertCurr]);
             const shoppingTotalDisplay = useMemo(() => { let total = 0; shoppingItems.forEach(item => { total += convertCurr(item.price * item.qty, item.currency || 'MOP', displayCurrency); }); return total; }, [shoppingItems, displayCurrency, convertCurr]);
 
-            const handleAddExpenseSubmit = (e) => { 
+           const handleAddExpenseSubmit = (e) => { 
                 e.preventDefault(); 
                 const expenseId = newExpenseItem.id || 'e_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-                const expenseData = { id: expenseId, payer: newExpenseItem.payer, title: newExpenseItem.title, category: newExpenseItem.category, sharedBy: newExpenseItem.sharedBy, amount: Number(newExpenseItem.amount), currency: newExpenseItem.currency, amountJPY: convertCurr(Number(newExpenseItem.amount), newExpenseItem.currency, 'JPY') }; 
+                
+                // 這裡加入了 splitMode 與 customShares，確保能存進資料庫
+                const expenseData = { 
+                    id: expenseId, 
+                    payer: newExpenseItem.payer, 
+                    title: newExpenseItem.title, 
+                    category: newExpenseItem.category, 
+                    sharedBy: newExpenseItem.sharedBy, 
+                    amount: Number(newExpenseItem.amount), 
+                    currency: newExpenseItem.currency, 
+                    amountJPY: convertCurr(Number(newExpenseItem.amount), newExpenseItem.currency, 'JPY'),
+                    splitMode: newExpenseItem.splitMode || 'equal', 
+                    customShares: newExpenseItem.customShares || {} 
+                }; 
+                
                 let newExpenses = JSON.parse(JSON.stringify(expenses)); 
                 
                 if (newExpenseItem.id) {
@@ -1403,7 +1417,6 @@ const MemberNameInput = React.memo(({ member, onUpdate }) => {
                 
                 pushUpdate({ expenses: newExpenses.sort((a, b) => new Date(a.date) - new Date(b.date)) }); 
                 
-                // 【新增】將圖片獨立存入專屬圖庫
                 if (newExpenseItem.images && newExpenseItem.images.length > 0) {
                     window.FirebaseSDK.setDoc(window.FirebaseSDK.doc(db, 'artifacts', appId, 'public', 'data', `trip_images_${tripId}`, `expense_${expenseId}`), { images: newExpenseItem.images });
                 } else if (images[`expense_${expenseId}`]) {
@@ -1412,18 +1425,32 @@ const MemberNameInput = React.memo(({ member, onUpdate }) => {
 
                 setShowExpenseModal(false); 
                 const defaultDate = activeDayData?.date ? activeDayData.date.split(' ')[0].replace(/\//g, '-') : new Date().toISOString().split('T')[0];
-                setNewExpenseItem({ id: undefined, date: defaultDate, title: '', category: 'food', payer: members[0]?.name || '', amount: '', currency: displayCurrency, sharedBy: members.map(m => m.name), images: [] }); 
+                
+                // 這裡也確保重置時帶有正確的預設值
+                setNewExpenseItem({ id: undefined, date: defaultDate, title: '', category: 'food', payer: members[0]?.name || '', amount: '', currency: displayCurrency, sharedBy: members.map(m => m.name), images: [], splitMode: 'equal', customShares: {} }); 
             };
             
             const handleEditExpenseClick = (item, date) => { 
                 let imagesToEdit = [];
-                // 優先從獨立圖庫中讀取圖片
                 const globalImgs = images[`expense_${item.id}`];
                 if (globalImgs) { imagesToEdit = Array.isArray(globalImgs) ? globalImgs : [globalImgs]; }
-                else if (item.images && Array.isArray(item.images)) { imagesToEdit = item.images; } // 兼容尚未搬移的舊資料
+                else if (item.images && Array.isArray(item.images)) { imagesToEdit = item.images; } 
                 else if (item.image) { imagesToEdit = [item.image]; }
                 
-                setNewExpenseItem({ id: item.id, date: date, title: item.title, category: item.category, payer: item.payer, amount: item.amount !== undefined ? item.amount : item.amountJPY, currency: item.currency || 'JPY', sharedBy: item.sharedBy || [], images: imagesToEdit }); 
+                // 這裡確保編輯時能正確讀取資料庫裡的 splitMode 和 customShares
+                setNewExpenseItem({ 
+                    id: item.id, 
+                    date: date, 
+                    title: item.title, 
+                    category: item.category, 
+                    payer: item.payer, 
+                    amount: item.amount !== undefined ? item.amount : item.amountJPY, 
+                    currency: item.currency || 'JPY', 
+                    sharedBy: item.sharedBy || [], 
+                    images: imagesToEdit, 
+                    splitMode: item.splitMode || 'equal', 
+                    customShares: item.customShares || {} 
+                }); 
                 setShowExpenseModal(true); 
             };
             
@@ -1877,7 +1904,8 @@ return (
                                                     <div className="bg-slate-900/50 rounded-xl border border-slate-700 p-3 flex flex-col shadow-inner gap-2"><div className="flex justify-between items-center"><span className="text-xs text-slate-400">已墊付</span><div className="font-bold text-blue-400 font-mono text-sm">{displayCurrency} {formatNumber(mTotalDisplay, displayCurrency === 'JPY' ? 0 : 1)}</div></div><div className="border-t border-slate-700/50"></div><div className="flex justify-between items-center"><span className="text-xs text-slate-400">結算狀態</span>{myBalance > 0.01 ? (<div className="font-bold text-green-400 font-mono text-sm">應收 {displayCurrency} {formatNumber(myBalance, displayCurrency === 'JPY' ? 0 : 1)}</div>) : myBalance < -0.01 ? (<div className="font-bold text-red-400 font-mono text-sm">應付 {displayCurrency} {formatNumber(Math.abs(myBalance), displayCurrency === 'JPY' ? 0 : 1)}</div>) : (<div className="font-bold text-slate-500 text-sm">無欠款</div>)}</div></div>
                                                     <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg h-[50vh] overflow-y-auto no-scrollbar">
                                                         {mExpenses.length > 0 ? mExpenses.map((item) => {
-                                                            const originalAmount = item.amount !== undefined ? item.amount : item.amountJPY; const originalCurr = item.currency || 'JPY'; const convertedDisplayAmt = convertCurr(originalAmount, originalCurr, displayCurrency); const splitCount = item.sharedBy ? item.sharedBy.length : 1; const payerInShared = item.sharedBy && item.sharedBy.includes(item.payer); const collectAmount = convertedDisplayAmt - (payerInShared ? (convertedDisplayAmt / splitCount) : 0);
+                                                            const originalAmount = item.amount !== undefined ? item.amount : item.amountJPY; const originalCurr = item.currency || 'JPY'; const convertedDisplayAmt = convertCurr(originalAmount, originalCurr, displayCurrency); const splitCount = item.sharedBy ? item.sharedBy.length : 1; const payerInShared = item.sharedBy && item.sharedBy.includes(item.payer); 
+const collectAmount = item.splitMode === 'custom' ? (convertedDisplayAmt - (payerInShared && item.customShares && item.customShares[item.payer] ? convertCurr(item.customShares[item.payer], originalCurr, displayCurrency) : 0)) : (convertedDisplayAmt - (payerInShared ? (convertedDisplayAmt / splitCount) : 0));
                                                             const draggedIdxInList = mExpenses.findIndex(i => i.id === draggedExpenseId); const currentItemIndex = mExpenses.findIndex(i => i.id === item.id); const isDraggingDown = draggedIdxInList !== -1 && draggedIdxInList < currentItemIndex; const isDraggingUp = draggedIdxInList === -1 || draggedIdxInList > currentItemIndex;
                                                             
                                                             let itemImages = [];
@@ -2497,16 +2525,35 @@ return (
                         return (
                             <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in" onMouseDown={onBackdropDown} onMouseUp={(e) => onBackdropUp(e, () => setShowExpenseModal(false))}>
                                 <div className="bg-slate-800 rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden flex flex-col max-h-[90vh] border border-slate-700">
-                                    <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0"><h3 className="font-bold text-lg text-slate-100">{newExpenseItem.id ? '修改花費' : '新增花費'}</h3><button onClick={() => setShowExpenseModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button></div>
+                                    <div className="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-900/50 shrink-0">
+                                        <h3 className="font-bold text-lg text-slate-100">{newExpenseItem.id ? '修改花費' : '新增花費'}</h3>
+                                        <button onClick={() => setShowExpenseModal(false)} className="p-1 text-slate-500 hover:bg-slate-700 rounded-full"><Icons.X size={20} /></button>
+                                    </div>
                                     <form onSubmit={handleAddExpenseSubmit} className="p-6 space-y-4 overflow-y-auto">
                                         <div><label className="block text-sm font-bold text-slate-400 mb-1">名稱</label><input required value={newExpenseItem.title} onChange={e => setNewExpenseItem({...newExpenseItem, title: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none focus:ring-2 focus:ring-blue-500" /></div>
                                         <div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">日期</label><input required type="date" value={newExpenseItem.date} onChange={e => setNewExpenseItem({...newExpenseItem, date: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">類別</label><select value={newExpenseItem.category} onChange={e => setNewExpenseItem({...newExpenseItem, category: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="food">餐飲</option><option value="shopping">購物</option><option value="transport">交通</option><option value="sight">景點</option><option value="accommodation">住宿</option><option value="other">其他</option></select></div></div>
                                         <div className="flex gap-4"><div className="flex-1"><label className="block text-sm font-bold text-slate-400 mb-1">金額</label><input required type="number" step="0.01" value={newExpenseItem.amount} onChange={e => setNewExpenseItem({...newExpenseItem, amount: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none" /></div><div className="w-24"><label className="block text-sm font-bold text-slate-400 mb-1">幣別</label><select value={newExpenseItem.currency} onChange={e => setNewExpenseItem({...newExpenseItem, currency: e.target.value})} className="w-full px-3 py-2 bg-slate-900 border border-slate-700 text-slate-100 rounded-lg outline-none"><option value="JPY">JPY</option><option value="HKD">HKD</option><option value="TWD">TWD</option><option value="MOP">MOP</option><option value="CNY">CNY</option></select></div></div>
                                         <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700"><label className="block text-sm font-bold text-slate-300 mb-2">付款人</label><select value={newExpenseItem.payer} onChange={e => setNewExpenseItem({...newExpenseItem, payer: e.target.value})} className="w-full px-3 py-2 bg-slate-800 border border-slate-700 text-slate-100 rounded-lg">{members.map(m => (<option key={m.id} value={m.name}>{m.name}</option>))}</select></div>
+                                        
                                         <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-700">
                                             <div className="flex justify-between items-center mb-3">
                                                 <label className="block text-sm font-bold text-slate-300">分攤成員</label>
-                                                {splitCount > 0 && <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">每人 {newExpenseItem.currency} {formatNumber(splitAmount, newExpenseItem.currency === 'JPY' ? 0 : 1)}</span>}
+                                                <div className="flex items-center gap-2">
+                                                    <select value={newExpenseItem.splitMode || 'equal'} onChange={(e) => {
+                                                        const mode = e.target.value;
+                                                        if (mode === 'custom') {
+                                                            const shares = {};
+                                                            newExpenseItem.sharedBy.forEach(name => shares[name] = Math.round(splitAmount * 100) / 100);
+                                                            setNewExpenseItem(p => ({ ...p, splitMode: 'custom', customShares: shares }));
+                                                        } else {
+                                                            setNewExpenseItem(p => ({ ...p, splitMode: 'equal' }));
+                                                        }
+                                                    }} className="text-xs bg-slate-800 text-slate-300 rounded border border-slate-600 px-2 py-1 outline-none">
+                                                        <option value="equal">平分</option>
+                                                        <option value="custom">自訂金額</option>
+                                                    </select>
+                                                    {newExpenseItem.splitMode !== 'custom' && splitCount > 0 && <span className="text-xs font-mono text-slate-400 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">每人 {newExpenseItem.currency} {formatNumber(splitAmount, newExpenseItem.currency === 'JPY' ? 0 : 1)}</span>}
+                                                </div>
                                             </div>
                                             <div className="flex flex-col gap-1.5">
                                                 {members.map(m => { 
@@ -2520,8 +2567,15 @@ return (
                                                                 <span>{m.name}</span>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                {isChecked && <span className="text-[11px] bg-slate-900 px-1.5 py-0.5 rounded text-blue-300 font-mono shadow-inner">{newExpenseItem.currency} {formatNumber(splitAmount, newExpenseItem.currency === 'JPY' ? 0 : 1)}</span>}
-                                                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isChecked ? 'bg-blue-600 border-blue-500 text-white shadow-sm' : 'border-slate-600 bg-slate-900'}`}>
+                                                                {isChecked && newExpenseItem.splitMode === 'custom' ? (
+                                                                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                                        <span className="text-xs text-slate-400 font-mono">{newExpenseItem.currency}</span>
+                                                                        <input type="number" step="0.01" min="0" value={newExpenseItem.customShares?.[m.name] ?? ''} onChange={e => setNewExpenseItem(p => ({ ...p, customShares: { ...(p.customShares || {}), [m.name]: Number(e.target.value) } }))} className="w-16 px-1.5 py-0.5 bg-slate-900 border border-slate-600 rounded text-right text-xs text-white outline-none focus:border-blue-500" placeholder="0" />
+                                                                    </div>
+                                                                ) : isChecked ? (
+                                                                    <span className="text-[11px] bg-slate-900 px-1.5 py-0.5 rounded text-blue-300 font-mono shadow-inner">{newExpenseItem.currency} {formatNumber(splitAmount, newExpenseItem.currency === 'JPY' ? 0 : 1)}</span>
+                                                                ) : null}
+                                                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors shrink-0 ${isChecked ? 'bg-blue-600 border-blue-500 text-white shadow-sm' : 'border-slate-600 bg-slate-900'}`}>
                                                                     {isChecked && <Icons.Check size={12} />}
                                                                 </div>
                                                             </div>
@@ -2535,7 +2589,6 @@ return (
                                             <div className="flex items-center justify-between mb-2">
                                                 <label className="block text-sm font-bold text-slate-400">帳單截圖 (可上傳多張)</label>
                                             </div>
-                                            
                                             <div className="grid grid-cols-3 gap-2">
                                                 {newExpenseItem.images && newExpenseItem.images.map((img, idx) => (
                                                     <div key={idx} className="relative w-full aspect-square bg-slate-800 rounded-xl overflow-hidden border border-slate-600 shadow-md">
@@ -2552,7 +2605,6 @@ return (
                                                 </label>
                                             </div>
                                         </div>
-
                                         <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold mt-2 shadow-lg">{newExpenseItem.id ? '儲存修改' : '確認新增'}</button>
                                     </form>
                                 </div>
@@ -2675,6 +2727,9 @@ return (
                                         
                                         const mTotalShared = mSharedItems.reduce((sum, item) => {
                                             const originalAmount = item.amount !== undefined ? item.amount : item.amountJPY;
+                                            if (item.splitMode === 'custom' && item.customShares && item.customShares[m.name] !== undefined) {
+                                                return sum + convertCurr(item.customShares[m.name], item.currency || 'JPY', displayCurrency);
+                                            }
                                             const convertedAmt = convertCurr(originalAmount, item.currency || 'JPY', displayCurrency);
                                             return sum + (convertedAmt / item.sharedBy.length);
                                         }, 0);
@@ -2699,7 +2754,7 @@ return (
                                                         const originalAmount = item.amount !== undefined ? item.amount : item.amountJPY;
                                                         const originalCurr = item.currency || 'JPY';
                                                         const convertedAmt = convertCurr(originalAmount, originalCurr, displayCurrency);
-                                                        const splitAmt = convertedAmt / item.sharedBy.length;
+                                                        const splitAmt = (item.splitMode === 'custom' && item.customShares && item.customShares[m.name] !== undefined) ? convertCurr(item.customShares[m.name], item.currency || 'JPY', displayCurrency) : (convertedAmt / item.sharedBy.length);
                                                         
                                                         return (
                                                             <div key={item.id} className="flex flex-col bg-slate-800/50 p-2.5 rounded-lg border border-slate-700/50 shadow-sm hover:border-slate-500 transition-colors">
@@ -2713,7 +2768,7 @@ return (
                                                                         <span className="text-[9px] text-slate-500 mt-0.5 truncate">付: {item.payer}</span>
                                                                     </div>
                                                                     <div className="text-[9px] text-slate-400 bg-slate-900/80 px-1.5 py-0.5 rounded border border-slate-700 shrink-0 whitespace-nowrap">
-                                                                        {item.sharedBy.length}人分
+                                                                        {item.splitMode === 'custom' ? '自訂分攤' : `${item.sharedBy.length}人分`}
                                                                     </div>
                                                                 </div>
                                                             </div>
