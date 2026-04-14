@@ -837,9 +837,14 @@ const DayDateInput = React.memo(({ day, onUpdate }) => {
             const [images, setImages] = useState({});
             const AMAP_KEY = '3bf27a17038b433640ab774dafa1d0a6'; 
             
-            const [activeTab, setActiveTab] = useState('itinerary'); 
+           const [activeTab, setActiveTab] = useState('itinerary'); 
             const [activeDayId, setActiveDayId] = useState(1);
             const [panelMode, setPanelMode] = useState('list'); 
+
+            // 🌟 修復 1：當切換行程 (或進入收藏庫) 時，強制切換回「行程」頁籤
+            useEffect(() => {
+                setActiveTab('itinerary');
+            }, [tripId]);
             const [modalMode, setModalMode] = useState('add'); 
             const [newItem, setNewItem] = useState({ id: '', name: '', time: '12:00', type: 'sight', address: '', note: '', stayTime: '1', image: null });
             const [tempMarker, setTempMarker] = useState(null);
@@ -1071,7 +1076,16 @@ const DayDateInput = React.memo(({ day, onUpdate }) => {
 
                         if (data.trip) setTrip(data.trip); if (data.members) setMembers(data.members); if (data.expenses) setExpenses(data.expenses);
                         if (data.shoppingItems) setShoppingItems(data.shoppingItems); if (data.packingList) setPackingList(data.packingList);
-                        if (!activeDayId && data.trip?.days?.length > 0) setActiveDayId(data.trip.days[0].id);
+                        
+                        // 🌟 修復 2：檢查當前的 activeDayId 是否存在於新行程中，若不存在則自動切換到新行程的第一天
+                        if (data.trip?.days?.length > 0) {
+                            setActiveDayId(prevId => {
+                                if (!prevId || !data.trip.days.some(d => d.id === prevId)) {
+                                    return data.trip.days[0].id;
+                                }
+                                return prevId;
+                            });
+                        }
                     }
                 });
             }, [user, tripId, db, appId]);
