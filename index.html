@@ -11,6 +11,9 @@
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://webrd01.is.autonavi.com" crossorigin>
     <script defer src="https://cdn.tailwindcss.com"></script>
+    <script defer crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script defer crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script defer src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -71,18 +74,14 @@
             <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
         </div>
     </div>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef, useCallback } = React;
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
         const Icon = ({ path, size = 24, className = "" }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
         );
+
         const Icons = {
             Clock: (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>} />,
             MapPin: (p) => <Icon {...p} path={<><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></>} />,
@@ -1719,16 +1718,18 @@ return (
                     </header>
 
                     {tripId !== 'trip_global_library' && (
-                        <div className="flex border-b border-slate-800 bg-slate-900 px-1.5 md:px-4 gap-3 md:gap-6 text-xs font-bold overflow-x-auto no-scrollbar">
-                            <button onClick={() => setActiveTab('itinerary')} className={`py-2 flex items-center gap-1.5 border-b-2 shrink-0 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Map size={14} />行程</button>
-                            <button onClick={() => setActiveTab('expenses')} className={`py-2 flex items-center gap-1.5 border-b-2 shrink-0 ${activeTab === 'expenses' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Wallet size={14} />花費</button>
-                            <button onClick={() => setActiveTab('shopping')} className={`py-2 flex items-center gap-1.5 border-b-2 shrink-0 ${activeTab === 'shopping' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.ShoppingBag size={14} />待買</button>
-                            <button onClick={() => setActiveTab('packing')} className={`py-2 flex items-center gap-1.5 border-b-2 shrink-0 ${activeTab === 'packing' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Briefcase size={14} />行李</button>
-                            <button onClick={() => setActiveTab('categories')} className={`py-2 flex items-center gap-1.5 border-b-2 shrink-0 ${activeTab === 'categories' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.FileText size={14} />總覽</button>
+                        <div className="flex border-b border-slate-800 bg-slate-900 px-2 md:px-4 gap-4 md:gap-6 text-sm font-medium overflow-x-auto no-scrollbar">
+                            <button onClick={() => setActiveTab('itinerary')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'itinerary' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Map size={18} />行程</button>
+                            <button onClick={() => setActiveTab('expenses')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'expenses' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Wallet size={18} />花費</button>
+                            <button onClick={() => setActiveTab('shopping')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'shopping' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.ShoppingBag size={18} />待買</button>
+                            <button onClick={() => setActiveTab('packing')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'packing' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.Briefcase size={18} />行李</button>
+                            <button onClick={() => setActiveTab('categories')} className={`py-3 flex items-center gap-2 border-b-2 shrink-0 ${activeTab === 'categories' ? 'border-blue-500 text-blue-500' : 'border-transparent text-slate-500'}`}><Icons.FileText size={18} />總覽</button>
                         </div>
                     )}
                     
-                    {/* 🌟 行程收藏庫專屬排版 (總覽橫向卡片式，無時間與交通) 🌟 */}
+                    <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative bg-slate-950">
+                        
+                        {/* 🌟 行程收藏庫專屬排版 (總覽橫向卡片式，無時間與交通) 🌟 */}
                         <div className={`w-full h-full absolute inset-0 bg-slate-900 overflow-y-auto p-4 md:p-8 ${activeTab === 'itinerary' && tripId === 'trip_global_library' ? 'block z-20 opacity-100 pointer-events-auto' : 'hidden z-0 opacity-0 pointer-events-none'}`}>
                             <div className="max-w-[1600px] mx-auto space-y-6 pb-32">
                                 <div className="flex items-center justify-between mb-4">
@@ -1736,11 +1737,10 @@ return (
                                     <span className="bg-amber-500/20 text-amber-400 text-xs px-3 py-1.5 rounded-full font-bold border border-amber-500/30">共 {trip.days?.reduce((acc, day) => acc + (day.places?.length || 0), 0)} 個珍藏景點</span>
                                 </div>
                                 <div className="flex flex-nowrap gap-4 overflow-x-auto pb-8 items-start w-full styled-scrollbar">
-                                    
                                     {trip.days?.map((day, idx) => {
                                         const places = day.places || [];
                                         return (
-                                            <div key={day.id} className="w-[72vw] sm:w-[280px] md:w-[320px] shrink-0 flex flex-col animate-fade-in bg-slate-900/40 rounded-2xl border border-slate-800 p-2 md:p-4 shadow-lg h-max">
+                                            <div key={day.id} className="w-[85vw] sm:w-[300px] md:w-[340px] shrink-0 flex flex-col animate-fade-in bg-slate-900/40 rounded-[2rem] border border-slate-800 p-3 md:p-4 shadow-lg h-max">
                                                 <div className="flex justify-between items-center bg-slate-800/80 p-3 rounded-xl mb-4 border border-slate-700 shadow-sm shrink-0">
                                                     <div className="flex flex-col flex-1 mr-2">
                                                         <DayTitleInput day={day} onUpdate={handleUpdateDayTitle} />
@@ -1796,12 +1796,10 @@ return (
                                             </div>
                                         );
                                     })}
-
                                     <button onClick={() => handleAddDay()} className="w-[60px] md:w-[80px] shrink-0 h-[200px] rounded-[2rem] border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center gap-2 bg-slate-900/20 hover:bg-slate-800/40">
                                         <Icons.Plus size={24} />
                                         <span className="text-xs font-bold" style={{writingMode: 'vertical-rl'}}>新增分類</span>
                                     </button>
-
                                 </div>
                             </div>
                         </div>
@@ -1828,19 +1826,19 @@ return (
                                         >
                                             <div className="w-12 h-1.5 bg-slate-500/80 hover:bg-slate-400 rounded-full transition-colors"></div>
                                         </div>
-                                        <<div ref={daysContainerRef} onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} onMouseLeave={() => { isDraggingDay.current = false; }} onMouseUp={() => { isDraggingDay.current = false; }} onMouseMove={(e) => { if(!isDraggingDay.current) return; const x = e.pageX; const walk = (x - dragStartX.current); if (Math.abs(walk) > 5) { dragHasMoved.current = true; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; } }} className="bg-slate-900 border-b border-slate-800 px-1.5 pb-1.5 md:px-3 md:pb-3 md:py-4 flex flex-nowrap gap-1.5 md:gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none shrink-0">
+                                        <div ref={daysContainerRef} onMouseDown={(e) => { isDraggingDay.current = true; dragStartX.current = e.pageX; dragScrollLeft.current = daysContainerRef.current.scrollLeft; dragHasMoved.current = false; }} onMouseLeave={() => { isDraggingDay.current = false; }} onMouseUp={() => { isDraggingDay.current = false; }} onMouseMove={(e) => { if(!isDraggingDay.current) return; const x = e.pageX; const walk = (x - dragStartX.current); if (Math.abs(walk) > 5) { dragHasMoved.current = true; daysContainerRef.current.scrollLeft = dragScrollLeft.current - walk; } }} className="bg-slate-900 border-b border-slate-800 px-2 pb-2 md:px-3 md:pb-3 md:py-4 flex flex-nowrap gap-1.5 md:gap-3 overflow-x-auto no-scrollbar shadow-sm cursor-grab active:cursor-grabbing select-none shrink-0">
                                             {trip.days?.map((day, idx) => (
-                                                <button key={day.id} onClick={() => { if(!dragHasMoved.current) setActiveDayId(day.id); }} className={`relative flex flex-col items-center justify-center min-w-[36px] md:min-w-[100px] shrink-0 py-0.5 px-1 md:p-3 rounded md:rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 md:ring-2 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}>
+                                                <button key={day.id} onClick={() => { if(!dragHasMoved.current) setActiveDayId(day.id); }} className={`relative flex flex-col items-center justify-center min-w-[44px] md:min-w-[100px] shrink-0 p-1 md:p-3 rounded-md md:rounded-xl border ${activeDayId === day.id ? 'bg-blue-900/40 border-blue-500 ring-1 md:ring-2 ring-blue-500 shadow-md' : 'bg-slate-800 border-slate-700'}`}>
                                                     {activeDayId === day.id && trip.days?.length > 1 && (
-                                                        <div onClick={(e) => { e.stopPropagation(); setShowDeleteDayConfirm(true); }} className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 md:w-5 md:h-5 bg-slate-600/60 hover:bg-slate-500/80 backdrop-blur-sm text-slate-200 rounded-full flex items-center justify-center shadow-md z-10 pointer-events-auto transition-colors" title="刪除此天"><Icons.X size={8} className="md:hidden" /><Icons.X size={12} className="hidden md:block" /></div>
+                                                        <div onClick={(e) => { e.stopPropagation(); setShowDeleteDayConfirm(true); }} className="absolute -top-1.5 -right-1.5 w-4 h-4 md:w-5 md:h-5 bg-slate-600/60 hover:bg-slate-500/80 backdrop-blur-sm text-slate-200 rounded-full flex items-center justify-center shadow-md z-10 pointer-events-auto transition-colors" title="刪除此天"><Icons.X size={10} className="md:hidden" /><Icons.X size={12} className="hidden md:block" /></div>
                                                     )}
-                                                    <div className="flex items-center gap-0.5 w-full justify-center pointer-events-none"><span className={`text-[9px] md:text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>D{idx + 1}</span><div className="scale-50 md:scale-100 -ml-1 -mr-0.5"><WeatherIcon type={day.weather?.type} size={16} /></div></div><span className="text-[7px] md:text-xs font-medium text-slate-500 pointer-events-none mt-0">{formatShortDate(day.date)}</span>
+                                                    <div className="flex items-center gap-0.5 md:gap-1 w-full justify-center pointer-events-none"><span className={`text-[9px] md:text-sm font-bold ${activeDayId === day.id ? 'text-blue-400' : 'text-slate-400'}`}>D{idx + 1}</span><div className="scale-75 md:scale-100"><WeatherIcon type={day.weather?.type} size={16} /></div></div><span className="text-[8px] md:text-xs font-medium text-slate-500 pointer-events-none mt-0.5">{formatShortDate(day.date)}</span>
                                                 </button>
                                             ))}
-                                            <button onClick={() => { if(!dragHasMoved.current) handleAddDay(); }} className="min-w-[36px] md:min-w-[80px] p-0.5 md:p-3 rounded md:rounded-xl border border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center"><div className="bg-slate-800 rounded-full p-0.5 md:p-1.5 mb-0 pointer-events-none scale-50 md:scale-100"><Icons.Plus size={18} /></div><span className="text-[7px] md:text-xs font-bold pointer-events-none">新增</span></button>
+                                            <button onClick={() => { if(!dragHasMoved.current) handleAddDay(); }} className="min-w-[44px] md:min-w-[80px] p-1 md:p-3 rounded-md md:rounded-xl border-2 border-dashed border-slate-700 text-slate-500 hover:text-slate-300 hover:border-slate-500 transition-colors flex flex-col items-center justify-center"><div className="bg-slate-800 rounded-full p-0.5 md:p-1.5 mb-0.5 md:mb-1.5 pointer-events-none scale-75 md:scale-100"><Icons.Plus size={18} /></div><span className="text-[8px] md:text-xs font-bold pointer-events-none">新增</span></button>
                                         </div>
                                         
-                                        <div className="itinerary-list-container px-2 md:px-4 py-1.5 overflow-y-auto flex-1 pb-32">
+                                        <div className="itinerary-list-container px-3 md:px-4 py-4 overflow-y-auto flex-1 pb-32">
                                             <div className="flex justify-between items-center bg-slate-800/50 p-2.5 md:p-3 rounded-xl mb-3 md:mb-4 border border-slate-700/50"><div className="flex flex-col flex-1 min-w-0 mr-2"><DayTitleInput day={activeDayData} onUpdate={handleUpdateDayTitle} /><div className="flex items-center gap-2 mt-0.5 md:mt-1 px-2 md:px-1"><DayDateInput day={activeDayData} onUpdate={handleUpdateDayDate} /><span className="text-[10px] text-slate-500">· {activeDayData?.places?.length || 0} 個景點</span></div></div><button onClick={() => setShowDeleteDayConfirm(true)} className="p-1.5 md:p-2 text-slate-500 hover:text-red-400 bg-slate-800 rounded-lg border border-slate-700 transition-colors shrink-0"><Icons.Trash2 size={16} className="scale-90 md:scale-100" /></button></div>
                                             <div className="flex flex-col mt-2">
                                                 {activeDayData?.places.map((p, i) => {
@@ -1855,31 +1853,26 @@ return (
                                                                     <div className="flex-1">
                                                                         <div className={`flex items-stretch overflow-hidden rounded-xl border border-slate-700 bg-slate-800/90 transition-all ${hoveredPlaceId === p.id ? 'border-blue-500 shadow-xl' : ''}`} onMouseEnter={() => setHoveredPlaceId(p.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
                                                                             <div className="w-[85px] sm:w-[120px] bg-slate-700/50 shrink-0 relative cursor-pointer overflow-hidden group/img flex items-center justify-center" onClick={() => placeImg && setPreviewImage(placeImg)}>{placeImg ? (<img src={placeImg} draggable={false} className="absolute inset-0 w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-300 pointer-events-none" />) : (<div className="pointer-events-none opacity-50 relative z-10"><CategoryIconWithLabel type={p.type} size={24} /></div>)}{placeImg && <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors z-10 pointer-events-none"></div>}</div>
-                                                                            <div className="flex gap-1.5 items-stretch">
-                                                            <div className="flex flex-col items-center w-7 shrink-0"><div className="text-[9px] font-bold text-blue-300 font-mono mb-1 pt-1">{p.time}</div><div onPointerDown={() => setDragEnabledId(p.id)} onTouchStart={() => setDragEnabledId(p.id)} className="drag-handle w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center text-[10px] font-bold text-white mt-0.5 shadow-lg shadow-blue-900/50 border border-slate-900 cursor-grab active:cursor-grabbing hover:bg-blue-500 transition-colors">{i+1}</div>{i < activeDayData.places.length - 1 && <div className="w-px bg-slate-700 flex-1 mt-1 min-h-[1rem]"></div>}</div>
-                                                            <div className="flex-1">
-                                                                <div className={`flex items-stretch overflow-hidden rounded-lg border border-slate-700 bg-slate-800/90 transition-all ${hoveredPlaceId === p.id ? 'border-blue-500 shadow-md' : ''}`} onMouseEnter={() => setHoveredPlaceId(p.id)} onMouseLeave={() => setHoveredPlaceId(null)}>
-                                                                    <div className="w-[55px] sm:w-[100px] bg-slate-700/50 shrink-0 relative cursor-pointer overflow-hidden group/img flex items-center justify-center" onClick={() => placeImg && setPreviewImage(placeImg)}>{placeImg ? (<img src={placeImg} draggable={false} className="absolute inset-0 w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-300 pointer-events-none" />) : (<div className="pointer-events-none opacity-50 relative z-10"><CategoryIconWithLabel type={p.type} size={16} /></div>)}{placeImg && <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/10 transition-colors z-10 pointer-events-none"></div>}</div>
-                                                                    <div className="flex-1 min-w-0 relative p-1.5"><div className="flex justify-between items-start"><div className="flex flex-col"><div className="flex items-start gap-0.5">{p.note && (<button onClick={(e) => toggleNote(p.id, e)} className="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0 outline-none">{isNoteExpanded ? <Icons.ChevronUp size={14} /> : <Icons.ChevronDown size={14} />}</button>)}<h3 className={`font-bold text-slate-100 text-xs md:text-sm leading-tight ${isNoteExpanded ? '' : 'line-clamp-2'}`}>{p.name}</h3></div>{p.note && isNoteExpanded && (<div className="mt-1 ml-3 text-[10px] md:text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">{p.note}</div>)}</div><div className="flex items-center gap-0 shrink-0 ml-1"><div onPointerDown={() => setDragEnabledId(p.id)} onTouchStart={() => setDragEnabledId(p.id)} className="drag-handle p-1 text-slate-500 hover:text-white hover:bg-slate-700 rounded cursor-grab active:cursor-grabbing transition-colors"><Icons.GripVertical size={14} /></div><button onClick={(e) => { e.stopPropagation(); saveListScroll(); setActivePlaceMenu({...p, sourceDayId: activeDayData.id, image: placeImg}); }} className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"><Icons.MoreVertical size={14} /></button></div></div><div className={`text-[9px] md:text-[10px] text-slate-400 mt-0.5 ${p.note ? 'ml-3' : ''}`}>停留 {formatStayTimeShort(p.stayTime)}</div><div className={`mt-1 flex flex-wrap items-center gap-1 ${p.note ? 'ml-3' : ''}`}><span className="px-1 py-0.5 rounded text-[8px] md:text-[9px] text-slate-300 bg-slate-700 font-bold uppercase tracking-wider">{getCategoryName(p.type)}</span></div></div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                                {i < activeDayData.places.length - 1 && (
-                                                            <div className="flex items-center relative py-1.5 w-full group/segment">
-                                                                <div className="absolute left-3.5 -ml-px top-0 bottom-0 border-l border-dashed border-slate-600 z-0"></div>
-                                                                
-                                                                <div className="absolute left-3.5 top-1/2 w-4 md:w-6 border-t border-dashed border-slate-600 -translate-y-px z-0 group-hover/segment:border-slate-500 transition-colors"></div>
-                                                                
-                                                                <div className="w-7 shrink-0 flex justify-center z-10 relative">
-                                                                    <div className="text-[8px] md:text-[9px] font-bold text-slate-400 font-mono bg-slate-900 px-1 py-px rounded border border-slate-700 shadow-sm transition-colors group-hover/segment:border-slate-500 group-hover/segment:text-slate-200">
-                                                                        {getEndTime(p.time, parseFloat(p.stayTime || 1))}
+                                                                            <div className="flex-1 min-w-0 relative p-2"><div className="flex justify-between items-start"><div className="flex flex-col"><div className="flex items-start gap-0.5">{p.note && (<button onClick={(e) => toggleNote(p.id, e)} className="mt-0.5 text-slate-400 hover:text-blue-400 transition-colors shrink-0 outline-none">{isNoteExpanded ? <Icons.ChevronUp size={16} /> : <Icons.ChevronDown size={16} />}</button>)}<h3 className={`font-bold text-slate-100 text-sm md:text-base leading-snug ${isNoteExpanded ? '' : 'line-clamp-2'}`}>{p.name}</h3></div>{p.note && isNoteExpanded && (<div className="mt-1.5 ml-4 text-xs md:text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">{p.note}</div>)}</div><div className="flex items-center gap-0.5 shrink-0 ml-1"><div onPointerDown={() => setDragEnabledId(p.id)} onTouchStart={() => setDragEnabledId(p.id)} className="drag-handle p-1 text-slate-500 hover:text-white hover:bg-slate-700 rounded-lg cursor-grab active:cursor-grabbing transition-colors"><Icons.GripVertical size={16} /></div><button onClick={(e) => { e.stopPropagation(); saveListScroll(); setActivePlaceMenu({...p, sourceDayId: activeDayData.id, image: placeImg}); }} className="p-1 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"><Icons.MoreVertical size={16} /></button></div></div><div className={`text-[10px] md:text-[11px] text-slate-400 mt-1 ${p.note ? 'ml-4' : ''}`}>停留 {formatStayTime(p.stayTime)}</div><div className={`mt-1.5 flex flex-wrap items-center gap-1.5 ${p.note ? 'ml-4' : ''}`}><span className="px-1.5 py-0.5 rounded text-[9px] md:text-[10px] text-slate-300 bg-slate-700 font-bold uppercase tracking-wider">{getCategoryName(p.type)}</span></div></div>
+                                                                        </div>
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex-1 z-10 pl-1.5 md:pl-3 relative scale-[0.85] origin-left">
-                                                                    <TravelSegmentUI p1={p} p2={activeDayData.places[i+1]} onUpdateMode={(m) => handleUpdateTravelMode(activeDayData.id, p.id, m)} onMouseEnter={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} onMouseLeave={() => setHoveredSegmentId(null)} onTouchStart={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} />
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                                {i < activeDayData.places.length - 1 && (
+                                                                    <div className="flex items-center relative py-4 w-full group/segment">
+                                                                        <div className="absolute left-5 -ml-[1px] top-0 bottom-0 border-l-2 border-dashed border-slate-600 z-0"></div>
+                                                                        
+                                                                        <div className="absolute left-5 top-1/2 w-6 md:w-8 border-t-2 border-dashed border-slate-600 -translate-y-[1px] z-0 group-hover/segment:border-slate-500 transition-colors"></div>
+                                                                        
+                                                                        <div className="w-10 shrink-0 flex justify-center z-10 relative">
+                                                                            <div className="text-[10px] md:text-[11px] font-bold text-slate-400 font-mono bg-slate-900 px-1.5 py-0.5 rounded border border-slate-700 shadow-sm transition-colors group-hover/segment:border-slate-500 group-hover/segment:text-slate-200">
+                                                                                {getEndTime(p.time, parseFloat(p.stayTime || 1))}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex-1 z-10 pl-2 md:pl-4 relative">
+                                                                            <TravelSegmentUI p1={p} p2={activeDayData.places[i+1]} onUpdateMode={(m) => handleUpdateTravelMode(activeDayData.id, p.id, m)} onMouseEnter={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} onMouseLeave={() => setHoveredSegmentId(null)} onTouchStart={() => setHoveredSegmentId(`${p.id}-${activeDayData.places[i+1].id}`)} />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             {dragOverPlaceIndex === i && draggedPlaceIndexRef.current !== null && draggedPlaceIndexRef.current < i && (<div className="w-full h-24 bg-blue-500/10 border-2 border-dashed border-blue-400 rounded-xl mt-4 mb-2 pointer-events-none flex items-center justify-center animate-fade-in shadow-inner"><span className="text-blue-400 font-bold text-sm bg-blue-900/40 px-3 py-1 rounded-full">放在此處</span></div>)}
                                                         </div>
